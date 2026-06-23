@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, User, Lock, IdCard, CheckCircle, AlertTriangle, Key, PhoneCall, LogIn } from 'lucide-react';
+import { Shield, User, Lock, CreditCard, CheckCircle, AlertTriangle, Key, PhoneCall, LogIn } from 'lucide-react';
 import { useRegisterStore } from '../../../context/registerStore';
 import { useAuth } from '../../../context/AuthContext';
 import apiClient from '../../../api/api-client';
@@ -178,7 +178,7 @@ export const Login: React.FC = () => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">رقم المتطوع الموحد</label>
                   <div className="relative">
-                    <IdCard className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+                    <CreditCard className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
                     <input type="text" value={volunteerId} onChange={(e) => setVolunteerId(e.target.value)} required className="w-full pr-10 pl-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-red outline-none text-left" dir="ltr" placeholder="VOL-XXXXXX" />
                   </div>
                 </div>
@@ -245,7 +245,7 @@ export const Login: React.FC = () => {
                   <label className="block text-sm font-semibold text-gray-700 mb-1">كلمة المرور للنظام</label>
                   <div className="relative">
                     <Lock className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pr-10 pl-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-red outline-none text-left" dir="ltr" placeholder="••••••••" />
+                    <input type="password" value={password} className="w-full pr-10 pl-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-red outline-none text-left" dir="ltr" placeholder="••••••••" required />
                   </div>
                 </div>
                 <div>
@@ -270,4 +270,3 @@ export const Login: React.FC = () => {
 };
 
 export default Login;
- 

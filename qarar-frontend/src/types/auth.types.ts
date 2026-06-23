@@ -1,5 +1,5 @@
 // تعريف مصفوفة الأدوار الـ 19 المعتمدة بالنظام صراحة في الفرونتد
-public type UserRole =
+export type UserRole =
   | 'super_admin'
   | 'unit_head' | 'deputy_unit_head'
   | 'unit_secretary' | 'deputy_unit_secretary'
