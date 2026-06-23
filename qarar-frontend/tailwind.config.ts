@@ -1,6 +1,6 @@
-import type { Config } from 'tailwindcss'
+import type { Config } from 'tailwindcss';
 
-export default {
+const config: Config = {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -8,19 +8,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        // الألوان الرسمية للهلال الأحمر (أحمر عملياتي، وأسود رصين، ورمادي أمان)
         brand: {
-          red: '#E11D48',
-          dark: '#0F172A',
-          muted: '#64748B',
-          light: '#F8FAFC'
-        }
-      },
-      fontFamily: {
-        // اعتماد خطوط متناسقة ومريحة للقراءة في الميدان
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+          red: '#dc2626',  // اللون الأحمر الرسمي للهلال الأحمر
+          dark: '#0f172a', // الكحلي الداكن للخلفية الفخمة
+        },
       },
     },
   },
   plugins: [],
-} satisfies Config
+};
+
+export default config;
