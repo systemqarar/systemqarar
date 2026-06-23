@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { AuthController } from './auth.controller';
+import { authController } from './auth.controller'; // التعديل هنا: استخدام الحرف الصغير المطابق
 
 const router = Router();
 
-// خريطة مسارات بوابة الأمان والتحقق بنظام قرار
-router.post('/verify-volunteer', AuthController.verifyVolunteer);
-router.post('/verify-otp', AuthController.verifyOTP);
-router.post('/emergency-request', AuthController.emergencyRequest);
-router.post('/register', AuthController.register);
-router.post('/login', AuthController.login);
+// ربط المسارات بالدوال المصممة للشاشات الأربعة
+router.post('/login', authController.login);
+router.post('/verify-volunteer', authController.verifyVolunteer);
+router.post('/verify-otp', authController.verifyOTP);
+router.post('/emergency-request', authController.emergencyRequest);
+router.post('/register', authController.register);
 
 export default router;
