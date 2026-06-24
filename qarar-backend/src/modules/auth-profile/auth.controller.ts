@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
+import { hasrApiClient } from '../../services/hasrApiClient';
 
-// محاكاة سريعة لقاعدة بيانات الحصر المؤقتة في وضع التطوير
+// محاكاة سريعة لقاعدة بيانات الحصر المؤقتة (تم إيقاف استخدامها في الفحص الحي والاعتماد على السيرفر الخارجي)
 const mockVolunteerDb = [
   {
     volunteer_id: 'VOL-2026',
@@ -35,25 +36,56 @@ export const authController = {
     }
   },
 
-  // 2️⃣ الشاشة 2: فحص المعرف في لقطة نظام الحصر
+  // 2️⃣ الشاشة 2: فحص المعرف في لقطة نظام الحصر (تم التحديث للربط الحي والفحص الصارم)
   verifyVolunteer: async (req: Request, res: Response): Promise<void> => {
     try {
       const { volunteer_id } = req.body;
-      const volunteer = mockVolunteerDb.find(v => v.volunteer_id === volunteer_id);
 
-      if (!volunteer) {
-        res.status(404).json({ error: 'رقم المتطوع الموحد غير مدرج في لقطة بيانات الحصر الحالية' });
+      if (!volunteer_id) {
+        res.status(400).json({ error: 'الرجاء إدخال رقم المتطوع الموحد' });
         return;
       }
 
-      const masked = volunteer.whatsapp.replace(/^(\+\d{5})(\d{4})(\d{3})$/, '$1****$3');
+      // 1. استجلاب البيانات حياً من نظام الحصر الخارجي عبر ملف الخدمة
+      const volunteerData = await hasrApiClient.getVolunteerById(volunteer_id);
+
+      // 2. الفحص الصارم الأول: هل الحالة معتمد (approved)؟
+      if (volunteerData.status !== 'approved') {
+        res.status(403).json({ error: 'عذراً، هذا الحساب معلق أو غير معتمد في نظام الحصر الرسمي' });
+        return;
+      }
+
+      // 3. الفحص الصارم الثاني: هل هو تابع لوحدة الكلاكلة شرق؟
+      if (volunteerData.unitName !== 'الكلاكلة شرق') {
+        res.status(403).json({ error: 'عذراً، النظام متاح حالياً فقط لمتطوعي وحدة الكلاكلة شرق الإدارية' });
+        return;
+      }
+
+      // 4. ترجمة البيانات وتجهيز اللقطة (Snapshot) لتطابق مسميات الفرونتد المتوقعة (من camelCase إلى snake_case)
+      const volunteerSnapshot = {
+        volunteer_id: volunteerData.volunteerId,
+        national_id: volunteerData.nationalId,
+        full_name: volunteerData.fullName,
+        phone: volunteerData.phone,
+        whatsapp: volunteerData.whatsapp || volunteerData.phone, // خط دفاع احتياطي لو الواتساب فارغ
+        photo_url: volunteerData.photoUrl,
+        is_tot_trainer: volunteerData.isTotTrainer,
+        current_status_in_khartoum: volunteerData.currentStatusInKhartoum || 'داخل الولاية',
+        unit_name: volunteerData.unitName
+      };
+
+      // 5. إخفاء جزئي لرقم الواتساب المسترجع لحماية الخصوصية ميدانياً
+      const targetWhatsapp = volunteerSnapshot.whatsapp || '';
+      const masked = targetWhatsapp.replace(/^(\+\d{5})(\d{4})(\d{3})$/, '$1****$3');
+
       res.status(200).json({
-        message: 'المتطوع مدرج بالحصر، تم إرسال الرمز للواتساب المعتمد',
+        message: 'المتطوع مدرج بالحصر ومطابق للشروط، تم إرسال الرمز للواتساب المعتمد',
         masked_whatsapp: masked,
-        snapshot: volunteer
+        snapshot: volunteerSnapshot
       });
-    } catch (error) {
-      res.status(500).json({ error: 'خطأ أثناء فحص الحصر' });
+    } catch (error: any) {
+      // إرجاع رسائل الأخطاء الديناميكية (مثل 404 غير موجود المندفعة من ملف الخدمة)
+      res.status(500).json({ error: error.message || 'خطأ أثناء فحص الحصر والربط الحي' });
     }
   },
 
