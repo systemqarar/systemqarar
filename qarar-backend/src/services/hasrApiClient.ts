@@ -5,15 +5,15 @@ const HASR_API_BASE_URL = process.env.HASR_API_URL;
 
 export const hasrApiClient = {
   /**
-   * دالة لجلب بيانات المتطوع من نظام الحصر باستخدام رقمه
+   * دالة لجلب بيانات المتطوع من نظام الحصر باستخدام رقمه حياً
    */
   async getVolunteerById(volunteerId: string) {
     try {
-      // الاتصال بالمسار العام لنظام الحصر وجلب البيانات
-      const response = await axios.get(`${HASR_API_BASE_URL}/public/${encodeURIComponent(volunteerId)}`);
+      // الاتصال بالمسار النهائي الصحيح بعد دمج البادئات المكتشفة (/api/volunteers)
+      const response = await axios.get(`${HASR_API_BASE_URL}/api/volunteers/public/${encodeURIComponent(volunteerId)}`);
       return response.data; 
     } catch (error: any) {
-      // لو نظام الحصر قال 404 يعني الرقم ما عنده
+      // لو نظام الحصر قال 404 يعني الرقم غير موجود في قاعدة البيانات
       if (error.response && error.response.status === 404) {
         throw new Error('عفواً، هذا الرقم غير مسجل في نظام الحصر الرسمي');
       }
