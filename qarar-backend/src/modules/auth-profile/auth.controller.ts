@@ -1,42 +1,75 @@
 import { Request, Response } from 'express';
 import { hasrApiClient } from '../../services/hasrApiClient';
-
-// محاكاة سريعة لقاعدة بيانات الحصر المؤقتة
-const mockVolunteerDb = [
-  {
-    volunteer_id: 'VOL-2026',
-    national_id: '1234567890',
-    full_name: 'أحمد عبد الله محمد',
-    phone: '+249912345678',
-    whatsapp: '+249111199119',
-    photo_url: null,
-    is_tot_trainer: true,
-    current_status_in_khartoum: 'مستقر - أمدرمان'
-  }
-];
+import db from '../config/db'; // استدعاء عميل قاعدة البيانات الفعلي الذي أرسلته لي
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 export const authController = {
-  // 1️⃣ الشاشة 1: تسجيل الدخول الروتيني
+  // 1️⃣ الشاشة 1: تسجيل الدخول الروتيني الفعلي من قاعدة البيانات
   login: async (req: Request, res: Response): Promise<void> => {
     try {
       const { username, password } = req.body;
-      
-      if (username === 'admin' && password === 'admin123') {
-        res.status(200).json({
-          message: 'تم تسجيل الدخول بنجاح',
-          token: 'mock-jwt-token-for-qarar-system-2026',
-          user: { id: 'usr-1', username: 'admin', role: 'super_admin', is_acting: false }
-        });
+
+      if (!username || !password) {
+        res.status(400).json({ error: 'الرجاء إدخال اسم المستخدم وكلمة المرور' });
         return;
       }
+
+      // الاستعلام الصارم للبحث عن المستخدم في جدول users السحابي
+      const userResult = await db.query('SELECT * FROM users WHERE username = $1', [username]);
       
-      res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+      if (userResult.rows.length === 0) {
+        res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+        return;
+      }
+
+      const user = userResult.rows[0];
+
+      // فحص حظر الحساب ضد التخمين (Brute-Force)
+      if (user.locked_until && new Date(user.locked_until) > new Date()) {
+        res.status(423).json({ error: 'الحساب مغلق مؤقتاً بسبب محاولات خاطئة متكررة. حاول مجدداً لاحقاً.' });
+        return;
+      }
+
+      // مطابقة كلمة المرور المشفرة
+      const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+      if (!isPasswordValid) {
+        // زيادة عداد المحاولات الفاشلة
+        const attempts = (user.failed_attempts || 0) + 1;
+        if (attempts >= 5) {
+          const lockTime = new Date(Date.now() + 15 * 60 * 1000); // حظر 15 دقيقة
+          await db.query('UPDATE users SET failed_attempts = $1, locked_until = $2 WHERE id = $3', [attempts, lockTime, user.id]);
+        } else {
+          await db.query('UPDATE users SET failed_attempts = $1 WHERE id = $2', [attempts, user.id]);
+        }
+        res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+        return;
+      }
+
+      // تصفير عداد المحاولات الفاشلة عند الدخول الناجح
+      await db.query('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
+
+      // توليد توكن الأمان JWT (إذا لم يتوفر متغير سري يستخدم مفتاح افتراضي صارم لضمان التمرير)
+      const jwtSecret = process.env.JWT_SECRET || 'qarar-secret-key-2026-strict';
+      const token = jwt.sign(
+        { userId: user.id, username: user.username, role: user.role, is_acting: user.is_acting },
+        jwtSecret,
+        { expiresIn: '24h' }
+      );
+
+      res.status(200).json({
+        message: 'تم تسجيل الدخول بنجاح',
+        token,
+        user: { id: user.id, username: user.username, role: user.role, is_acting: user.is_acting }
+      });
     } catch (error) {
-      res.status(500).json({ error: 'خطأ داخلي في الخادم' });
+      console.error('Login Error:', error);
+      res.status(500).json({ error: 'خطأ داخلي في الخادم أثناء تسجيل الدخول' });
     }
   },
 
-  // 2️⃣ الشاشة 2: فحص المعرف في لقطة نظام الحصر واعتماد ID الوحدة
+  // 2️⃣ الشاشة 2: فحص المعرف في لقطة نظام الحصر واعتماد ID الوحدة (دون تغيير)
   verifyVolunteer: async (req: Request, res: Response): Promise<void> => {
     try {
       const { volunteer_id } = req.body;
@@ -46,23 +79,19 @@ export const authController = {
         return;
       }
 
-      // 1. استجلاب البيانات حياً من نظام الحصر الخارجي
       const volunteerData = await hasrApiClient.getVolunteerById(volunteer_id);
 
-      // 2. الفحص الصارم الأول: هل الحالة معتمد (approved)؟
       if (volunteerData.status !== 'approved') {
         res.status(403).json({ error: 'عذراً، هذا الحساب معلق أو غير معتمد في نظام الحصر الرسمي' });
         return;
       }
 
-      // 3. الفحص الهندسي الصارم الثاني: التحقق من أن المتطوع تابع لوحدة الكلاكلة شرق عبر الرقم 7
       const currentUnitId = volunteerData.unitId || volunteerData.unit_id;
       if (Number(currentUnitId) !== 7) {
         res.status(403).json({ error: 'عذراً، النظام متاح حالياً فقط لمتطوعي وحدة الكلاكلة شرق الإدارية' });
         return;
       }
 
-      // 4. ترجمة البيانات وتجهيز اللقطة (Snapshot) لتطابق مسميات الفرونتد المتوقعة
       const volunteerSnapshot = {
         volunteer_id: volunteerData.volunteerId,
         national_id: volunteerData.nationalId,
@@ -75,7 +104,6 @@ export const authController = {
         unit_name: volunteerData.unitName
       };
 
-      // 5. إخفاء جزئي لرقم الواتساب المسترجع لحماية الخصوصية ميدانياً
       const targetWhatsapp = volunteerSnapshot.whatsapp || '';
       const masked = targetWhatsapp.replace(/^(\+\d{5})(\d{4})(\d{3})$/, '$1****$3');
 
@@ -89,7 +117,7 @@ export const authController = {
     }
   },
 
-  // 3️⃣ الشاشة 3: مطابقة رمز الـ OTP
+  // 3️⃣ الشاشة 3: مطابقة رمز الـ OTP (محاكاة التطوير بـ 123456 لحين ربط السوكت محلياً)
   verifyOTP: async (req: Request, res: Response): Promise<void> => {
     try {
       const { volunteer_id, otp_code } = req.body;
@@ -117,17 +145,75 @@ export const authController = {
     }
   },
 
-  // 4️⃣ الشاشة 4: إنشاء الحساب النهائي وتثبيت اللقطة
+  // 4️⃣ الشاشة 4: إنشاء الحساب النهائي الفعلي وحفظ البيانات المعزولة في جداول Neon السحابية
   register: async (req: Request, res: Response): Promise<void> => {
     try {
       const { username, password, snapshot } = req.body;
+
+      if (!username || !password || !snapshot) {
+        res.status(400).json({ error: 'البيانات المدخلة غير مكتملة' });
+        return;
+      }
+
+      // 1. فحص صارم مسبق: هل اسم المستخدم محجوز في النظام؟
+      const checkUser = await db.query('SELECT id FROM users WHERE username = $1', [username]);
+      if (checkUser.rows.length > 0) {
+        res.status(400).json({ error: 'اسم المستخدم هذا محجوز مسبقاً، اختر اسماً آخر' });
+        return;
+      }
+
+      // 2. فحص صارم مسبق: هل رقم المتطوع مسجل مسبقاً بحساب آخر؟
+      const checkVolunteer = await db.query('SELECT id FROM users WHERE volunteer_id = $1', [snapshot.volunteer_id]);
+      if (checkVolunteer.rows.length > 0) {
+        res.status(400).json({ error: 'رقم المتطوع الموحد هذا مبرمج ومسجل بحساب آخر بالفعل!' });
+        return;
+      }
+
+      // 3. تشفير كلمة المرور لحمايتها أمنياً قبل نزولها للقاعدة
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      // تحديد الدور البرمي بناءً على صفة الـ TOT التدريبية المعتمدة
+      const assignedRole = snapshot.is_tot_trainer ? 'volunteer_trainer' : 'volunteer';
+
+      // 4. كتابة وحفظ بيانات الحساب والأمان في جدول users المعتمد في تذكرتكم التقنية
+      const userInsertQuery = `
+        INSERT INTO users (volunteer_id, national_id, username, password_hash, role)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id;
+      `;
+      const userValues = [snapshot.volunteer_id, snapshot.national_id, username, hashedPassword, assignedRole];
+      const userInsertResult = await db.query(userInsertQuery, userValues);
       
+      const newUserId = userInsertResult.rows[0].id;
+
+      // 5. كتابة وحفظ بيانات الملف الشخصي والجغرافي المعزول في جدول volunteer_profiles
+      const profileInsertQuery = `
+        INSERT INTO volunteer_profiles (
+          user_id, full_name, phone, whatsapp, photo_url, is_tot_trainer, current_status_in_khartoum
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7);
+      `;
+      const profileValues = [
+        newUserId,
+        snapshot.full_name,
+        snapshot.phone,
+        snapshot.whatsapp,
+        snapshot.photo_url,
+        snapshot.is_tot_trainer,
+        snapshot.current_status_in_khartoum
+      ];
+      
+      await db.query(profileInsertQuery, profileValues);
+
       res.status(201).json({
-        message: 'تم إنشاء وتفعيل حسابك الموحد على نظام قرار بنجاح! توجه لشاشة الدخول الروتيني.',
-        user: { username, role: snapshot?.is_tot_trainer ? 'volunteer_trainer' : 'volunteer' }
+        message: 'تم إنشاء وتفعيل حسابك الموحد وحفظ لقطتك المعزولة في Neon بنجاح! توجه لشاشة الدخول الروتيني.',
+        user: { username, role: assignedRole }
       });
     } catch (error) {
-      res.status(500).json({ error: 'فشل تفعيل الحساب النهائي' });
+      console.error('Registration Error:', error);
+      res.status(500).json({ error: 'فشل تفعيل وحفظ الحساب النهائي في السيرفر السحابي' });
     }
   }
 };
+
+export default authController;
