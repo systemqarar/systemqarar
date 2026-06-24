@@ -241,7 +241,8 @@ export const Login: React.FC = () => {
                   <label className="block text-sm font-semibold text-gray-700 mb-1">كلمة المرور للنظام</label>
                   <div className="relative">
                     <Lock className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
-                    <input type="password" value={password} className="w-full pr-10 pl-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-red outline-none text-left" dir="ltr" placeholder="••••••••" required />
+                    {/* تم تصحيح السطر أدناه بإضافة دالة الاستماع للتغيير لمنع تجميد الحقل */}
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full pr-10 pl-3 py-2 border rounded-lg focus:ring-2 focus:ring-brand-red outline-none text-left" dir="ltr" placeholder="••••••••" required />
                   </div>
                 </div>
                 <div>
