@@ -2,68 +2,70 @@ import makeWASocket, { useMultiFileAuthState, DisconnectReason, delay } from '@w
 import pino from 'pino';
 import path from 'path';
 
+// إعداد مسجل تقارير صامت تماماً لمنع إزعاج اللوقس
 const logger = pino({ level: 'silent' });
 
 class WhatsappService {
   private sock: any = null;
-  private isPairingCodeRequested = false; // 🔒 قفل الأمان لمنع تكرار طلب الكود
 
   async initialize() {
-    // إعادة تهيئة قفل الأمان عند كل تشغيل جديد نظيف
-    this.isPairingCodeRequested = false;
-
+    // 1. تحديد مسار حفظ ملفات الجلسة
     const { state, saveCreds } = await useMultiFileAuthState(path.join(process.cwd(), 'whatsapp_session'));
 
+    // 2. إنشاء سوكيت الاتصال
     this.sock = makeWASocket({
       auth: state,
       logger,
       printQRInTerminal: false
     });
 
+    // 3. حفظ التحديثات الأمنية للجلسة
     this.sock.ev.on('creds.update', saveCreds);
 
+    // 4. مراقبة حالة الاتصال (فقط للطباعة وإعادة الاتصال عند السقوط الحقيقي)
     this.sock.ev.on('connection.update', async (update: any) => {
       const { connection, lastDisconnect } = update;
 
       if (connection === 'close') {
-        const shouldReconnect = (lastDisconnect?.error as any)?.output?.statusCode !== DisconnectReason.loggedOut;
-        console.log('🔴 تم قطع اتصال الواتساب. سبب القطع:', lastDisconnect?.error?.message || lastDisconnect?.error, 'محاولة إعادة الاتصال التلقائي:', shouldReconnect);
+        const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        
+        console.log(`🔴 [تنبيه]: انقطع اتصال السوكت المبدئي (كود: ${statusCode}). إعادة المحاولة: ${shouldReconnect}`);
         
         if (shouldReconnect) {
-          // انتظر قليلاً قبل إعادة المحاولة لتجنب الحظر
-          await delay(5000);
+          // تأخير أمان لمدة 10 ثوانٍ كاملة قبل إعادة التشغيل لحماية الحساب من الحظر الرقمي
+          await delay(10000);
           this.initialize();
         }
       } else if (connection === 'open') {
-        console.log('🟢 [نجاح مبهر]: تم ربط رقم الواتساب بالنظام بنجاح وهو الآن جاهز للخدمة الحية!');
-        this.isPairingCodeRequested = false; // تصغير الراية بعد النجاح
-      }
-
-      // 🔒 فحص قفل الأمان: لا تطلب الكود إلا إذا كان الحساب غير مسجل ولَم يتم طلب كود من قبل في هذه الدورة
-      if (!this.sock.authState.creds.registered && !this.isPairingCodeRequested) {
-        const myPhoneNumber = process.env.MY_WHATSAPP_NUMBER;
-        
-        if (myPhoneNumber) {
-          this.isPairingCodeRequested = true; // تفعيل القفل فوراً لمنع التكرار بالتزامن
-          await delay(6000); // مهلة استقرار للسيرفر
-          
-          try {
-            console.log(`⏳ جاري طلب كود الربط الرقمي للرقم: ${myPhoneNumber}...`);
-            const pairingCode = await this.sock.requestPairingCode(myPhoneNumber.trim());
-            
-            console.log('\n=============================================');
-            console.log(`🔑 [كود ربط واتساب نظام قرار]: >>> ${pairingCode} <<<`);
-            console.log('⏰ الكود مستقر الآن وثابت؛ أدخله في موبايلك براحتك.');
-            console.log('=============================================\n');
-          } catch (err) {
-            console.error('❌ فشل طلب كود الربط الرقمي من واتساب:', err);
-            this.isPairingCodeRequested = false; // فتح القفل للمحاولة التالية في حال الفشل الحقيقي
-          }
-        } else {
-          console.log('⚠️ تنبيه: لم يتم طباعة كود الربط لعدم وجود المتغير MY_WHATSAPP_NUMBER في إعدادات ريندر.');
-        }
+        console.log('🟢 [نجاح مبهر]: تم ربط رقم الواتساب بنجاح وهو الآن نشط وجاهز للخدمة الحية!');
       }
     });
+
+    // 5. 🔒 [منطقة الأمان المركزية]: طلب كود الـ 8 أرقام يتم هنا "مرة واحدة فقط" عند إقلاع السيرفر
+    if (!this.sock.authState.creds.registered) {
+      const myPhoneNumber = process.env.MY_WHATSAPP_NUMBER;
+      
+      if (myPhoneNumber) {
+        // نمنح السيرفر في ريندر 10 ثوانٍ كاملة لفتح الـ WebSocket واستقراره قبل طلب الكود
+        console.log(`⏳ [انتظار]: جاري تهيئة خط الاتصال المستقر مع واتساب...`);
+        await delay(10000);
+        
+        try {
+          console.log(`📡 جاري إرسال طلب رسمي لتوليد كود الربط الرقمي للرقم: ${myPhoneNumber.trim()}`);
+          const pairingCode = await this.sock.requestPairingCode(myPhoneNumber.trim());
+          
+          console.log('\n=============================================');
+          console.log(`🔑 [كود ربط واتساب نظام قرار]: >>> ${pairingCode} <<<`);
+          console.log('⏰ الكود ثابت ومستقر الآن في السيرفر بانتظار إدخاله في موبايلك.');
+          console.log('=============================================\n');
+        } catch (err: any) {
+          console.error('❌ [خطأ]: فشل سيرفر واتساب في تزويدنا بكود الربط حالياً، السبب:', err?.message || err);
+        }
+      } else {
+        console.log('⚠️ تنبيه: لم يتم طلب كود الربط لعدم وجود المتغير MY_WHATSAPP_NUMBER في إعدادات ريندر.');
+      }
+    }
   }
 
   async sendOTP(targetPhone: string, otpCode: string): Promise<boolean> {
@@ -82,7 +84,6 @@ class WhatsappService {
     try {
       const cleanPhone = targetPhone.replace(/[+\s-]/g, '').trim();
       const whatsappJid = `${cleanPhone}@s.whatsapp.net`;
-
       const messageText = `📜 *نظام قرار لإدارة وحدة الكلاكلة شرق الإدارية*\n\nأهلاً بك يا متطوع، رمز التحقق الخاص بتفعيل حسابك الموحد هو:\n\n🔑 الرمز: *${otpCode}*\n\n⏰ الرمز صالح لمدة 5 دقائق فقط. يرجى عدم مشاركته مع أي شخص لأمان حسابك الميداني.`;
 
       await this.sock.sendMessage(whatsappJid, { text: messageText });
