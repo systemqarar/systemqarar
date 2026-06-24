@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { hasrApiClient } from '../../services/hasrApiClient';
-import db from '../config/db'; // استدعاء عميل قاعدة البيانات الفعلي الذي أرسلته لي
+import db from '../../config/db';
+ // استدعاء عميل قاعدة البيانات الفعلي الذي أرسلته لي
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
