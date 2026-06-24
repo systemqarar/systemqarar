@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { hasrApiClient } from '../../services/hasrApiClient';
 
-// محاكاة سريعة لقاعدة بيانات الحصر المؤقتة (تم إيقاف استخدامها في الفحص الحي والاعتماد على السيرفر الخارجي)
+// محاكاة سريعة لقاعدة بيانات الحصر المؤقتة
 const mockVolunteerDb = [
   {
     volunteer_id: 'VOL-2026',
@@ -36,7 +36,7 @@ export const authController = {
     }
   },
 
-  // 2️⃣ الشاشة 2: فحص المعرف في لقطة نظام الحصر (تم التحديث للربط الحي والفحص الصارم)
+  // 2️⃣ الشاشة 2: فحص المعرف في لقطة نظام الحصر واعتماد ID الوحدة
   verifyVolunteer: async (req: Request, res: Response): Promise<void> => {
     try {
       const { volunteer_id } = req.body;
@@ -46,7 +46,7 @@ export const authController = {
         return;
       }
 
-      // 1. استجلاب البيانات حياً من نظام الحصر الخارجي عبر ملف الخدمة
+      // 1. استجلاب البيانات حياً من نظام الحصر الخارجي
       const volunteerData = await hasrApiClient.getVolunteerById(volunteer_id);
 
       // 2. الفحص الصارم الأول: هل الحالة معتمد (approved)؟
@@ -55,19 +55,20 @@ export const authController = {
         return;
       }
 
-      // 3. الفحص الصارم الثاني: هل هو تابع لوحدة الكلاكلة شرق؟
-      if (volunteerData.unitName !== 'الكلاكلة شرق') {
+      // 3. الفحص الهندسي الصارم الثاني: التحقق من أن المتطوع تابع لوحدة الكلاكلة شرق عبر الرقم 7
+      const currentUnitId = volunteerData.unitId || volunteerData.unit_id;
+      if (Number(currentUnitId) !== 7) {
         res.status(403).json({ error: 'عذراً، النظام متاح حالياً فقط لمتطوعي وحدة الكلاكلة شرق الإدارية' });
         return;
       }
 
-      // 4. ترجمة البيانات وتجهيز اللقطة (Snapshot) لتطابق مسميات الفرونتد المتوقعة (من camelCase إلى snake_case)
+      // 4. ترجمة البيانات وتجهيز اللقطة (Snapshot) لتطابق مسميات الفرونتد المتوقعة
       const volunteerSnapshot = {
         volunteer_id: volunteerData.volunteerId,
         national_id: volunteerData.nationalId,
         full_name: volunteerData.fullName,
         phone: volunteerData.phone,
-        whatsapp: volunteerData.whatsapp || volunteerData.phone, // خط دفاع احتياطي لو الواتساب فارغ
+        whatsapp: volunteerData.whatsapp || volunteerData.phone,
         photo_url: volunteerData.photoUrl,
         is_tot_trainer: volunteerData.isTotTrainer,
         current_status_in_khartoum: volunteerData.currentStatusInKhartoum || 'داخل الولاية',
@@ -84,7 +85,6 @@ export const authController = {
         snapshot: volunteerSnapshot
       });
     } catch (error: any) {
-      // إرجاع رسائل الأخطاء الديناميكية (مثل 404 غير موجود المندفعة من ملف الخدمة)
       res.status(500).json({ error: error.message || 'خطأ أثناء فحص الحصر والربط الحي' });
     }
   },
