@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import Login from '../environments/public-site/pages/Login';
+import AuthRoutes from '../environments/public-site/modules/auth/auth.routes';
 
 // حارس المسارات المحمية: يمنع دخول غير المسجلين
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -28,8 +28,8 @@ export const AppRoutes: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* المسار العام: بوابة الدخول والتسجيل */}
-        <Route path="/login" element={<Login />} />
+        {/* 📦 موديول الأمان اللامركزي: يستقبل ويشغل كل مسارات الأمان تلقائياً */}
+        <Route path="/*" element={<AuthRoutes />} />
 
         {/* المسارات المحمية: لوحة التحكم الموحدة (Dashboard) */}
         <Route 

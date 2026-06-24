@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, User, Lock, CreditCard, CheckCircle, AlertTriangle, Key, PhoneCall, LogIn } from 'lucide-react';
-import { useRegisterStore } from '../../../context/registerStore';
-import { useAuth } from '../../../context/AuthContext';
-import apiClient from '../../../api/api-client';
+import { useRegisterStore } from '../context/registerStore';
+import { useAuth } from '../../../../../context/AuthContext';
+import authApi from '../api/auth-api';
 
 export const Login: React.FC = () => {
   const { loginUser } = useAuth();
@@ -27,8 +27,8 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      const response = await apiClient.post('/auth/login', { username, password });
-      loginUser(response.data.token, response.data.user);
+      const data = await authApi.login(username, password);
+      loginUser(data.token, data.user);
     } catch (err: any) {
       setError(err.response?.data?.error || 'حدث خطأ أثناء تسجيل الدخول');
     } finally {
@@ -42,9 +42,9 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      const response = await apiClient.post('/auth/verify-volunteer', { volunteer_id: volunteerId });
-      setMaskedWhatsapp(response.data.masked_whatsapp);
-      setSnapshot(response.data.snapshot);
+      const data = await authApi.verifyVolunteer(volunteerId);
+      setMaskedWhatsapp(data.masked_whatsapp);
+      setSnapshot(data.snapshot);
       setStep(3); // الانتقال لشاشة التحقق
     } catch (err: any) {
       setError(err.response?.data?.error || 'المعرف غير صحيح أو غير مدرج بالحصر');
@@ -59,7 +59,7 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      await apiClient.post('/auth/verify-otp', { volunteer_id: volunteerId, otp_code: otpCode });
+      await authApi.verifyOTP(volunteerId, otpCode);
       setStep(4); // الانتقال لاستمارة الحساب النهائية
     } catch (err: any) {
       setError(err.response?.data?.error || 'رمز التحقق غير صحيح أو انتهت صلاحيته');
@@ -73,8 +73,8 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      const response = await apiClient.post('/auth/emergency-request', { volunteer_id: volunteerId });
-      setSuccessMessage(response.data.message);
+      const data = await authApi.emergencyRequest(volunteerId);
+      setSuccessMessage(data.message);
       setTimeout(() => { resetStore(); }, 5000);
     } catch (err: any) {
       setError(err.response?.data?.error || 'فشل رفع طلب الطوارئ');
@@ -93,12 +93,8 @@ export const Login: React.FC = () => {
     }
     setLoading(true);
     try {
-      const response = await apiClient.post('/auth/register', {
-        username,
-        password,
-        snapshot
-      });
-      setSuccessMessage(response.data.message);
+      const data = await authApi.register({ username, password, snapshot });
+      setSuccessMessage(data.message);
       setTimeout(() => {
         resetStore();
         setUsername('');
@@ -117,7 +113,7 @@ export const Login: React.FC = () => {
         
         {/* الهيدر العلوي الموحد للبوابة */}
         <div className="bg-brand-red p-6 text-white text-center flex flex-col items-center">
-          <Shield className="w-12 h-12 mb-2 animate-pulse" />
+          <Shield className="w-12 h-12 mb-2" />
           <h1 className="text-2xl font-bold tracking-wide">نظام قرار الرقمي</h1>
           <p className="text-xs text-rose-100 mt-1">وحدة المتطوعين - الهلال الأحمر</p>
         </div>
