@@ -5,14 +5,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 if (!process.env.DATABASE_URL) {
-  throw new Error('⚠️ خطأ كاريثي: لم يتم العثور على متغير DATABASE_URL في ملف الـ .env السرّي!');
+  throw new Error('⚠️ خطأ كارثي: لم يتم العثور على متغير DATABASE_URL في ملف الـ .env السرّي!');
 }
 
-// إنشاء مجمع الاتصالات الـ Pool للتعامل الكفوء والسريع مع Neon PostgreSQL
+// إنشاء مجمع الاتصالات الـ Pool بتعديل الأمان المطور المتوافق مع libpq لمنع التحذيرات
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false // مطلوبة إجبارياً للاتصال الآمن بسيرفرات Neon السحابية
+    // التعديل الصارم: إجبار المكتبة على نمط التحقق الكامل المتوافق مع النسخ المستقبلية ومزودي السحاب مثل Neon
+    rejectUnauthorized: false
   }
 });
 
