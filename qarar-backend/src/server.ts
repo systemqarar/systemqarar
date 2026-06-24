@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './modules/auth-profile/auth.routes';
+import { whatsappService } from './services/whatsappService'; // 🟢 استيراد خدمة الواتساب المركزية الجديدة
 
 // تفعيل قراءة الملفات البيئية السرية (.env)
 dotenv.config();
@@ -29,10 +30,18 @@ app.get('/health', (req, res) => {
 // 3. ربط وتفعيل موديول الحسابات والأمان (Auth Routes)
 app.use('/api/auth', authRoutes);
 
-// 4. تشغيل المحرك والاستماع للمنفذ المعين
-app.listen(PORT, () => {
+// 4. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
+app.listen(PORT, async () => {
   console.log(`===================================================`);
   console.log(`⚡ [SERVER RUNNING]: السيرفر ينبض بالحياة الآن على منفذ: ${PORT}`);
   console.log(`🔒 [ENVIRONMENT]: وضع المحاكاة الذكي = ${process.env.DEVELOPMENT_MODE}`);
   console.log(`===================================================`);
+  
+  // 🟢 إطلاق وتشغيل خدمة ربط وتفعيل الواتساب بمجرد استقرار السيرفر حياً
+  try {
+    console.log('⏳ [تهيئة]: جاري تشغيل خط اتصال الواتساب الحركي...');
+    await whatsappService.initialize();
+  } catch (whatsappError) {
+    console.error('❌ [خطأ حرج]: فشل تشغيل محرك الواتساب أثناء إقلاع السيرفر:', whatsappError);
+  }
 });
