@@ -3,7 +3,6 @@ import { hasrApiClient } from '../../services/hasrApiClient';
 import db from '../../config/db';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-// 🟢 إضافة استدعاء كود الواتساب المنسي هنا
 import { whatsappService } from '../../services/whatsappService'; 
 
 export const authController = {
@@ -13,7 +12,7 @@ export const authController = {
       const { username, password } = req.body;
 
       if (!username || !password) {
-        res.status(400).json({ error: 'الرجاء إدخل اسم المستخدم وكلمة المرور' });
+        res.status(400).json({ error: 'الرجاء إدخال اسم المستخدم وكلمة المرور' });
         return;
       }
 
@@ -65,7 +64,7 @@ export const authController = {
     }
   },
 
-  // 2️⃣ الشاشة 2: فحص المعرف وإرسال الرمز الحقيقي عبر الواتساب
+  // 2️⃣ الشاشة 2: فحص المعرف وصياغة رسالة الـ OTP وإرسالها
   verifyVolunteer: async (req: Request, res: Response): Promise<void> => {
     try {
       const { volunteer_id } = req.body;
@@ -102,10 +101,15 @@ export const authController = {
 
       const targetWhatsapp = volunteerSnapshot.whatsapp || '';
 
-      // 🔥 [التعديل الجوهري]: استدعاء سيرفر الواتساب لإرسال الرمز الحقيقي 123456 للجوال
+      // 🟢 [التعديل الجوهري]: صياغة الرسالة داخل الكنترولر وتمريرها للسيرفس العام
       if (targetWhatsapp) {
-        console.log(`🚀 جاري تمرير طلب الإرسال للرقم: ${targetWhatsapp}`);
-        await whatsappService.sendOTP(targetWhatsapp, '123456');
+        console.log(`🚀 جاري تجهيز رسالة الـ OTP وتمريرها للرقم: ${targetWhatsapp}`);
+        
+        const otpCode = '123456'; // الرمز الثابت المؤقت للمحاكاة
+        const customMessage = `🔐 [نظام قرار الرقمي]\n\nرمز التحقق الخاص بك هو: ${otpCode}\n\nيرجى عدم مشاركة هذا الرمز مع أي شخص للحفاظ على أمان حسابك.`;
+        
+        // استدعاء دالة الإرسال العامة الجديدة
+        await whatsappService.sendMessage(targetWhatsapp, customMessage);
       }
 
       const masked = targetWhatsapp.replace(/^(\+\d{5})(\d{4})(\d{3})$/, '$1****$3');

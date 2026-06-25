@@ -55,7 +55,7 @@ class WhatsappService {
             this.initialize();
           }
         } else if (connection === 'open') {
-          console.log('🟢 تم ربط الواتساب بنجاح! نظام قرار الآن جاهز لإرسال الـ OTP 🎉');
+          console.log('🟢 تم ربط الواتساب بنجاح! نظام قرار الآن جاهز لإرسال الرسائل 🎉');
           this.isInitializing = false;
         }
       });
@@ -76,38 +76,39 @@ class WhatsappService {
     }
   }
 
-  // 🔥 تعديل دالة الإرسال لتنظيف الرقم وتحويله للصيغة الدولية تلقائياً والإرسال الفعلي
-  async sendOTP(targetPhone: string, otpCode: string): Promise<boolean> {
+  // 🟢 [التعديل هنا]: الدالة أصبحت عامة ومرنة وتستقبل أي نص رسالة من الكنترولر
+  async sendMessage(targetPhone: string, messageText: string): Promise<boolean> {
     try {
       if (!this.sock) {
-        console.error('❌ [قرار - خطأ]: سيرفر الواتساب غير متصل حالياً، لا يمكن إرسال الرمز.');
+        console.error('❌ [قرار - خطأ]: سيرفر الواتساب غير متصل حالياً.');
         return false;
       }
 
-      // 1️⃣ تنظيف الرقم من المسافات وعلامة الزائد إن وجدت
+      // تنظيف الرقم وتحويله دولي (دي وظيفة سيرفس الواتساب)
       let formattedNumber = targetPhone.trim().replace(/[\s+]+/g, '');
-      
-      // 2️⃣ استبدال الصفر المحلي بمفتاح السودان الدولي تلقائياً
       if (formattedNumber.startsWith('0')) {
         formattedNumber = '249' + formattedNumber.substring(1);
       } else if (!formattedNumber.startsWith('249')) {
         formattedNumber = '249' + formattedNumber;
       }
 
-      // 3️⃣ تجهيز معرف الواتساب والرسالة النصية
       const jid = `${formattedNumber}@s.whatsapp.net`;
-      const messageText = `🔐 [نظام قرار الرقمي]\n\nرمز التحقق الخاص بك هو: ${otpCode}\n\nيرجى عدم مشاركة هذا الرمز مع أي شخص للحفاظ على أمان حسابك.`;
 
-      console.log(`📡 جاري إرسال الرمز الآن إلى: ${jid}...`);
+      // التمويه الزمني العشوائي لحماية الشريحة من الحظر
+      const randomSeconds = Math.floor(Math.random() * (7000 - 3000 + 1)) + 3000;
+      console.log(`⏱️ [تمويه أمني]: الانتظار لمدة ${randomSeconds / 1000} ثوانٍ بشكل عشوائي...`);
+      await delay(randomSeconds);
 
-      // 4️⃣ الإرسال الفعلي عبر الواتساب
+      console.log(`📡 جاري إرسال الرسالة الآن إلى: ${jid}...`);
+
+      // الإرسال الفعلي للنص الممرر
       await this.sock.sendMessage(jid, { text: messageText });
 
-      console.log(`✅ تم إرسال رمز التحقق بنجاح إلى الرقم: ${formattedNumber}`);
+      console.log(`✅ تم إرسال الرسالة بنجاح للرقم: ${formattedNumber}`);
       return true;
 
     } catch (error) {
-      console.error(`❌ فشل إرسال الرمز إلى ${targetPhone}:`, error);
+      console.error(`❌ فشل إرسال الرسالة إلى ${targetPhone}:`, error);
       return false;
     }
   }
