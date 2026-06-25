@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import { hasrApiClient } from '../../services/hasrApiClient';
 import db from '../../config/db';
- // استدعاء عميل قاعدة البيانات الفعلي الذي أرسلته لي
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+// 🟢 إضافة استدعاء كود الواتساب المنسي هنا
+import { whatsappService } from '../../services/whatsappService'; 
 
 export const authController = {
   // 1️⃣ الشاشة 1: تسجيل الدخول الروتيني الفعلي من قاعدة البيانات
@@ -12,11 +13,10 @@ export const authController = {
       const { username, password } = req.body;
 
       if (!username || !password) {
-        res.status(400).json({ error: 'الرجاء إدخال اسم المستخدم وكلمة المرور' });
+        res.status(400).json({ error: 'الرجاء إدخل اسم المستخدم وكلمة المرور' });
         return;
       }
 
-      // الاستعلام الصارم للبحث عن المستخدم في جدول users السحابي
       const userResult = await db.query('SELECT * FROM users WHERE username = $1', [username]);
       
       if (userResult.rows.length === 0) {
@@ -26,20 +26,17 @@ export const authController = {
 
       const user = userResult.rows[0];
 
-      // فحص حظر الحساب ضد التخمين (Brute-Force)
       if (user.locked_until && new Date(user.locked_until) > new Date()) {
         res.status(423).json({ error: 'الحساب مغلق مؤقتاً بسبب محاولات خاطئة متكررة. حاول مجدداً لاحقاً.' });
         return;
       }
 
-      // مطابقة كلمة المرور المشفرة
       const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
       if (!isPasswordValid) {
-        // زيادة عداد المحاولات الفاشلة
         const attempts = (user.failed_attempts || 0) + 1;
         if (attempts >= 5) {
-          const lockTime = new Date(Date.now() + 15 * 60 * 1000); // حظر 15 دقيقة
+          const lockTime = new Date(Date.now() + 15 * 60 * 1000);
           await db.query('UPDATE users SET failed_attempts = $1, locked_until = $2 WHERE id = $3', [attempts, lockTime, user.id]);
         } else {
           await db.query('UPDATE users SET failed_attempts = $1 WHERE id = $2', [attempts, user.id]);
@@ -48,10 +45,8 @@ export const authController = {
         return;
       }
 
-      // تصفير عداد المحاولات الفاشلة عند الدخول الناجح
       await db.query('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
 
-      // توليد توكن الأمان JWT (إذا لم يتوفر متغير سري يستخدم مفتاح افتراضي صارم لضمان التمرير)
       const jwtSecret = process.env.JWT_SECRET || 'qarar-secret-key-2026-strict';
       const token = jwt.sign(
         { userId: user.id, username: user.username, role: user.role, is_acting: user.is_acting },
@@ -70,7 +65,7 @@ export const authController = {
     }
   },
 
-  // 2️⃣ الشاشة 2: فحص المعرف في لقطة نظام الحصر واعتماد ID الوحدة (دون تغيير)
+  // 2️⃣ الشاشة 2: فحص المعرف وإرسال الرمز الحقيقي عبر الواتساب
   verifyVolunteer: async (req: Request, res: Response): Promise<void> => {
     try {
       const { volunteer_id } = req.body;
@@ -106,6 +101,13 @@ export const authController = {
       };
 
       const targetWhatsapp = volunteerSnapshot.whatsapp || '';
+
+      // 🔥 [التعديل الجوهري]: استدعاء سيرفر الواتساب لإرسال الرمز الحقيقي 123456 للجوال
+      if (targetWhatsapp) {
+        console.log(`🚀 جاري تمرير طلب الإرسال للرقم: ${targetWhatsapp}`);
+        await whatsappService.sendOTP(targetWhatsapp, '123456');
+      }
+
       const masked = targetWhatsapp.replace(/^(\+\d{5})(\d{4})(\d{3})$/, '$1****$3');
 
       res.status(200).json({
@@ -114,11 +116,12 @@ export const authController = {
         snapshot: volunteerSnapshot
       });
     } catch (error: any) {
+      console.error('Verify Volunteer Error:', error);
       res.status(500).json({ error: error.message || 'خطأ أثناء فحص الحصر والربط الحي' });
     }
   },
 
-  // 3️⃣ الشاشة 3: مطابقة رمز الـ OTP (محاكاة التطوير بـ 123456 لحين ربط السوكت محلياً)
+  // 3️⃣ الشاشة 3: مطابقة رمز الـ OTP
   verifyOTP: async (req: Request, res: Response): Promise<void> => {
     try {
       const { volunteer_id, otp_code } = req.body;
@@ -156,28 +159,22 @@ export const authController = {
         return;
       }
 
-      // 1. فحص صارم مسبق: هل اسم المستخدم محجوز في النظام؟
       const checkUser = await db.query('SELECT id FROM users WHERE username = $1', [username]);
       if (checkUser.rows.length > 0) {
         res.status(400).json({ error: 'اسم المستخدم هذا محجوز مسبقاً، اختر اسماً آخر' });
         return;
       }
 
-      // 2. فحص صارم مسبق: هل رقم المتطوع مسجل مسبقاً بحساب آخر؟
       const checkVolunteer = await db.query('SELECT id FROM users WHERE volunteer_id = $1', [snapshot.volunteer_id]);
       if (checkVolunteer.rows.length > 0) {
         res.status(400).json({ error: 'رقم المتطوع الموحد هذا مبرمج ومسجل بحساب آخر بالفعل!' });
         return;
       }
 
-      // 3. تشفير كلمة المرور لحمايتها أمنياً قبل نزولها للقاعدة
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-      // تحديد الدور البرمي بناءً على صفة الـ TOT التدريبية المعتمدة
       const assignedRole = snapshot.is_tot_trainer ? 'volunteer_trainer' : 'volunteer';
 
-      // 4. كتابة وحفظ بيانات الحساب والأمان في جدول users المعتمد في تذكرتكم التقنية
       const userInsertQuery = `
         INSERT INTO users (volunteer_id, national_id, username, password_hash, role)
         VALUES ($1, $2, $3, $4, $5)
@@ -188,7 +185,6 @@ export const authController = {
       
       const newUserId = userInsertResult.rows[0].id;
 
-      // 5. كتابة وحفظ بيانات الملف الشخصي والجغرافي المعزول في جدول volunteer_profiles
       const profileInsertQuery = `
         INSERT INTO volunteer_profiles (
           user_id, full_name, phone, whatsapp, photo_url, is_tot_trainer, current_status_in_khartoum
