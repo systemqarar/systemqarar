@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, User, Lock, CreditCard, CheckCircle, AlertTriangle, Key, PhoneCall, LogIn, ChevronLeft } from 'lucide-react';
-// استيراد أيقونة الواتساب المخصصة من مكتبة لوسيد
-import { MessageSquareCode } from 'lucide-react'; 
+import { Shield, User, Lock, CreditCard, CheckCircle, AlertTriangle, Key, PhoneCall, LogIn, ChevronLeft, MessageSquareCode } from 'lucide-react'; 
 import { useRegisterStore } from '../context/registerStore';
 import { useAuth } from '../../../../../context/AuthContext';
 import authApi from '../api/auth-api';
-
 
 export const Login: React.FC = () => {
   const { loginUser } = useAuth();
@@ -22,10 +19,8 @@ export const Login: React.FC = () => {
 
   const clearMessages = () => { setError(null); setSuccessMessage(null); };
 
-  // دالة وهمية أو حقيقية لتنسيق الرقم المرمز بصيغة السودان الآمنة (مثال: 249912***345+)
   const formatSudanWhatsapp = (num: string) => {
     if (!num) return '249912***345+';
-    // إذا كان الرقم قادماً من السيرفر جاهزاً، نعرضه، وإلا نطبق التنسيق المطلوب
     return num.startsWith('+') ? num : `+249 ${num}`;
   };
 
@@ -104,6 +99,7 @@ export const Login: React.FC = () => {
         resetStore();
         setUsername('');
         setPassword('');
+        setConfirmPassword('');
       }, 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || 'فشلت عملية إنشاء وتفعيل الحساب الجديد');
@@ -114,18 +110,15 @@ export const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-100 to-slate-200 flex flex-col justify-center items-center p-4 font-sans text-right select-none relative overflow-hidden" dir="rtl">
-
-      {/* هالات ضوئية بلون أحمر ملكي فاخر خافت جداً في الخلفية البيضاء لإعطاء عمق باهر */}
+      
       <motion.div 
         animate={{ scale: [1, 1.15, 1], x: [0, 20, 0], y: [0, -20, 0] }}
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
         className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-red-600/5 rounded-full blur-[140px] pointer-events-none" 
       />
 
-      {/* لوحة العرض الزجاجية البيضاء الفاخرة المطرزة بالأحمر الملكي */}
       <div className="w-full max-w-md bg-white/80 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(150,0,0,0.12)] overflow-hidden border border-white relative z-10">
-
-        {/* واجهة العرض العلوية - الهوية البصرية الرسمية باللون الأحمر الملكي */}
+        
         <div className="p-8 pb-5 text-center flex flex-col items-center bg-gradient-to-b from-red-50/60 via-transparent to-transparent">
           <motion.div whileHover={{ scale: 1.05 }} className="relative mb-3">
             <div className="absolute inset-0 bg-red-600/10 rounded-2xl blur-xl" />
@@ -137,7 +130,6 @@ export const Login: React.FC = () => {
           <p className="text-xs text-red-700/80 mt-1 font-bold tracking-wide">شؤون المتطوعين - الهلال الأحمر السوداني</p>
         </div>
 
-        {/* شريط المراحل الخطي الأنيق باللون الأحمر الملكي */}
         {step > 1 && (
           <div className="px-8 pt-2">
             <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
@@ -150,7 +142,6 @@ export const Login: React.FC = () => {
           </div>
         )}
 
-        {/* مساحة التنبيهات المنبثقة بنعومة متناسقة مع الألوان الجديدة */}
         <AnimatePresence mode="wait">
           {(error || successMessage) && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="px-8 pt-4">
@@ -170,11 +161,9 @@ export const Login: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* مساحة الاستمارات الداخلية التفاعلية */}
         <div className="p-8">
           <AnimatePresence mode="wait">
-
-            {/* الشاشة ١: الدخول الروتيني */}
+            
             {step === 1 && (
               <motion.form key="login" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }} onSubmit={handleLogin} className="space-y-5">
                 <div>
@@ -203,20 +192,16 @@ export const Login: React.FC = () => {
               </motion.form>
             )}
 
-            {/* الشاشة ٢: فحص رقم المتطوع + مشهد الـ الفاخر الحركي للواتساب المستبدل بالكامل */}
             {step === 2 && (
               <motion.div key="verify-id-container" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
                 {loading ? (
-                  /* ترقية المشهد: استخدام مسار الواتساب الحقيقي والأنيق بنقاط الاتصال */
                   <motion.div key="whatsapp-sending-animation" className="flex flex-col items-center justify-center py-6 space-y-6">
                     <div className="flex items-center justify-between w-full max-w-xs px-6 relative" dir="ltr">
-
-                      {/* الهاتف المستلم */}
+                      
                       <div className="bg-slate-50 p-4 rounded-2xl text-slate-400 border border-slate-200 shadow-md flex items-center justify-center z-10">
                         <User className="w-6 h-6 text-slate-600" />
                       </div>
 
-                      {/* سلسلة النقاط الضوئية الحمراء الملكية الفخمة */}
                       <div className="flex items-center space-x-1.5 flex-1 justify-center px-4">
                         {[0, 1, 2, 3, 4].map((index) => (
                           <motion.div
@@ -228,7 +213,6 @@ export const Login: React.FC = () => {
                         ))}
                       </div>
 
-                      {/* شعار تطبيق الواتساب الأخضر الرسمي الفاخر النابض والمشع بديل الأيقونة السابقة */}
                       <motion.div 
                         animate={{ scale: [1, 1.1, 1] }} 
                         transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
@@ -266,7 +250,6 @@ export const Login: React.FC = () => {
               </motion.div>
             )}
 
-            {/* الشاشة ٣: رمز الأمان المشفر وخيار الطوارئ */}
             {step === 3 && (
               <motion.form key="otp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onSubmit={handleVerifyOTP} className="space-y-5">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -287,7 +270,7 @@ export const Login: React.FC = () => {
                 <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl transition duration-300 shadow-md disabled:opacity-40 text-sm">
                   {loading ? 'جاري مطابقة الرمز...' : 'تأكيد الرمز والمتابعة'}
                 </motion.button>
-
+                
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-2.5 shadow-inner">
                   <p className="text-[11px] text-slate-500 text-center leading-relaxed">إذا واجهتك مشكلة اتصال في الميدان ولم يصلك الرمز، فَعِّل الاعتماد الاستثنائي البديـل:</p>
                   <button type="button" onClick={handleEmergencyRequest} disabled={loading} className="w-full bg-amber-500/5 border border-amber-200 text-amber-800 hover:bg-amber-500/10 font-bold py-2.5 rounded-xl text-xs flex justify-center items-center gap-2 transition duration-300">
@@ -295,29 +278,27 @@ export const Login: React.FC = () => {
                     تفعيل مسار الطوارئ الميداني والطلب اليدوي
                   </button>
                 </div>
-
+                
                 <div className="text-center">
                   <button type="button" onClick={() => { clearMessages(); setStep(2); }} className="text-xs font-bold text-slate-500 hover:text-slate-800 transition underline">تعديل رقم المتطوع</button>
                 </div>
               </motion.form>
             )}
 
-            {/* الشاشة ٤: الهوية الرقمية المعتمدة وتعيين الحساب الحركي الفخم */}
             {step === 4 && (
               <motion.form key="finalize" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onSubmit={handleRegister} className="space-y-4">
                 <div className="border-b border-slate-100 pb-2">
                   <h3 className="text-base font-black text-slate-800">تأكيد بطاقة المتطوع</h3>
                   <p className="text-xs text-slate-500 mt-0.5">خطوتك الأخيرة لتأمين وتفعيل حسابك الرسمي بالمنصة</p>
                 </div>
-
-                {/* كارت هوية المتطوع بالثوب الجديد الأبيض الملكي بنقوش حمراء خفيفة مخملية */}
+                
                 <motion.div 
                   whileHover={{ y: -4, rotateX: 2, rotateY: -2 }}
                   style={{ transformStyle: 'preserve-3d', perspective: 1000 }}
                   className="bg-gradient-to-br from-slate-900 via-slate-950 to-red-950 p-5 rounded-2xl border border-slate-800 text-xs space-y-3 text-slate-300 shadow-xl relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/10 rounded-full blur-2xl pointer-events-none" />
-
+                  
                   <div className="flex justify-between items-center border-b border-slate-800/60 pb-2.5">
                     <span className="text-slate-400 font-bold">الاسم المعتمد:</span>
                     <span className="font-black text-white text-sm tracking-wide">{snapshot?.full_name}</span>
@@ -350,7 +331,15 @@ export const Login: React.FC = () => {
 
                 <div className="relative group">
                   <Lock className="absolute right-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-red-700 transition-colors duration-300" />
-                  <input type="password" value={confirmPassword} onChange={(e) => setPassword(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-medium placeholder-slate-400 shadow-sm" dir="ltr" placeholder="تأكيد كلمة المرور" />
+                  <input 
+                    type="password" 
+                    value={confirmPassword} 
+                    onChange={(e) => setConfirmPassword(e.target.value)} // إصلاح الخلل الموجه لـ Vercel هنا
+                    required 
+                    className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-medium placeholder-slate-400 shadow-sm" 
+                    dir="ltr" 
+                    placeholder="تأكيد كلمة المرور" 
+                  />
                 </div>
 
                 <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-white font-black py-4 rounded-2xl transition duration-300 shadow-md disabled:opacity-40 text-sm">
@@ -368,4 +357,3 @@ export const Login: React.FC = () => {
 };
 
 export default Login;
-
