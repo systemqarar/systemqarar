@@ -1,4 +1,9 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason, delay } from '@whiskeysockets/baileys';
+import makeWASocket, { 
+  useMultiFileAuthState, 
+  DisconnectReason, 
+  delay,
+  fetchLatestBaileysVersion // 🔥 أضفنا استدعاء الدالة السحرية لتحديث الإصدار ديناميكياً
+} from '@whiskeysockets/baileys';
 import pino from 'pino';
 import path from 'path';
 
@@ -19,9 +24,16 @@ class WhatsappService {
     this.isInitializing = true;
 
     try {
+      // 1️⃣ جلب أحدث إصدار متوافق مع سيرفرات واتساب لتجاوز خطأ 428
+      console.log('📡 جاري جلب أحدث إصدار لواتساب ويب...');
+      const { version, isLatest } = await fetchLatestBaileysVersion();
+      console.log(`ℹ️ الإصدار المستخدم: v${version.join('.')}, هل هو الأحدث؟ ${isLatest}`);
+
       const { state, saveCreds } = await useMultiFileAuthState(path.join(process.cwd(), 'whatsapp_session'));
 
+      // 2️⃣ تمرير الـ version المحدث ديناميكياً داخل الإعدادات
       this.sock = makeWASocket({
+        version, // 💥 هنا التعديل الحاسم لحل المشكلة
         auth: state,
         logger,
         printQRInTerminal: false,
@@ -37,16 +49,16 @@ class WhatsappService {
         if (connection === 'close') {
           const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
           const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-          
+
           console.log(`🔴 انقطع اتصال الواتساب المبدئي. كود: ${statusCode}`);
-          
+
           this.isInitializing = false;
           if (shouldReconnect) {
             await delay(10000);
             this.initialize();
           }
         } else if (connection === 'open') {
-          console.log('🟢 تم ربط الواتساب بنجاح!');
+          console.log('🟢 تم ربط الواتساب بنجاح! نظام قرار الآن جاهز لإرسال الـ OTP 🎉');
           this.isInitializing = false;
         }
       });
@@ -57,11 +69,12 @@ class WhatsappService {
           await delay(3000);
           console.log(`📡 جاري طلب كود الربط للرقم: ${myPhoneNumber.trim()}`);
           const pairingCode = await this.sock.requestPairingCode(myPhoneNumber.trim());
-          console.log(`🔑 الكود: >>> ${pairingCode} <<<`);
+          console.log(`🔑 كود الربط الخاص بجوالك هو: >>> ${pairingCode} <<<`);
         }
       }
 
     } catch (error) {
+      console.error('❌ حدث خطأ أثناء تهيئة الواتساب:', error);
       this.isInitializing = false;
     }
   }
