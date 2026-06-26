@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // 🧭 استيراد موجه المسارات الذكي
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, User, Lock, CreditCard, CheckCircle, AlertTriangle, Key, PhoneCall, LogIn, ChevronLeft, MessageSquareCode } from 'lucide-react'; 
 import { useRegisterStore } from '../context/registerStore';
@@ -6,6 +7,7 @@ import { useAuth } from '../../../../../context/AuthContext';
 import authApi from '../api/auth-api';
 
 export const Login: React.FC = () => {
+  const navigate = useNavigate(); // 🧭 تفعيل أداة الانتقال بين الصفحات
   const { loginUser } = useAuth();
   const { step, volunteerId, snapshot, maskedWhatsapp, setStep, setVolunteerId, setSnapshot, setMaskedWhatsapp, resetStore } = useRegisterStore();
 
@@ -30,7 +32,10 @@ export const Login: React.FC = () => {
     setLoading(true);
     try {
       const data = await authApi.login(username, password);
-      loginUser(data.token, data.user);
+      // 1. حفظ بيانات الجلسة والأمان في النظام
+      loginUser(data.token, data.user); 
+      // 2. 🚀 الانتقال الفوري والمباشر للوحة التحكم الموحدة
+      navigate('/dashboard'); 
     } catch (err: any) {
       setError(err.response?.data?.error || 'تعذر التحقق من الحساب، يرجى التأكد من المرفقات');
     } finally {
@@ -272,7 +277,7 @@ export const Login: React.FC = () => {
                 </motion.button>
                 
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-2.5 shadow-inner">
-                  <p className="text-[11px] text-slate-500 text-center leading-relaxed">إذا واجهتك مشكلة اتصال في الميدان ولم يصلك الرمز، فَعِّل الاعتماد الاستثنائي البديـل:</p>
+                  <p className="text-[11px] text-slate-500 text-center leading-relaxed">إذا واجهتك مشكلة اتصال في الميدان ولم يصلك الرمز, فَعِّل الاعتماد الاستثنائي البديـل:</p>
                   <button type="button" onClick={handleEmergencyRequest} disabled={loading} className="w-full bg-amber-500/5 border border-amber-200 text-amber-800 hover:bg-amber-500/10 font-bold py-2.5 rounded-xl text-xs flex justify-center items-center gap-2 transition duration-300">
                     <PhoneCall className="w-3.5 h-3.5 text-amber-700" />
                     تفعيل مسار الطوارئ الميداني والطلب اليدوي
@@ -334,7 +339,7 @@ export const Login: React.FC = () => {
                   <input 
                     type="password" 
                     value={confirmPassword} 
-                    onChange={(e) => setConfirmPassword(e.target.value)} // إصلاح الخلل الموجه لـ Vercel هنا
+                    onChange={(e) => setConfirmPassword(e.target.value)} 
                     required 
                     className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-medium placeholder-slate-400 shadow-sm" 
                     dir="ltr" 
