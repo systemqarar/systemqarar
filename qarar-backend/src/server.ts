@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import authRoutes from './modules/auth-profile/auth.routes';
+import authRoutes from './modules/public-site/auth-profile/auth.routes'; // 🌐 🌟 تم تحديث المسار هنا لمطابقة الهيكلية المنظمة الجديدة
 import { whatsappService } from './services/whatsappService'; // 🟢 استيراد خدمة الواتساب المركزية الجديدة
 
 // تفعيل قراءة الملفات البيئية السرية (.env)
