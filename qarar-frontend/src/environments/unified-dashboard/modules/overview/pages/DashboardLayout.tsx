@@ -1,194 +1,421 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ClipboardList, Calendar, CheckCircle2, Clock, AlertTriangle, 
+  ChevronLeft, UploadCloud, Bell, User, Filter, ArrowLeftRight,
+  FileText, Home, MessageSquare, Shield, Check, Info, Circle
+} from 'lucide-react';
 
-export default function DashboardLayout() {
-  // حالة تتبع الصفحة الحالية المفتوحة
-  const [activeTab, setActiveTab] = useState('overview');
-  // حالة تتبع فتح قائمة التنبيهات الإدارية
-  const [showNotifications, setShowNotifications] = useState(false);
+// تزييف بيانات المكاتب السبعة لخدمة العرض التفاعلي
+const ADMINISTRATIVE_OFFICES = [
+  { id: 'all', name: 'كل المكاتب' },
+  { id: 'social', name: 'الخدمات الاجتماعية' },
+  { id: 'training', name: 'التدريب والتطوير' },
+  { id: 'media', name: 'المكتب الإعلامي' },
+  { id: 'emergency', name: 'الطوارئ والعمليات' },
+  { id: 'women', name: 'المرأة والتطوير' },
+  { id: 'finance', name: 'الأمانة المالية' },
+  { id: 'secretariat', name: 'السكرتارية التنفيذية' },
+];
 
-  // دالة مساعدة لعرض محتوى الصفحة المحددة بكلام رسمي ونظيف
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'overview':
-        return (
-          <div className="space-y-4 animate-fadeIn">
-            <h2 className="text-xl font-bold text-white">اللوحة العامة للمنظومة</h2>
-            <p className="text-gray-300 text-sm leading-relaxed">
-              مرحباً بك في نظام قرار. تستعرض هذه الشاشة ملخصاً سريعاً لأداء الوحدة الإدارية، وتنبيهات اليوم، والمؤشرات العامة للعمل الميداني.
-            </p>
-            {/* كبسولة زجاجية تفاعلية كمثال للمحتوى المستقبلي */}
-            <div className="p-6 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl mt-4">
-              <span className="text-xs text-red-400 font-medium bg-red-500/10 px-2.5 py-1 rounded-full">تحديث عاجل</span>
-              <h3 className="text-lg font-semibold text-white mt-2">جاهزية غرفة العمليات</h3>
-              <p className="text-gray-400 text-xs mt-1">جميع قنوات الاتصال والتحقق الآمن تعمل الآن بكفاءة عالية على مدار الساعة.</p>
-            </div>
-          </div>
-        );
-      case 'profile':
-        return (
-          <div className="space-y-4 animate-fadeIn">
-            <h2 className="text-xl font-bold text-white">الملف الشخصي والبطاقة الرقمية</h2>
-            <p className="text-gray-300 text-sm">
-              هنا تظهر بياناتك الإدارية المعتمدة لدى الوحدة، وتفاصيل المنصب، بالإضافة إلى بطاقة الهوية الرقمية الذكية الخاصة بالتحقق الميداني.
-            </p>
-          </div>
-        );
-      case 'tasks':
-        return (
-          <div className="space-y-4 animate-fadeIn">
-            <h2 className="text-xl font-bold text-white">المهام والأنشطة الميدانية</h2>
-            <p className="text-gray-300 text-sm">
-              جدول المتابعة الشامل للتكليفات الموكلة إليك من قبل إدارة السبعة مكاتب، مع إمكانية رفع التقارير الدورية فور إنجاز العمل الميداني.
-            </p>
-          </div>
-        );
-      case 'communication':
-        return (
-          <div className="space-y-4 animate-fadeIn">
-            <h2 className="text-xl font-bold text-white">مركز التواصل الذكي</h2>
-            <p className="text-gray-300 text-sm">
-              منصة الاتصال المتكاملة للوحدة؛ تشمل غرف المحادثات الجماعية للمكاتب الإدارية، وبوابة الاجتماعات الآلية المدارة بالكامل عبر المساعد الذكي.
-            </p>
-          </div>
-        );
-      case 'documents':
-        return (
-          <div className="space-y-4 animate-fadeIn">
-            <h2 className="text-xl font-bold text-white">الخطابات والوثائق الرسمية</h2>
-            <p className="text-gray-300 text-sm">
-              قسم إصدار وتوليد التكليفات والخطابات الإدارية الرسمية بختم ومستندات الوحدة المعتمدة، مع إمكانية حفظها وتحميلها بصيغة المستندات القياسية.
-            </p>
-          </div>
-        );
-      default:
-        return <h2 className="text-xl font-bold text-white">اللوحة العامة للمنظومة</h2>;
-    }
+// تزييف بيانات المهام الميدانية القادمة من المكاتب
+const MOCK_TASKS = [
+  {
+    id: 'task-1',
+    title: 'حصر وفحص أسر المتطوعين المتأثرة بالقطاع الجنوبي',
+    officeId: 'social',
+    officeName: 'مكتب الخدمات الاجتماعية',
+    priority: 'high',
+    status: 'pending',
+    date: '2026-06-28',
+    description: 'تنفيذ زيارات ميدانية سريعة لتوثيق الاحتياجات العاجلة ورفعها لقاعدة البيانات قبل المساء.'
+  },
+  {
+    id: 'task-2',
+    title: 'تجهيز قاعة التدريب لدورة TOT القادمة',
+    officeId: 'training',
+    officeName: 'مكتب التدريب والتطوير',
+    priority: 'medium',
+    status: 'in-progress',
+    date: '2026-06-30',
+    description: 'مراجعة المعينات البصرية، كشوفات الحضور المعتمدة، والتأكد من تفعيل أجهزة العرض.'
+  },
+  {
+    id: 'task-3',
+    title: 'توثيق توزيع المساعدات الإنسانية بالوحدة الإدارية',
+    officeId: 'media',
+    officeName: 'المكتب الإعلامي',
+    priority: 'high',
+    status: 'completed',
+    date: '2026-06-26',
+    description: 'التقاط صور ومقاطع بجودة عالية لإعداد التقرير الصحفي اليومي وبثه على المنصات الرسمية.'
+  },
+  {
+    id: 'task-4',
+    title: 'تحديث خطة الإخلاء والاستجابة السريعة للميدان',
+    officeId: 'emergency',
+    officeName: 'مكتب الطوارئ والعمليات',
+    priority: 'high',
+    status: 'pending',
+    date: '2026-06-29',
+    description: 'مراجعة نقاط التجمع الآمنة مع المتطوعين وتوزيع أجهزة اللاسلكي حسب الخطة الجديدة.'
+  }
+];
+
+export const FieldTasks: React.FC = () => {
+  const [selectedOffice, setSelectedOffice] = useState('all');
+  const [tasks, setTasks] = useState(MOCK_TASKS);
+  const [activeTab, setActiveTab] = useState('tasks'); // التبويب النشط بالأسفل
+  const [reportingTask, setReportingTask] = useState<typeof MOCK_TASKS[0] | null>(null); // للتقرير المنزلق
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [reportText, setReportText] = useState('');
+
+  // فلترة المهام بناء على المكتب المختار
+  const filteredTasks = selectedOffice === 'all' 
+    ? tasks 
+    : tasks.filter(t => t.officeId === selectedOffice);
+
+  // تحديث حالة المهمة تفاعلياً
+  const toggleTaskStatus = (taskId: string) => {
+    setTasks(prev => prev.map(task => {
+      if (task.id === taskId) {
+        const nextStatus = task.status === 'pending' ? 'in-progress' : task.status === 'in-progress' ? 'completed' : 'pending';
+        return { ...task, status: nextStatus };
+      }
+      return task;
+    }));
+  };
+
+  // معالجة إرسال التقرير الميداني لغيث والإدارة
+  const handleSendReport = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reportText.trim()) return;
+    setIsSubmittingReport(true);
+    
+    setTimeout(() => {
+      // تحديث المهمة لتصبح مكتملة بعد رفع التقرير
+      setTasks(prev => prev.map(t => t.id === reportingTask?.id ? { ...t, status: 'completed' } : t));
+      setIsSubmittingReport(false);
+      setReportingTask(null);
+      setReportText('');
+    }, 2000);
   };
 
   return (
-    // الخلفية الكحلية الملكية العميقة للنظام بالكامل مع الحفاظ على راحة العين بالجوال
-    <div className="min-h-screen bg-[#0A1128] text-white font-sans flex flex-col justify-between relative overflow-hidden select-none">
+    <div className="min-h-screen bg-gradient-to-tr from-slate-50 via-gray-50 to-white flex flex-col font-sans text-right pb-28 relative overflow-hidden select-none" dir="rtl">
       
-      {/* 👑 الزخرفة الشفافة الذكية في الخلفية لإعطاء حيوية دون تشتيت (3% شفافية) */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#C3073F_1px,transparent_1px)] [background-size:16px_16px]"></div>
+      {/* 🌌 هالات توهج زجاجية ناعمة جداً في الخلفية لإعطاء عمق بصري للمظهر الأبيض */}
+      <div className="absolute top-[-10%] right-[-20%] w-[350px] h-[350px] bg-red-500/5 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-[40%] left-[-20%] w-[300px] h-[300px] bg-slate-400/10 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* 🗺️ الشريط العلوي (Topbar) - شريط الحالة والوصول السريع */}
-      <header className="w-full bg-[#0F1C3F]/80 backdrop-blur-md border-b border-white/5 px-4 py-3 flex justify-between items-center sticky top-0 z-40">
-        <div className="flex items-center space-x-2 space-x-reverse">
-          {/* هالة دائرية صغيرة ترمز للمنظومة */}
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#C3073F] to-[#0A1128] flex items-center justify-center border border-white/20 shadow-md">
-            <span className="text-xs font-bold text-white">ق</span>
+      {/* 🏛️ الشريط العلوي الملكي (Header) */}
+      <header className="sticky top-0 z-40 bg-white/70 backdrop-blur-xl border-b border-gray-200/60 px-5 py-4 flex items-center justify-between shadow-[0_2px_20px_-5px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-3">
+          <motion.div whileTap={{ scale: 0.95 }} className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/10 flex items-center justify-center text-white shadow-sm font-black text-sm">
+            ق
+          </motion.div>
+          <div>
+            <h2 className="text-sm font-black text-slate-900 tracking-wide">منظومة قرار</h2>
+            <p className="text-[10px] text-red-600 font-bold">الهلال الأحمر السوداني</p>
           </div>
-          <h1 className="text-base font-bold tracking-wide text-white">منظومة قرار</h1>
         </div>
-
-        {/* أدوات الإشعارات والمساعد السريع في الجوال */}
-        <div className="flex items-center space-x-4 space-x-reverse">
-          {/* 🤖 زر غيث الخاطف والمبادر (محاط بنبض خفيف يعبر عن الجهوزية) */}
-          <button 
-            onClick={() => setActiveTab('communication')}
-            className="relative p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 active:scale-95 transition-all shadow-inner"
-            title="المساعد الذكي غيث"
-          >
-            <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-          </button>
-
-          {/* 🔔 أيقونة التنبيهات الإدارية */}
-          <button 
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 bg-white/5 rounded-full border border-white/10 hover:bg-white/10 active:scale-95 transition-all relative"
-          >
-            <span className="absolute top-0 right-0 w-2 h-2 bg-[#C3073F] rounded-full"></span>
-            <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-          </button>
+        
+        <div className="flex items-center gap-2">
+          {/* زر التنبيهات الميدانية التفاعلي */}
+          <motion.button whileTap={{ scale: 0.92 }} className="w-10 h-10 rounded-xl bg-gray-100/80 border border-gray-200/50 flex items-center justify-center text-slate-700 relative">
+            <Bell className="w-4 h-4 stroke-[2.5]" />
+            <span className="absolute top-2 right-2 w-2 h-2 bg-red-600 rounded-full animate-pulse" />
+          </motion.button>
         </div>
       </header>
 
-      {/* 📳 قائمة التنبيهات المنسدلة للجوال عند الضغط عليها */}
-      {showNotifications && (
-        <div className="absolute top-14 left-4 right-4 bg-[#0F1C3F] border border-white/10 rounded-2xl p-4 shadow-2xl z-50 animate-fadeIn backdrop-blur-lg">
-          <div className="flex justify-between items-center border-b border-white/5 pb-2 mb-2">
-            <span className="text-xs font-bold text-gray-300">التنبيهات الإدارية الأخيرة</span>
-            <button onClick={() => setShowNotifications(false)} className="text-gray-400 text-xs hover:text-white">إغلاق</button>
+      {/* 📄 متن المحتوى الرئيسي */}
+      <main className="px-5 pt-6 space-y-6 relative z-10 max-w-md mx-auto w-full">
+        
+        {/* العناوين والترتيب البصري النظيف */}
+        <div>
+          <motion.h1 
+            initial={{ opacity: 0, y: -5 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="text-2xl font-black text-slate-900 tracking-tight"
+          >
+            المهام والأنشطة الميدانية
+          </motion.h1>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed font-medium">
+            جدول المتابعة الشامل للتكليفات الموكلة إليك من قبل إدارة السبعة مكاتب، مع إمكانية رفع التقارير الدورية فور إنجاز العمل الميداني.
+          </p>
+        </div>
+
+        {/* 📊 كبسولة الإحصائيات الذكية الـ Soft UI */}
+        <div className="bg-white/80 backdrop-blur-md rounded-3xl border border-gray-200/60 p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.04)] grid grid-cols-3 gap-2 text-center">
+          <div className="p-2 bg-red-50/50 rounded-2xl border border-red-100/50">
+            <span className="text-xs text-slate-500 font-bold block">انتظار</span>
+            <span className="text-xl font-black text-red-700 mt-0.5 block">{tasks.filter(t=>t.status==='pending').length}</span>
           </div>
-          <div className="space-y-2">
-            <div className="p-2 bg-white/5 rounded-lg text-xs border-r-2 border-[#C3073F]">
-              <p className="text-white font-medium">تم اعتماد ربط قاعدة بيانات حصر بنجاح.</p>
-              <span className="text-gray-400 text-[10px] block mt-1">منذ دقيقة</span>
-            </div>
+          <div className="p-2 bg-amber-50/50 rounded-2xl border border-amber-100/50">
+            <span className="text-xs text-slate-500 font-bold block">مستمرة</span>
+            <span className="text-xl font-black text-amber-600 mt-0.5 block">{tasks.filter(t=>t.status==='in-progress').length}</span>
+          </div>
+          <div className="p-2 bg-emerald-50/50 rounded-2xl border border-emerald-100/50">
+            <span className="text-xs text-slate-500 font-bold block">مكتملة</span>
+            <span className="text-xl font-black text-emerald-700 mt-0.5 block">{tasks.filter(t=>t.status==='completed').length}</span>
           </div>
         </div>
-      )}
 
-      {/* 📱 ساحة العرض الرئيسية (Main Content) - متحركة حسب الزر المختار */}
-      <main className="flex-grow p-4 pb-24 overflow-y-auto z-10">
-        {renderContent()}
+        {/* 🧭 شريط مكاتب الإدارة السبعة - منزلق تفاعلي بالأصبع */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-black text-slate-800 px-1">
+            <Filter className="w-3.5 h-3.5 text-red-600" />
+            <span>تصفية حسب مكتب الإدارة المختص:</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-3 pt-1 scrollbar-none snap-x mask-gradient-x" dir="rtl">
+            {ADMINISTRATIVE_OFFICES.map((office) => {
+              const isSelected = selectedOffice === office.id;
+              return (
+                <motion.button
+                  key={office.id}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSelectedOffice(office.id)}
+                  className={`snap-center shrink-0 px-4 py-2.5 rounded-full text-xs font-black transition-all duration-300 shadow-sm border ${
+                    isSelected 
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-slate-900/10' 
+                      : 'bg-white text-slate-600 border-gray-200/80 hover:bg-gray-50'
+                  }`}
+                >
+                  {office.name}
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 📋 قائمة بطاقات المهام المصممة كأسلوب كبسولات زجاجية مضيئة */}
+        <div className="space-y-4">
+          <AnimatePresence mode="popLayout">
+            {filteredTasks.length === 0 ? (
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                className="bg-white/60 backdrop-blur-sm rounded-3xl border border-dashed border-gray-300 p-8 text-center"
+              >
+                <ClipboardList className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs text-slate-500 font-bold">لا توجد تكليفات ميدانية نشطة حالياً لهذا المكتب</p>
+              </motion.div>
+            ) : (
+              filteredTasks.map((task, idx) => (
+                <motion.div
+                  key={task.id}
+                  layout
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0, transition: { delay: idx * 0.05 } }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className={`bg-white/80 backdrop-blur-md rounded-3xl border p-5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.03)] space-y-4 relative overflow-hidden transition-all duration-300 ${
+                    task.status === 'completed' ? 'border-emerald-200/80 bg-white/40 opacity-75' : 'border-gray-200/70'
+                  }`}
+                >
+                  {/* شريط علوي صغير لتصنيف المكتب والأولوية */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-slate-500 bg-slate-100 border border-slate-200/60 px-2.5 py-1 rounded-lg">
+                      {task.officeName}
+                    </span>
+                    
+                    <div className="flex items-center gap-1.5">
+                      {task.priority === 'high' && task.status !== 'completed' && (
+                        <span className="flex items-center gap-0.5 text-[9px] font-black text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md animate-pulse">
+                          <AlertTriangle className="w-2.5 h-2.5" /> طارئ جداً
+                        </span>
+                      )}
+                      
+                      {/* آيقونة الحالة التفاعلية */}
+                      <span className={`w-2 h-2 rounded-full ${
+                        task.status === 'completed' ? 'bg-emerald-600' : task.status === 'in-progress' ? 'bg-amber-500' : 'bg-red-500'
+                      }`} />
+                    </div>
+                  </div>
+
+                  {/* تفاصيل التكليف والمهمة */}
+                  <div className="space-y-1.5">
+                    <h3 className={`text-sm font-black text-slate-900 leading-snug ${task.status === 'completed' ? 'line-through text-slate-400' : ''}`}>
+                      {task.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                      {task.description}
+                    </p>
+                  </div>
+
+                  {/* تاريخ الاستحقاق والمؤشر الزمني */}
+                  <div className="flex items-center justify-between border-t border-gray-100/80 pt-3.5">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                      <Calendar className="w-3.5 h-3.5 stroke-[2]" />
+                      <span className="font-mono">{task.date}</span>
+                    </div>
+
+                    {/* أزرار الإجراءات التفاعلية الزجاجية الناعمة */}
+                    <div className="flex items-center gap-1.5">
+                      {/* زر تغيير الحالة بنقرة ذكية */}
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => toggleTaskStatus(task.id)}
+                        className={`p-2 rounded-xl border flex items-center justify-center transition-colors duration-200 ${
+                          task.status === 'completed' 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                            : task.status === 'in-progress'
+                            ? 'bg-amber-50 border-amber-200 text-amber-700'
+                            : 'bg-gray-50 border-gray-200 text-slate-500'
+                        }`}
+                        title="تبديل حالة المهمة"
+                      >
+                        {task.status === 'completed' ? <CheckCircle2 className="w-4 h-4" /> : task.status === 'in-progress' ? <Clock className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                      </motion.button>
+
+                      {/* زر رفع التقرير الفوري المفتوح تفاعلياً */}
+                      {task.status !== 'completed' && (
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setReportingTask(task)}
+                          className="px-3 py-2 text-xs font-black bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white rounded-xl shadow-md shadow-red-700/5 flex items-center gap-1.5"
+                        >
+                          <UploadCloud className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>رفع تقرير</span>
+                        </motion.button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </div>
       </main>
 
-      {/* 🧭 القائمة السفلية المرنة المخصصة للجوال (The Royal Bottom Navigation) */}
-      <nav className="w-[calc(100%-2rem)] mx-4 bg-[#0F1C3F]/90 backdrop-blur-lg border border-white/10 rounded-2xl h-16 fixed bottom-4 left-0 right-0 z-40 flex justify-around items-center px-2 shadow-2xl shadow-black/50">
-        
-        {/* زر الرئيسية */}
-        <button 
-          onClick={() => setActiveTab('overview')}
-          className={`flex flex-col items-center justify-center flex-grow h-full rounded-xl transition-all ${activeTab === 'overview' ? 'text-[#C3073F] bg-white/5' : 'text-gray-400 hover:text-white'}`}
-        >
-          <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-          </svg>
-          <span className="text-[10px] font-medium">الرئيسية</span>
-        </button>
+      {/* 📥 شريط منزلق ذكي (Bottom Drawer) مخصص لرفع التقارير الميدانية لغيث والإدارة */}
+      <AnimatePresence>
+        {reportingTask && (
+          <>
+            {/* الخلفية المظلمة الشفافة */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setReportingTask(null)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50"
+            />
+            
+            {/* درج التقرير الزجاجي الأبيض العائم */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] border-t border-gray-200 shadow-[0_-15px_40px_rgba(0,0,0,0.08)] z-50 p-6 space-y-5"
+            >
+              {/* شريط السحب الزخرفي العلوي */}
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto" />
 
-        {/* زر البروفايل */}
-        <button 
-          onClick={() => setActiveTab('profile')}
-          className={`flex flex-col items-center justify-center flex-grow h-full rounded-xl transition-all ${activeTab === 'profile' ? 'text-[#C3073F] bg-white/5' : 'text-gray-400 hover:text-white'}`}
-        >
-          <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-          <span className="text-[10px] font-medium">الملف الشخصي</span>
-        </button>
+              <div className="text-right">
+                <span className="text-[10px] font-black bg-red-50 border border-red-100 text-red-700 px-2.5 py-1 rounded-lg">
+                  {reportingTask.officeName}
+                </span>
+                <h3 className="text-base font-black text-slate-900 mt-2 leading-snug">{reportingTask.title}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">اكتب خلاصة ما تم في الميدان لتثبيته في قاعدة البيانات الفورية.</p>
+              </div>
 
-        {/* زر المهام والأنشطة */}
-        <button 
-          onClick={() => setActiveTab('tasks')}
-          className={`flex flex-col items-center justify-center flex-grow h-full rounded-xl transition-all ${activeTab === 'tasks' ? 'text-[#C3073F] bg-white/5' : 'text-gray-400 hover:text-white'}`}
-        >
-          <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-          </svg>
-          <span className="text-[10px] font-medium">المهام والأنشطة</span>
-        </button>
+              <form onSubmit={handleSendReport} className="space-y-4">
+                <div className="space-y-1.5">
+                  <textarea
+                    value={reportText}
+                    onChange={(e) => setReportText(e.target.value)}
+                    required
+                    rows={4}
+                    className="w-full p-4 bg-slate-50 border border-gray-200 rounded-2xl text-xs font-medium text-slate-800 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 resize-none shadow-inner"
+                    placeholder="اكتب تفاصيل الإنجاز الميداني، الملاحظات، أو أي معوقات واجهت الفريق هنا..."
+                  />
+                </div>
 
-        {/* زر مركز التواصل */}
-        <button 
-          onClick={() => setActiveTab('communication')}
-          className={`flex flex-col items-center justify-center flex-grow h-full rounded-xl transition-all ${activeTab === 'communication' ? 'text-[#C3073F] bg-white/5' : 'text-gray-400 hover:text-white'}`}
-        >
-          <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          <span className="text-[10px] font-medium">مركز التواصل</span>
-        </button>
+                {/* كبسولة محاكاة إرفاق صورة ميدانية لغيث */}
+                <div className="border border-dashed border-gray-200 rounded-2xl p-3 bg-slate-50/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-white rounded-xl border border-gray-100 text-slate-400">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black text-slate-700">إرفاق اللقطات الميدانية</p>
+                      <p className="text-[9px] text-slate-400">صور الفحص أو مستندات الاستلام</p>
+                    </div>
+                  </div>
+                  <button type="button" className="text-[11px] font-black text-red-700 hover:underline bg-white border border-gray-200 px-3 py-1.5 rounded-xl shadow-sm">
+                    اختيار ملف
+                  </button>
+                </div>
 
-        {/* زر الخطابات والوثائق */}
-        <button 
-          onClick={() => setActiveTab('documents')}
-          className={`flex flex-col items-center justify-center flex-grow h-full rounded-xl transition-all ${activeTab === 'documents' ? 'text-[#C3073F] bg-white/5' : 'text-gray-400 hover:text-white'}`}
-        >
-          <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <span className="text-[10px] font-medium">الوثائق</span>
-        </button>
+                <div className="flex gap-3">
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    disabled={isSubmittingReport}
+                    className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-black py-3.5 rounded-2xl text-xs shadow-md shadow-slate-900/10 flex justify-center items-center gap-1.5"
+                  >
+                    {isSubmittingReport ? (
+                      <span>جاري تشفير ورفع البيانات...</span>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 stroke-[2.5]" />
+                        <span>اعتماد وإرسال التقرير للإدارة</span>
+                      </>
+                    )}
+                  </motion.button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setReportingTask(null)}
+                    className="px-4 bg-gray-100 text-slate-600 border border-gray-200 font-bold rounded-2xl text-xs"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
+      {/* 🧭 شريط التنقل السفلي الاحترافي الملكي والمطابق للمخطط البصري */}
+      <nav className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_15px_40px_-10px_rgba(0,0,0,0.08)] z-40 p-2 flex justify-between items-center px-4">
+        {[
+          { id: 'home', name: 'الرئيسية', icon: Home },
+          { id: 'profile', name: 'الملف الشخصي', icon: User },
+          { id: 'tasks', name: 'المهام والأنشطة', icon: ClipboardList, badge: true },
+          { id: 'ghaith', name: 'مركز التواصل', icon: MessageSquare },
+          { id: 'docs', name: 'الوثائق', icon: FileText },
+        ].map((tab) => {
+          const isTabActive = activeTab === tab.id;
+          const IconComponent = tab.icon;
+          
+          return (
+            <motion.button
+              key={tab.id}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex flex-col items-center justify-center py-2 px-3 rounded-2xl transition-all duration-300 relative ${
+                isTabActive 
+                  ? 'text-red-700 font-black bg-red-50/70 border border-red-100/40 shadow-inner' 
+                  : 'text-slate-400 font-bold hover:text-slate-600'
+              }`}
+            >
+              <div className="relative">
+                <IconComponent className={`w-5 h-5 stroke-[2.2] transition-transform ${isTabActive ? 'scale-105 stroke-[2.5]' : ''}`} />
+                {tab.badge && (
+                  <span className="absolute top-[-2px] right-[-3px] w-1.5 h-1.5 bg-red-600 rounded-full" />
+                )}
+              </div>
+              <span className="text-[9px] mt-1 tracking-tight">{tab.name}</span>
+            </motion.button>
+          );
+        })}
       </nav>
+
     </div>
   );
-}
+};
+
+export default FieldTasks;
