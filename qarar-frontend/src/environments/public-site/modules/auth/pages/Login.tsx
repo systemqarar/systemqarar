@@ -114,50 +114,69 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-100 to-slate-200 flex flex-col justify-center items-center p-4 font-sans text-right select-none relative overflow-hidden" dir="rtl">
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col justify-center items-center p-4 font-sans text-right select-none relative overflow-hidden" dir="rtl">
       
+      {/* 🌟 تأثيرات الخلفية الناعمة (Soft Background Elements) */}
       <motion.div 
-        animate={{ scale: [1, 1.15, 1], x: [0, 20, 0], y: [0, -20, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-red-600/5 rounded-full blur-[140px] pointer-events-none" 
+        animate={{ scale: [1, 1.2, 1], x: [0, 30, 0], y: [0, -30, 0] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-0 right-0 w-[600px] h-[600px] bg-slate-200/40 rounded-full blur-[120px] pointer-events-none" 
+      />
+      <motion.div 
+        animate={{ scale: [1, 1.3, 1], x: [0, -40, 0], y: [0, 40, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-slate-300/30 rounded-full blur-[100px] pointer-events-none" 
       />
 
-      <div className="w-full max-w-md bg-white/80 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(150,0,0,0.12)] overflow-hidden border border-white relative z-10">
+      {/* 📦 بطاقة تسجيل الدخول الرئيسية */}
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden border border-gray-100 relative z-10">
         
-        <div className="p-8 pb-5 text-center flex flex-col items-center bg-gradient-to-b from-red-50/60 via-transparent to-transparent">
-          <motion.div whileHover={{ scale: 1.05 }} className="relative mb-3">
-            <div className="absolute inset-0 bg-red-600/10 rounded-2xl blur-xl" />
-            <div className="bg-red-700 p-4 rounded-2xl border border-red-600 shadow-md relative z-10 text-white">
-              <Shield className="w-9 h-9 stroke-[2]" />
+        {/* 🏛️ الهيدر الفخم */}
+        <div className="p-8 pb-6 text-center flex flex-col items-center bg-white relative">
+          <motion.div whileHover={{ scale: 1.05 }} className="relative mb-4 z-10">
+            <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/20">
+               <span className="text-white font-black text-2xl">ق</span>
             </div>
+            {/* شارة الذكاء الاصطناعي (AI Badge) */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.5, type: 'spring' }}
+              className="absolute -bottom-2 -right-2 bg-gradient-to-r from-amber-200 to-amber-400 text-amber-900 text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-white flex items-center gap-1 shadow-sm"
+            >
+              <Shield className="w-2.5 h-2.5" />
+              مدعوم بـ AI
+            </motion.div>
           </motion.div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-wide">نظام قرار الرقمي</h1>
-          <p className="text-xs text-red-700/80 mt-1 font-bold tracking-wide">شؤون المتطوعين - الهلال الأحمر السوداني</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">منظومة قرار</h1>
+          <p className="text-xs text-slate-500 mt-1.5 font-bold tracking-wide">الهلال الأحمر</p>
         </div>
 
+        {/* 📊 شريط التقدم (Progress Bar) - يظهر فقط في خطوات التسجيل */}
         {step > 1 && (
-          <div className="px-8 pt-2">
-            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
+          <div className="px-8 mb-2">
+            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5">
               <motion.div 
                 initial={{ width: '0%' }}
                 animate={{ width: step === 2 ? '33%' : step === 3 ? '66%' : '100%' }}
-                className="h-full rounded-full bg-gradient-to-r from-red-700 to-red-500"
+                className="h-full rounded-full bg-slate-900"
               />
             </div>
           </div>
         )}
 
+        {/* 🚨 رسائل الخطأ والنجاح (Alerts) */}
         <AnimatePresence mode="wait">
           {(error || successMessage) && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="px-8 pt-4">
+            <motion.div initial={{ opacity: 0, height: 0, y: -10 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0, y: -10 }} className="px-8 pt-2">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 p-3.5 rounded-2xl flex items-start gap-3 text-xs font-bold shadow-sm">
+                <div className="bg-red-50 border border-red-100 text-red-700 p-3 rounded-2xl flex items-start gap-3 text-xs font-bold shadow-sm mb-2">
                   <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
               {successMessage && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-3.5 rounded-2xl flex items-start gap-3 text-xs font-bold shadow-sm">
+                <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 p-3 rounded-2xl flex items-start gap-3 text-xs font-bold shadow-sm mb-2">
                   <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                   <span>{successMessage}</span>
                 </div>
@@ -166,54 +185,70 @@ export const Login: React.FC = () => {
           )}
         </AnimatePresence>
 
-        <div className="p-8">
+        <div className="px-8 pb-8">
           <AnimatePresence mode="wait">
             
+            {/* 🚪 الخطوة 1: تسجيل الدخول */}
             {step === 1 && (
-              <motion.form key="login" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }} onSubmit={handleLogin} className="space-y-5">
-                <div>
-                  <h3 className="text-base font-black text-slate-800">تسجيل الدخول المعتمد</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">الرجاء كتابة بيانات حسابك الرسمي للعبور للمنصة</p>
+              <motion.form key="login" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} onSubmit={handleLogin} className="space-y-4">
+                <div className="text-center mb-6">
+                  <h3 className="text-lg font-black text-slate-800">تسجيل الدخول</h3>
+                  <p className="text-[11px] text-slate-500 mt-1 font-medium">أدخل بيانات اعتمادك للوصول للوحة القيادة</p>
                 </div>
 
-                <div className="relative group">
-                  <User className="absolute right-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-red-700 transition-colors duration-300" />
-                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-medium placeholder-slate-400 shadow-sm" dir="ltr" placeholder="اسم المستخدم" />
+                <div className="space-y-3">
+                  <div className="relative group">
+                    <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-900 transition-colors duration-300" />
+                    <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-slate-900 focus:bg-white focus:ring-4 focus:ring-slate-900/5 transition-all duration-300 text-left font-medium placeholder-slate-400 text-sm" dir="ltr" placeholder="اسم المستخدم" />
+                  </div>
+
+                  <div className="relative group">
+                    <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-900 transition-colors duration-300" />
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-slate-900 focus:bg-white focus:ring-4 focus:ring-slate-900/5 transition-all duration-300 text-left font-medium placeholder-slate-400 text-sm" dir="ltr" placeholder="كلمة المرور" />
+                  </div>
                 </div>
 
-                <div className="relative group">
-                  <Lock className="absolute right-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-red-700 transition-colors duration-300" />
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-medium placeholder-slate-400 shadow-sm" dir="ltr" placeholder="كلمة المرور" />
-                </div>
-
-                <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-black py-4 rounded-2xl flex justify-center items-center gap-2 transition duration-300 shadow-lg shadow-red-700/10 text-sm">
-                  <LogIn className="w-4 h-4 stroke-[2.5]" />
-                  {loading ? 'جاري مراجعة الحساب...' : 'دخول للمنصة'}
+                <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3.5 rounded-2xl flex justify-center items-center gap-2 transition duration-300 shadow-md shadow-slate-900/10 text-sm mt-6">
+                  {loading ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
+                  ) : (
+                    <>
+                      <LogIn className="w-4 h-4 stroke-[2.5]" />
+                      متابعة
+                    </>
+                  )}
                 </motion.button>
 
-                <div className="text-center pt-2">
-                  <button type="button" onClick={() => { clearMessages(); setStep(2); }} className="text-xs font-black text-red-700 hover:text-red-600 transition duration-300 hover:underline">تفعيل حساب متطوع جديد</button>
+                <div className="text-center pt-4 border-t border-slate-100 mt-6">
+                  <p className="text-[11px] text-slate-500 mb-2">ليس لديك حساب؟</p>
+                  <button type="button" onClick={() => { clearMessages(); setStep(2); }} className="text-xs font-black text-slate-900 hover:text-slate-700 transition duration-300 bg-slate-100 px-4 py-2 rounded-xl">تفعيل حساب متطوع</button>
                 </div>
               </motion.form>
             )}
 
+            {/* 🆔 الخطوة 2: التحقق من المتطوع */}
             {step === 2 && (
-              <motion.div key="verify-id-container" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+              <motion.div key="verify-id-container" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                 {loading ? (
-                  <motion.div key="whatsapp-sending-animation" className="flex flex-col items-center justify-center py-6 space-y-6">
-                    <div className="flex items-center justify-between w-full max-w-xs px-6 relative" dir="ltr">
+                  /* 🤖 أنيميشن تواصل المساعد (غيث) */
+                  <motion.div key="whatsapp-sending-animation" className="flex flex-col items-center justify-center py-8 space-y-8">
+                    <div className="flex items-center justify-between w-full max-w-[200px] relative" dir="ltr">
                       
-                      <div className="bg-slate-50 p-4 rounded-2xl text-slate-400 border border-slate-200 shadow-md flex items-center justify-center z-10">
-                        <User className="w-6 h-6 text-slate-600" />
-                      </div>
+                      <motion.div 
+                        animate={{ scale: [1, 1.05, 1], boxShadow: ["0px 0px 0px rgba(0,0,0,0)", "0px 0px 20px rgba(15,23,42,0.1)", "0px 0px 0px rgba(0,0,0,0)"] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="bg-white p-3.5 rounded-2xl text-slate-900 border border-slate-200 shadow-sm flex items-center justify-center z-10"
+                      >
+                        <User className="w-6 h-6 stroke-[1.5]" />
+                      </motion.div>
 
-                      <div className="flex items-center space-x-1.5 flex-1 justify-center px-4">
-                        {[0, 1, 2, 3, 4].map((index) => (
+                      <div className="flex items-center space-x-1.5 flex-1 justify-center px-2">
+                        {[0, 1, 2].map((index) => (
                           <motion.div
                             key={index}
-                            className="w-2 h-2 bg-red-600 rounded-full shadow-[0_0_8px_rgba(185,28,28,0.6)]"
-                            animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.3, 0.8], y: [0, -3, 0] }}
-                            transition={{ duration: 0.9, repeat: Infinity, delay: index * 0.12 }}
+                            className="w-1.5 h-1.5 bg-slate-400 rounded-full"
+                            animate={{ opacity: [0.3, 1, 0.3], x: [0, 5, 0] }}
+                            transition={{ duration: 1, repeat: Infinity, delay: index * 0.2 }}
                           />
                         ))}
                       </div>
@@ -221,134 +256,131 @@ export const Login: React.FC = () => {
                       <motion.div 
                         animate={{ scale: [1, 1.1, 1] }} 
                         transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                        className="bg-emerald-50 p-4 rounded-2xl text-emerald-600 border border-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.2)] flex items-center justify-center z-10"
+                        className="bg-slate-900 p-3.5 rounded-2xl text-white shadow-lg shadow-slate-900/20 flex items-center justify-center z-10 relative"
                       >
-                        <MessageSquareCode className="w-6 h-6 stroke-[2.5]" />
+                         <MessageSquareCode className="w-6 h-6 stroke-[1.5]" />
+                         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
                       </motion.div>
 
                     </div>
-                    <div className="text-center space-y-2">
-                      <p className="text-sm font-black text-slate-800">جاري تواصل غيث وتوليد الرمز...</p>
-                      <p className="text-[11px] text-slate-500 px-2 leading-relaxed">نتحقق من السجلات المعتمدة، ونبث الرمز الآمن مباشرة إلى تطبيق الواتساب الخاص بك.</p>
+                    <div className="text-center space-y-1.5">
+                      <h3 className="text-sm font-black text-slate-900">يتواصل غيث الآن...</h3>
+                      <p className="text-[10px] text-slate-500 px-4 leading-relaxed font-medium">يتم مطابقة الهوية وإرسال رمز التحقق الآمن لبريدك/واتساب.</p>
                     </div>
                   </motion.div>
                 ) : (
-                  <form onSubmit={handleVerifyVolunteer} className="space-y-5">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <form onSubmit={handleVerifyVolunteer} className="space-y-4">
+                    <div className="flex items-center justify-between mb-6">
                       <div>
-                        <h3 className="text-base font-black text-slate-800">التحقق من سجلات المتطوعين</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">أدخل رقم المتطوع الموحد والمثبت بالفرع</p>
+                        <h3 className="text-lg font-black text-slate-800">تأكيد الهوية</h3>
+                        <p className="text-[11px] text-slate-500 mt-1 font-medium">أدخل رقم المتطوع الموحد (VOL)</p>
                       </div>
-                      <button type="button" onClick={() => { clearMessages(); setStep(1); }} className="text-slate-400 hover:text-slate-800 bg-slate-50 p-2 border border-slate-200 rounded-xl transition"><ChevronLeft className="w-4 h-4 transform rotate-180" /></button>
+                      <button type="button" onClick={() => { clearMessages(); setStep(1); }} className="text-slate-400 hover:text-slate-900 bg-slate-50 p-2.5 rounded-full transition-colors"><ChevronLeft className="w-5 h-5 transform rotate-180" /></button>
                     </div>
 
                     <div className="relative group">
-                      <CreditCard className="absolute right-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-red-700 transition-colors duration-300" />
-                      <input type="text" value={volunteerId} onChange={(e) => setVolunteerId(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-bold tracking-widest placeholder-slate-400 shadow-sm" dir="ltr" placeholder="VOL-XXXXXX" />
+                      <CreditCard className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-900 transition-colors duration-300" />
+                      <input type="text" value={volunteerId} onChange={(e) => setVolunteerId(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-slate-900 focus:bg-white focus:ring-4 focus:ring-slate-900/5 transition-all duration-300 text-left font-bold tracking-widest placeholder-slate-400 text-sm uppercase" dir="ltr" placeholder="VOL-XXXXXX" />
                     </div>
 
-                    <motion.button whileTap={{ scale: 0.98 }} type="submit" className="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-black py-4 rounded-2xl transition duration-300 shadow-md text-sm">
-                      تحقق وإرسال الرمز للواتساب
+                    <motion.button whileTap={{ scale: 0.98 }} type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3.5 rounded-2xl transition duration-300 shadow-md shadow-slate-900/10 text-sm mt-4">
+                      متابعة
                     </motion.button>
                   </form>
                 )}
               </motion.div>
             )}
 
+            {/* 🔑 الخطوة 3: إدخال رمز التحقق (OTP) */}
             {step === 3 && (
-              <motion.form key="otp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onSubmit={handleVerifyOTP} className="space-y-5">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div>
-                    <h3 className="text-base font-black text-slate-800">تأكيد رمز الأمان</h3>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                      أدخل الرمز السري المرسل إلى حساب الواتساب المكتوم أمنياً:
-                      <span dir="ltr" className="text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg mr-1.5 font-mono text-xs font-bold">{formatSudanWhatsapp(maskedWhatsapp)}</span>
-                    </p>
+              <motion.form key="otp" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} onSubmit={handleVerifyOTP} className="space-y-5">
+                <div className="text-center mb-6">
+                  <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                     <Key className="w-6 h-6 text-slate-700" />
                   </div>
+                  <h3 className="text-lg font-black text-slate-800">رمز التحقق</h3>
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed font-medium px-4">
+                    أدخل الرمز المكون من 6 أرقام المرسل إلى:
+                    <br />
+                    <span dir="ltr" className="inline-block mt-1 text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md font-mono text-xs font-bold tracking-wider">{formatSudanWhatsapp(maskedWhatsapp)}</span>
+                  </p>
                 </div>
 
                 <div className="relative group">
-                  <Key className="absolute right-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-emerald-600 transition-colors duration-300" />
-                  <input type="text" maxLength={6} value={otpCode} onChange={(e) => setOtpCode(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/5 transition-all duration-300 text-center tracking-[0.5em] font-black text-2xl placeholder-slate-300 text-emerald-700 shadow-inner" placeholder="000000" />
+                  <input type="text" maxLength={6} value={otpCode} onChange={(e) => setOtpCode(e.target.value)} required className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-slate-900 focus:bg-white focus:ring-4 focus:ring-slate-900/5 transition-all duration-300 text-center tracking-[0.75em] font-black text-2xl placeholder-slate-300" placeholder="000000" />
                 </div>
 
-                <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl transition duration-300 shadow-md disabled:opacity-40 text-sm">
-                  {loading ? 'جاري مطابقة الرمز...' : 'تأكيد الرمز والمتابعة'}
+                <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3.5 rounded-2xl transition duration-300 shadow-md shadow-slate-900/10 disabled:opacity-50 text-sm">
+                  {loading ? 'جاري التحقق...' : 'تأكيد الرمز'}
                 </motion.button>
                 
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-2.5 shadow-inner">
-                  <p className="text-[11px] text-slate-500 text-center leading-relaxed">إذا واجهتك مشكلة اتصال في الميدان ولم يصلك الرمز, فَعِّل الاعتماد الاستثنائي البديـل:</p>
-                  <button type="button" onClick={handleEmergencyRequest} disabled={loading} className="w-full bg-amber-500/5 border border-amber-200 text-amber-800 hover:bg-amber-500/10 font-bold py-2.5 rounded-xl text-xs flex justify-center items-center gap-2 transition duration-300">
-                    <PhoneCall className="w-3.5 h-3.5 text-amber-700" />
-                    تفعيل مسار الطوارئ الميداني والطلب اليدوي
+                <div className="flex items-center justify-between mt-4">
+                  <button type="button" onClick={handleEmergencyRequest} disabled={loading} className="text-[10px] font-bold text-slate-500 hover:text-slate-900 flex items-center gap-1 transition-colors">
+                    <PhoneCall className="w-3 h-3" />
+                    تفعيل مسار الطوارئ
                   </button>
-                </div>
-                
-                <div className="text-center">
-                  <button type="button" onClick={() => { clearMessages(); setStep(2); }} className="text-xs font-bold text-slate-500 hover:text-slate-800 transition underline">تعديل رقم المتطوع</button>
+                  <button type="button" onClick={() => { clearMessages(); setStep(2); }} className="text-[10px] font-bold text-slate-500 hover:text-slate-900 transition-colors">
+                    تعديل الرقم
+                  </button>
                 </div>
               </motion.form>
             )}
 
+            {/* 📝 الخطوة 4: إنشاء الحساب النهائي */}
             {step === 4 && (
-              <motion.form key="finalize" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} onSubmit={handleRegister} className="space-y-4">
-                <div className="border-b border-slate-100 pb-2">
-                  <h3 className="text-base font-black text-slate-800">تأكيد بطاقة المتطوع</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">خطوتك الأخيرة لتأمين وتفعيل حسابك الرسمي بالمنصة</p>
+              <motion.form key="finalize" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} onSubmit={handleRegister} className="space-y-4">
+                <div className="mb-4">
+                  <h3 className="text-lg font-black text-slate-800">إعداد الحساب</h3>
+                  <p className="text-[11px] text-slate-500 mt-0.5 font-medium">الخطوة الأخيرة للوصول لمنظومة قرار</p>
                 </div>
                 
+                {/* 💳 كارت بيانات المتطوع (مصمم بأسلوب البطاقة الذكية) */}
                 <motion.div 
-                  whileHover={{ y: -4, rotateX: 2, rotateY: -2 }}
-                  style={{ transformStyle: 'preserve-3d', perspective: 1000 }}
-                  className="bg-gradient-to-br from-slate-900 via-slate-950 to-red-950 p-5 rounded-2xl border border-slate-800 text-xs space-y-3 text-slate-300 shadow-xl relative overflow-hidden"
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-slate-900 p-4 rounded-2xl text-white relative overflow-hidden shadow-lg shadow-slate-900/10 mb-4"
                 >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/10 rounded-full blur-2xl pointer-events-none" />
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+                  <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-slate-800 rounded-full blur-xl pointer-events-none" />
                   
-                  <div className="flex justify-between items-center border-b border-slate-800/60 pb-2.5">
-                    <span className="text-slate-400 font-bold">الاسم المعتمد:</span>
-                    <span className="font-black text-white text-sm tracking-wide">{snapshot?.full_name}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-slate-800/60 pb-2.5">
-                    <span className="text-slate-400 font-bold">رقم المتطوع الموحد:</span>
-                    <span className="font-mono font-bold text-red-400 bg-red-950/40 px-2 py-0.5 rounded border border-red-900/30">{snapshot?.volunteer_id}</span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-slate-800/60 pb-2.5">
-                    <span className="text-slate-400 font-bold">نطاق التواجد:</span>
-                    <span className="font-bold text-slate-200">{snapshot?.current_status_in_khartoum}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-0.5">
-                    <span className="text-slate-400 font-bold">الصفة والمسؤولية:</span>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-wide shadow-md ${snapshot?.is_tot_trainer ? 'bg-gradient-to-r from-red-600 to-red-500 text-white' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>
-                      {snapshot?.is_tot_trainer ? 'مدرب معتمد (TOT)' : 'متطوع نظامي'}
-                    </span>
+                  <div className="relative z-10 space-y-2">
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                      <span className="text-[10px] text-slate-400 font-bold">الاسم:</span>
+                      <span className="font-black text-sm">{snapshot?.full_name}</span>
+                    </div>
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                      <span className="text-[10px] text-slate-400 font-bold">رقم المتطوع:</span>
+                      <span className="font-mono text-xs bg-slate-800 px-2 py-0.5 rounded text-slate-300">{snapshot?.volunteer_id}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-1">
+                      <span className="text-[10px] text-slate-400 font-bold">الصلاحية:</span>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-wide ${snapshot?.is_tot_trainer ? 'bg-amber-400 text-amber-950' : 'bg-slate-100 text-slate-900'}`}>
+                        {snapshot?.is_tot_trainer ? 'مدرب (TOT)' : 'متطوع'}
+                      </span>
+                    </div>
                   </div>
                 </motion.div>
 
-                <div className="relative group">
-                  <User className="absolute right-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-red-700 transition-colors duration-300" />
-                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-medium placeholder-slate-400 shadow-sm" dir="ltr" placeholder="اختر اسم مستخدم جديد" />
+                <div className="space-y-3">
+                  <div className="relative group">
+                    <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-900 transition-colors duration-300" />
+                    <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-slate-900 focus:bg-white focus:ring-4 focus:ring-slate-900/5 transition-all duration-300 text-left font-medium placeholder-slate-400 text-sm" dir="ltr" placeholder="اسم مستخدم جديد" />
+                  </div>
+
+                  <div className="relative group">
+                    <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-900 transition-colors duration-300" />
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-slate-900 focus:bg-white focus:ring-4 focus:ring-slate-900/5 transition-all duration-300 text-left font-medium placeholder-slate-400 text-sm" dir="ltr" placeholder="كلمة المرور" />
+                  </div>
+
+                  <div className="relative group">
+                    <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-900 transition-colors duration-300" />
+                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-slate-900 focus:bg-white focus:ring-4 focus:ring-slate-900/5 transition-all duration-300 text-left font-medium placeholder-slate-400 text-sm" dir="ltr" placeholder="تأكيد كلمة المرور" />
+                  </div>
                 </div>
 
-                <div className="relative group">
-                  <Lock className="absolute right-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-red-700 transition-colors duration-300" />
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-medium placeholder-slate-400 shadow-sm" dir="ltr" placeholder="أدخل كلمة المرور الجديدة" />
-                </div>
-
-                <div className="relative group">
-                  <Lock className="absolute right-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-red-700 transition-colors duration-300" />
-                  <input 
-                    type="password" 
-                    value={confirmPassword} 
-                    onChange={(e) => setConfirmPassword(e.target.value)} 
-                    required 
-                    className="w-full pr-12 pl-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 outline-none focus:border-red-700 focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-medium placeholder-slate-400 shadow-sm" 
-                    dir="ltr" 
-                    placeholder="تأكيد كلمة المرور" 
-                  />
-                </div>
-
-                <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-white font-black py-4 rounded-2xl transition duration-300 shadow-md disabled:opacity-40 text-sm">
-                  {loading ? 'جاري تهيئة الملف والاعتماد السحابي...' : 'إنشاء وتفعيل حسابي فوراً'}
+                <motion.button whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-3.5 rounded-2xl transition duration-300 shadow-md shadow-slate-900/10 disabled:opacity-50 text-sm mt-4">
+                  {loading ? 'جاري التهيئة...' : 'إنشاء الحساب'}
                 </motion.button>
               </motion.form>
             )}
