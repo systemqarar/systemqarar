@@ -2,15 +2,17 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AuthRoutes from '../environments/public-site/modules/auth/auth.routes';
+// 👑 استيراد الواجهة الملكية الجديدة للوحة التحكم الموحدة
+import DashboardLayout from '../environments/unified-dashboard/modules/overview/pages/DashboardLayout';
 
-// حارس المسارات المحمية: يمنع دخول غير المسجلين
+// حارس المسارات المحمية: يمنع دخول غير المسجلين للمنظومة
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-brand-dark flex justify-center items-center text-white font-sans">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-brand-red"></div>
+      <div className="min-h-screen bg-[#0A1128] flex justify-center items-center text-white font-sans">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-[#C3073F]"></div>
       </div>
     );
   }
@@ -23,36 +25,23 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 export const AppRoutes: React.FC = () => {
-  const { user, logoutUser } = useAuth();
-
   return (
     <BrowserRouter>
       <Routes>
-        {/* 📦 موديول الأمان اللامركزي: يستقبل ويشغل كل مسارات الأمان تلقائياً */}
+        {/* 📦 موديول الأمان والتحقق: يستقبل ويشغل صفحات الدخول الآمن تلقائياً */}
         <Route path="/*" element={<AuthRoutes />} />
 
-        {/* المسارات المحمية: لوحة التحكم الموحدة (Dashboard) */}
+        {/* 📱 المسارات المحمية: لوحة التحكم الموحدة المخصصة للجوال (منظومة قرار) */}
         <Route 
           path="/dashboard" 
-          element={
+          element = {
             <ProtectedRoute>
-              <div className="min-h-screen bg-slate-100 p-8 font-sans text-right" dir="rtl">
-                <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md">
-                  <h1 className="text-2xl font-bold text-gray-800">مرحباً بك في لوحة تحكم قرار 🚀</h1>
-                  <p className="text-gray-600 mt-2">أنت مسجل دخول الآن بصفتك: <span className="text-brand-red font-bold">{user?.role}</span></p>
-                  <button 
-                    onClick={logoutUser} 
-                    className="mt-6 bg-brand-dark hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
-                  >
-                    تسجيل الخروج من النظام
-                  </button>
-                </div>
-              </div>
+              <DashboardLayout />
             </ProtectedRoute>
           } 
         />
 
-        {/* التوجيه التلقائي لأي رابط عشوائي */}
+        {/* التوجيه التلقائي لأي رابط عشوائي أو غير معروف مباشرة لصفحة الدخول */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
