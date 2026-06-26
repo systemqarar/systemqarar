@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ClipboardList, Calendar, CheckCircle2, Clock, AlertTriangle, 
-  ChevronLeft, UploadCloud, Bell, User, Filter, ArrowLeftRight,
-  FileText, Home, MessageSquare, Shield, Check, Info, Circle
+  UploadCloud, Bell, User, Filter, FileText, Home, MessageSquare, 
+  Check, Circle
 } from 'lucide-react';
 
 // تزييف بيانات المكاتب السبعة لخدمة العرض التفاعلي
@@ -65,17 +65,15 @@ const MOCK_TASKS = [
 export const FieldTasks: React.FC = () => {
   const [selectedOffice, setSelectedOffice] = useState('all');
   const [tasks, setTasks] = useState(MOCK_TASKS);
-  const [activeTab, setActiveTab] = useState('tasks'); // التبويب النشط بالأسفل
-  const [reportingTask, setReportingTask] = useState<typeof MOCK_TASKS[0] | null>(null); // للتقرير المنزلق
+  const [activeTab, setActiveTab] = useState('tasks');
+  const [reportingTask, setReportingTask] = useState<typeof MOCK_TASKS[0] | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [reportText, setReportText] = useState('');
 
-  // فلترة المهام بناء على المكتب المختار
   const filteredTasks = selectedOffice === 'all' 
     ? tasks 
     : tasks.filter(t => t.officeId === selectedOffice);
 
-  // تحديث حالة المهمة تفاعلياً
   const toggleTaskStatus = (taskId: string) => {
     setTasks(prev => prev.map(task => {
       if (task.id === taskId) {
@@ -86,14 +84,12 @@ export const FieldTasks: React.FC = () => {
     }));
   };
 
-  // معالجة إرسال التقرير الميداني لغيث والإدارة
   const handleSendReport = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reportText.trim()) return;
     setIsSubmittingReport(true);
     
     setTimeout(() => {
-      // تحديث المهمة لتصبح مكتملة بعد رفع التقرير
       setTasks(prev => prev.map(t => t.id === reportingTask?.id ? { ...t, status: 'completed' } : t));
       setIsSubmittingReport(false);
       setReportingTask(null);
@@ -104,11 +100,9 @@ export const FieldTasks: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-tr from-slate-50 via-gray-50 to-white flex flex-col font-sans text-right pb-28 relative overflow-hidden select-none" dir="rtl">
       
-      {/* 🌌 هالات توهج زجاجية ناعمة جداً في الخلفية لإعطاء عمق بصري للمظهر الأبيض */}
       <div className="absolute top-[-10%] right-[-20%] w-[350px] h-[350px] bg-red-500/5 rounded-full blur-[100px] pointer-events-none" />
       <div className="absolute top-[40%] left-[-20%] w-[300px] h-[300px] bg-slate-400/10 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* 🏛️ الشريط العلوي الملكي (Header) */}
       <header className="sticky top-0 z-40 bg-white/70 backdrop-blur-xl border-b border-gray-200/60 px-5 py-4 flex items-center justify-between shadow-[0_2px_20px_-5px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
           <motion.div whileTap={{ scale: 0.95 }} className="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700/10 flex items-center justify-center text-white shadow-sm font-black text-sm">
@@ -121,7 +115,6 @@ export const FieldTasks: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* زر التنبيهات الميدانية التفاعلي */}
           <motion.button whileTap={{ scale: 0.92 }} className="w-10 h-10 rounded-xl bg-gray-100/80 border border-gray-200/50 flex items-center justify-center text-slate-700 relative">
             <Bell className="w-4 h-4 stroke-[2.5]" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-red-600 rounded-full animate-pulse" />
@@ -129,10 +122,8 @@ export const FieldTasks: React.FC = () => {
         </div>
       </header>
 
-      {/* 📄 متن المحتوى الرئيسي */}
       <main className="px-5 pt-6 space-y-6 relative z-10 max-w-md mx-auto w-full">
         
-        {/* العناوين والترتيب البصري النظيف */}
         <div>
           <motion.h1 
             initial={{ opacity: 0, y: -5 }} 
@@ -146,7 +137,6 @@ export const FieldTasks: React.FC = () => {
           </p>
         </div>
 
-        {/* 📊 كبسولة الإحصائيات الذكية الـ Soft UI */}
         <div className="bg-white/80 backdrop-blur-md rounded-3xl border border-gray-200/60 p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.04)] grid grid-cols-3 gap-2 text-center">
           <div className="p-2 bg-red-50/50 rounded-2xl border border-red-100/50">
             <span className="text-xs text-slate-500 font-bold block">انتظار</span>
@@ -162,13 +152,12 @@ export const FieldTasks: React.FC = () => {
           </div>
         </div>
 
-        {/* 🧭 شريط مكاتب الإدارة السبعة - منزلق تفاعلي بالأصبع */}
         <div className="space-y-2">
           <div className="flex items-center gap-1.5 text-xs font-black text-slate-800 px-1">
             <Filter className="w-3.5 h-3.5 text-red-600" />
             <span>تصفية حسب مكتب الإدارة المختص:</span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-3 pt-1 scrollbar-none snap-x mask-gradient-x" dir="rtl">
+          <div className="flex gap-2 overflow-x-auto pb-3 pt-1 scrollbar-none snap-x" dir="rtl">
             {ADMINISTRATIVE_OFFICES.map((office) => {
               const isSelected = selectedOffice === office.id;
               return (
@@ -189,7 +178,6 @@ export const FieldTasks: React.FC = () => {
           </div>
         </div>
 
-        {/* 📋 قائمة بطاقات المهام المصممة كأسلوب كبسولات زجاجية مضيئة */}
         <div className="space-y-4">
           <AnimatePresence mode="popLayout">
             {filteredTasks.length === 0 ? (
@@ -213,7 +201,6 @@ export const FieldTasks: React.FC = () => {
                     task.status === 'completed' ? 'border-emerald-200/80 bg-white/40 opacity-75' : 'border-gray-200/70'
                   }`}
                 >
-                  {/* شريط علوي صغير لتصنيف المكتب والأولوية */}
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] font-black text-slate-500 bg-slate-100 border border-slate-200/60 px-2.5 py-1 rounded-lg">
                       {task.officeName}
@@ -226,14 +213,12 @@ export const FieldTasks: React.FC = () => {
                         </span>
                       )}
                       
-                      {/* آيقونة الحالة التفاعلية */}
                       <span className={`w-2 h-2 rounded-full ${
                         task.status === 'completed' ? 'bg-emerald-600' : task.status === 'in-progress' ? 'bg-amber-500' : 'bg-red-500'
                       }`} />
                     </div>
                   </div>
 
-                  {/* تفاصيل التكليف والمهمة */}
                   <div className="space-y-1.5">
                     <h3 className={`text-sm font-black text-slate-900 leading-snug ${task.status === 'completed' ? 'line-through text-slate-400' : ''}`}>
                       {task.title}
@@ -243,16 +228,13 @@ export const FieldTasks: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* تاريخ الاستحقاق والمؤشر الزمني */}
                   <div className="flex items-center justify-between border-t border-gray-100/80 pt-3.5">
                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
                       <Calendar className="w-3.5 h-3.5 stroke-[2]" />
                       <span className="font-mono">{task.date}</span>
                     </div>
 
-                    {/* أزرار الإجراءات التفاعلية الزجاجية الناعمة */}
                     <div className="flex items-center gap-1.5">
-                      {/* زر تغيير الحالة بنقرة ذكية */}
                       <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={() => toggleTaskStatus(task.id)}
@@ -268,12 +250,11 @@ export const FieldTasks: React.FC = () => {
                         {task.status === 'completed' ? <CheckCircle2 className="w-4 h-4" /> : task.status === 'in-progress' ? <Clock className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
                       </motion.button>
 
-                      {/* زر رفع التقرير الفوري المفتوح تفاعلياً */}
                       {task.status !== 'completed' && (
                         <motion.button
                           whileTap={{ scale: 0.95 }}
                           onClick={() => setReportingTask(task)}
-                          className="px-3 py-2 text-xs font-black bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white rounded-xl shadow-md shadow-red-700/5 flex items-center gap-1.5"
+                          className="px-3 py-2 text-xs font-black bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white rounded-xl shadow-md flex items-center gap-1.5"
                         >
                           <UploadCloud className="w-3.5 h-3.5 stroke-[2.5]" />
                           <span>رفع تقرير</span>
@@ -288,11 +269,9 @@ export const FieldTasks: React.FC = () => {
         </div>
       </main>
 
-      {/* 📥 شريط منزلق ذكي (Bottom Drawer) مخصص لرفع التقارير الميدانية لغيث والإدارة */}
       <AnimatePresence>
         {reportingTask && (
           <>
-            {/* الخلفية المظلمة الشفافة */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -301,7 +280,6 @@ export const FieldTasks: React.FC = () => {
               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50"
             />
             
-            {/* درج التقرير الزجاجي الأبيض العائم */}
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
@@ -309,7 +287,6 @@ export const FieldTasks: React.FC = () => {
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
               className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] border-t border-gray-200 shadow-[0_-15px_40px_rgba(0,0,0,0.08)] z-50 p-6 space-y-5"
             >
-              {/* شريط السحب الزخرفي العلوي */}
               <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto" />
 
               <div className="text-right">
@@ -332,7 +309,6 @@ export const FieldTasks: React.FC = () => {
                   />
                 </div>
 
-                {/* كبسولة محاكاة إرفاق صورة ميدانية لغيث */}
                 <div className="border border-dashed border-gray-200 rounded-2xl p-3 bg-slate-50/50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="p-2 bg-white rounded-xl border border-gray-100 text-slate-400">
@@ -353,7 +329,7 @@ export const FieldTasks: React.FC = () => {
                     whileTap={{ scale: 0.98 }}
                     type="submit"
                     disabled={isSubmittingReport}
-                    className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-black py-3.5 rounded-2xl text-xs shadow-md shadow-slate-900/10 flex justify-center items-center gap-1.5"
+                    className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 text-white font-black py-3.5 rounded-2xl text-xs shadow-md flex justify-center items-center gap-1.5"
                   >
                     {isSubmittingReport ? (
                       <span>جاري تشفير ورفع البيانات...</span>
@@ -379,7 +355,6 @@ export const FieldTasks: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 🧭 شريط التنقل السفلي الاحترافي الملكي والمطابق للمخطط البصري */}
       <nav className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_15px_40px_-10px_rgba(0,0,0,0.08)] z-40 p-2 flex justify-between items-center px-4">
         {[
           { id: 'home', name: 'الرئيسية', icon: Home },
