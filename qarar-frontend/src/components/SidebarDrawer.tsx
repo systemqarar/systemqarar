@@ -28,41 +28,51 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
     { id: 'documents', name: 'الخطابات والوثائق', icon: FileText },
   ];
 
+  // إعدادات الشلال الحركي للأزرار الداخلية
+  const containerVariants = {
+    open: {
+      transition: { staggerChildren: 0.05, delayChildren: 0.1 }
+    },
+    closed: {}
+  };
+
+  const itemVariants = {
+    open: { opacity: 1, x: 0, scale: 1, transition: { type: 'spring', stiffness: 250, damping: 22 } },
+    closed: { opacity: 0, x: 30, scale: 0.95 }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-start p-4" dir="rtl">
           
-          {/* 🌑 الخلفية المظلمة الشفافة: تم تخفيف الـ Blur لتوفير طاقة المعالج أثناء الحركة */}
+          {/* الخلفية المظلمة الشفافة */}
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/50 backdrop-blur-[4px] transition-all"
+            className="absolute inset-0 bg-black/60 backdrop-blur-[5px]"
           />
 
-          {/* 🎪 جسم القائمة العائم (Floating Deck Panel) */}
+          {/* جسم اللوحة العائمة المعالج للقص ذو الحركة السحرية */}
           <motion.div 
-            initial={{ x: '110%', opacity: 0.9 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '110%', opacity: 0.9 }}
-            /* تم ضبط التوقيت هنا ليكون Tween انسيابي وسريع جداً مقتبس من حركات نظام iOS */
-            transition={{ type: 'tween', ease: [0.16, 1, 0.3, 1], duration: 0.38 }}
-            style={{ willChange: 'transform' }} // إجبار الموبايل على تشغيل كرت الشاشة لقوة الأداء
-            className="relative h-[calc(100vh-2rem)] w-[85vw] max-w-[290px] text-white p-5 flex flex-col justify-between shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] bg-gradient-to-b from-[#560E1A] via-[#7A1C2E] to-[#400A13] rounded-[2rem] border border-white/10 overflow-hidden z-10"
+            initial={{ x: '120%', opacity: 0.5, scale: 0.96 }}
+            animate={{ x: 0, opacity: 1, scale: 1 }}
+            exit={{ x: '120%', opacity: 0.5, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+            style={{ willChange: 'transform' }}
+            className="absolute top-4 bottom-4 right-4 w-[85vw] max-w-[290px] text-white p-5 flex flex-col justify-between shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] bg-gradient-to-b from-[#560E1A] via-[#7A1C2E] to-[#380710] rounded-[2.5rem] border border-white/10 overflow-hidden z-10"
           >
             
-            {/* 🎨 شبكة الخطوط الهندسية الفخمة الثابتة في الخلفية بدون حركات متعبة */}
+            {/* الخلفية الهندسية الفخمة */}
             <div className="absolute inset-0 z-0 opacity-10 pointer-events-none bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_16px]" />
 
-            {/* 🏛️ المحتوى الأمامي */}
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
-                {/* هيدر المنيو الموحد باللوقو الرسمي الجديد */}
-                <div className="flex justify-between items-center mb-5 border-b border-white/10 pb-4">
+                {/* الهيدر الموحد باللوقو الرسمي */}
+                <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
                   <div className="flex items-center gap-2.5">
-                    {/* استدعاء اللوقو الفخم من الـ public مباشرة */}
                     <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center shadow-md select-none">
                       <img src="/logo.png" alt="قرار" className="w-full h-full object-contain" />
                     </div>
@@ -81,37 +91,41 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                   </button>
                 </div>
 
-                {/* 🧭 الأزرار التفاعلية الطائرة */}
-                <nav className="space-y-1">
+                {/* الأزرار التفاعلية بنظام الشلال الحركي */}
+                <motion.nav 
+                  variants={containerVariants}
+                  animate="open"
+                  initial="closed"
+                  className="space-y-1"
+                >
                   {menuItems.map((item) => {
-                    const IsActive = activeTab === item.id;
+                    const IsActive = activeTab === item.id || (item.id === 'communication' && activeTab === 'communication');
                     return (
-                      <button
+                      <motion.button
                         key={item.id}
+                        variants={itemVariants}
+                        whileTap={{ scale: 0.97 }}
                         onClick={() => {
                           setActiveTab(item.id);
-                          setTimeout(onClose, 120); // تأخير خفيف جداً يمنح المستخدم إحساس النقرة
+                          setTimeout(onClose, 120);
                         }}
                         className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl font-black text-[11px] relative select-none cursor-pointer transition-all duration-200 ${
-                          IsActive ? 'text-[#7A1C2E] shadow-md' : 'text-red-100 hover:bg-white/5 active:bg-white/10'
+                          IsActive ? 'text-[#7A1C2E]' : 'text-red-100 hover:bg-white/5 active:bg-white/10'
                         }`}
                       >
-                        {/* خلفية الزر النشط المستقرة */}
                         {IsActive && (
                           <motion.div
                             layoutId="royalActiveBgMobile"
-                            className="absolute inset-0 bg-white rounded-xl z-0"
+                            className="absolute inset-0 bg-white rounded-xl z-0 shadow-md"
                             transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                           />
                         )}
                         
-                        {/* محاذاة اليمين */}
                         <span className="relative z-10 flex items-center gap-3">
                           <item.icon className={`w-4 h-4 ${IsActive ? 'stroke-[2.5] text-[#7A1C2E]' : 'stroke-[1.5] text-red-200/80'}`} />
                           <span>{item.name}</span>
                         </span>
 
-                        {/* محاذاة اليسار (البادجات) */}
                         {item.badge && (
                           <span className="relative z-10">
                             {item.badge.type === 'ai' ? (
@@ -126,13 +140,13 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                             )}
                           </span>
                         )}
-                      </button>
+                      </motion.button>
                     );
                   })}
-                </nav>
+                </motion.nav>
               </div>
 
-              {/* زر تسجيل الخروج السفلي الفخم */}
+              {/* زر تسجيل الخروج المستقر تماماً */}
               <div className="border-t border-white/10 pt-4">
                 <button 
                   className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl font-black text-[11px] bg-white/5 text-red-200 hover:bg-white/10 active:scale-95 transition-all border border-white/5 shadow-inner"
