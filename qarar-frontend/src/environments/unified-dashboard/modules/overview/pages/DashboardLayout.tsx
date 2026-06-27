@@ -1,5 +1,7 @@
+import { useEffect } from 'react'; // 👈 مستشعر المراقبة التلقائي للروابط
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, User, ClipboardList, MessageSquare, FileText, ArrowRight } from 'lucide-react';
+import { Outlet, useNavigate } from 'react-router-dom'; 
 
 import { useDashboard } from '../../../../../hooks/useDashboard';
 import { SidebarDrawer } from '../../../../../components/SidebarDrawer';
@@ -11,14 +13,24 @@ import { BentoGrid } from '../components/BentoGrid';
 
 export const DashboardLayout = () => {
   const { activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen } = useDashboard();
+  const navigate = useNavigate(); 
 
+  // 🗺️ تعديل الروابط هنا لتتوافق 100% مع الملف الرئيسي للمنظومة (/dashboard)
   const navigationItems = [
-    { id: 'overview', name: 'الرئيسية (Overview)', icon: Home },
-    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User },
-    { id: 'tasks', name: 'المهام والأنشطة (Tasks & Activities)', icon: ClipboardList },
-    { id: 'communication', name: 'مركز التواصل الذكي (Smart Communication)', icon: MessageSquare },
-    { id: 'documents', name: 'الخطابات والوثائق (Official Documents)', icon: FileText },
+    { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
+    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
+    { id: 'tasks', name: 'المهام والأنشطة (Tasks & Activities)', icon: ClipboardList, path: '#' },
+    { id: 'communication', name: 'مركز التواصل الذكي (Smart Communication)', icon: MessageSquare, path: '#' },
+    { id: 'documents', name: 'الخطابات والوثائق (Official Documents)', icon: FileText, path: '#' },
   ];
+
+  // 🔄 المراقبة الذكية: أي كبسة في السايدبار أو الهيدر تحول الرابط فوراً وبشكل تلقائي وآمن للموبايل
+  useEffect(() => {
+    const currentItem = navigationItems.find(n => n.id === activeTab);
+    if (currentItem && currentItem.path !== '#') {
+      navigate(currentItem.path);
+    }
+  }, [activeTab]);
 
   return (
     <div className="min-h-screen bg-[#f8f9fa] relative overflow-hidden select-none" dir="rtl">
@@ -44,45 +56,15 @@ export const DashboardLayout = () => {
                 <BentoGrid />
               </motion.div>
             ) : (
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="px-5 mt-6"
-              >
-                <div className="bg-white rounded-3xl p-8 text-center shadow-sm border border-gray-100 min-h-[340px] flex flex-col items-center justify-center">
-                  {(() => {
-                    const item = navigationItems.find(n => n.id === activeTab);
-                    const Icon = item?.icon || Home;
-                    return (
-                      <>
-                        <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-4 text-[#7A1C2E]">
-                          <Icon className="w-7 h-7 stroke-[1.5]" />
-                        </div>
-                        <h2 className="text-lg font-black text-slate-900 mb-1">{item?.name}</h2>
-                        <p className="text-gray-400 text-[11px] max-w-xs mb-5">
-                          تم تفعيل واجهة {item?.name} بنجاح. هنا سيتم ربط ومعالجة البيانات الخاصة بهذا القسم بشكل مستقل.
-                        </p>
-                        
-                        {/* 🛠️ زر الرجوع الذكي والمثالي لحل مشكلة قفل الشاشات الفرعية */}
-                        <button
-                          onClick={() => setActiveTab('overview')}
-                          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 border border-gray-100 hover:bg-gray-100 font-bold text-[11px] text-slate-700 transition-all active:scale-95"
-                        >
-                          <ArrowRight className="w-3.5 h-3.5 text-[#7A1C2E]" />
-                          الرجوع للوحة الرئيسية
-                        </button>
-                      </>
-                    );
-                  })()}
-                </div>
-              </motion.div>
+              /* 🎯 الأوتلت السحري حيعرض صفحة البيانات الأساسية المستقلة بناءً على رابطها الموجه */
+              <div className="px-5 mt-6">
+                <Outlet />
+              </div>
             )}
           </AnimatePresence>
         </main>
 
-        {/* ربط مساعد غيث بالقسم المخصص له تلقائياً عند الضغط */}
+        {/* زرار مساعد غيث الذكي */}
         <GhaithButton onClick={() => setActiveTab('communication')} />
 
       </div>

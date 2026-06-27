@@ -1,8 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import authRoutes from './modules/public-site/auth-profile/auth.routes'; // 🌐 🌟 تم تحديث المسار هنا لمطابقة الهيكلية المنظمة الجديدة
-import { whatsappService } from './services/whatsappService'; // 🟢 استيراد خدمة الواتساب المركزية الجديدة
+import authRoutes from './modules/public-site/auth-profile/auth.routes'; // 🌐 موديول الحسابات والأمان القديم
+
+// 🪪 🛡️ استيراد خط المسارات الجديد للبيانات الشخصية بناءً على الشجرة المعتمدة
+import personalDataRoutes from './modules/unified-dashboard/volunteer-profile/personal-data/personal-data.routes';
+
+import { whatsappService } from './services/whatsappService'; // 🟢 خدمة الواتساب المركزية
 
 // تفعيل قراءة الملفات البيئية السرية (.env)
 dotenv.config();
@@ -18,7 +22,6 @@ app.use(cors({
 app.use(express.json()); // للسماح للسيرفر بقراءة كائنات الـ JSON القادمة من الواجهات
 
 // 2. نقطة فحص السلامة (Health Check Endpoint)
-// مهمة جداً ومنقذة للحياة؛ لأن منصة Render تستخدمها للتأكد من أن السيرفر يعمل قبل إتاحة الرابط للجمهور
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'healthy', 
@@ -30,7 +33,11 @@ app.get('/health', (req, res) => {
 // 3. ربط وتفعيل موديول الحسابات والأمان (Auth Routes)
 app.use('/api/auth', authRoutes);
 
-// 4. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
+// 🪪 4. تفعيل موديول البيانات الشخصية والأساسية للمتطوع (منظومة قرار)
+// الرابط النهائي الآمن للاستدعاء من الفرونتد حيكون بالظبط: /api/volunteer/profile/update
+app.use('/api/volunteer/profile', personalDataRoutes);
+
+// 5. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
 app.listen(PORT, async () => {
   console.log(`===================================================`);
   console.log(`⚡ [SERVER RUNNING]: السيرفر ينبض بالحياة الآن على منفذ: ${PORT}`);

@@ -5,6 +5,9 @@ import AuthRoutes from '../environments/public-site/modules/auth/auth.routes';
 // 👑 استيراد الواجهة الملكية الجديدة للوحة التحكم الموحدة
 import DashboardLayout from '../environments/unified-dashboard/modules/overview/pages/DashboardLayout';
 
+// 📦 استيراد خط المسارات المستقل الخاص بموديول البروفايل (العملناه قبل شوية)
+import { volunteerProfileRoutes } from '../environments/unified-dashboard/modules/volunteer-profile/volunteer-profile.routes';
+
 // حارس المسارات المحمية: يمنع دخول غير المسجلين للمنظومة
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -39,7 +42,12 @@ export const AppRoutes: React.FC = () => {
               <DashboardLayout />
             </ProtectedRoute>
           } 
-        />
+        >
+          {/* 🌲 هنا بتصب مسارات موديول البروفايل تلقائياً كأبناء داخل لوحة التحكم بدون ما نلخبط باقي الصفحات */}
+          {volunteerProfileRoutes.map((route, index) => (
+            <Route key={index} path={route.path} element={route.element} />
+          ))}
+        </Route>
 
         {/* التوجيه التلقائي لأي رابط عشوائي أو غير معروف مباشرة لصفحة الدخول */}
         <Route path="*" element={<Navigate to="/login" replace />} />
