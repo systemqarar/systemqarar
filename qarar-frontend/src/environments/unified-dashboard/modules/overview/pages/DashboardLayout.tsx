@@ -1,6 +1,6 @@
 import { useEffect } from 'react'; // 👈 مستشعر المراقبة التلقائي للروابط
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, User, ClipboardList, MessageSquare, FileText, ArrowRight } from 'lucide-react';
+import { Home, User, ClipboardList, MessageSquare, FileText } from 'lucide-react'; // 🌟 تم حذف ArrowRight عشان فيرسال يرضى
 import { Outlet, useNavigate } from 'react-router-dom'; 
 
 import { useDashboard } from '../../../../../hooks/useDashboard';
@@ -15,7 +15,7 @@ export const DashboardLayout = () => {
   const { activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen } = useDashboard();
   const navigate = useNavigate(); 
 
-  // 🗺️ تعديل الروابط هنا لتتوافق 100% مع الملف الرئيسي للمنظومة (/dashboard)
+  // 🗺️ روابط متوافقة 100% مع ملف الـ Routes الرئيسي
   const navigationItems = [
     { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
     { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
@@ -24,7 +24,7 @@ export const DashboardLayout = () => {
     { id: 'documents', name: 'الخطابات والوثائق (Official Documents)', icon: FileText, path: '#' },
   ];
 
-  // 🔄 المراقبة الذكية: أي كبسة في السايدبار أو الهيدر تحول الرابط فوراً وبشكل تلقائي وآمن للموبايل
+  // 🔄 المراقبة الذكية لتحويل الروابط فوراً للموبايل
   useEffect(() => {
     const currentItem = navigationItems.find(n => n.id === activeTab);
     if (currentItem && currentItem.path !== '#') {
@@ -56,7 +56,7 @@ export const DashboardLayout = () => {
                 <BentoGrid />
               </motion.div>
             ) : (
-              /* 🎯 الأوتلت السحري حيعرض صفحة البيانات الأساسية المستقلة بناءً على رابطها الموجه */
+              /* 🎯 الأوتلت السحري لعرض موديول البيانات الشخصية */
               <div className="px-5 mt-6">
                 <Outlet />
               </div>
