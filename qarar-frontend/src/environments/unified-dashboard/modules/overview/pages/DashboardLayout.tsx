@@ -21,10 +21,8 @@ export const DashboardLayout = () => {
   ];
 
   return (
-    {/* 💻 الخلفية الأساسية للمنظومة: تم توحيدها بلون مريح للعين ومتناسق */}
     <div className="min-h-screen bg-[#f8f9fa] relative overflow-hidden select-none" dir="rtl">
       
-      {/* 📱 جسم التطبيق المستقر: تم إلغاء حركات الـ Scale والإزاحة العشوائية لضمان أعلى درجات السرعة على الهواتف */}
       <div className="min-h-screen flex flex-col font-sans text-right pb-32 relative z-10">
         
         {/* 🏛️ حقن الهيدر المستقل بالبيانات والتحكم الذكي بالأزرار */}
@@ -77,12 +75,12 @@ export const DashboardLayout = () => {
           </AnimatePresence>
         </main>
 
-        {/* مساعد غيث الذكي (أسفل الشاشة تماماً لجمالية وراحة اليد أثناء استخدام الموبايل) */}
+        {/* مساعد غيث الذكي (أسفل الشاشة تماماً لجمالية وراحة اليد) */}
         <GhaithButton onClick={() => setActiveTab('communication')} />
 
       </div>
 
-      {/* 🎪 المنيو الجانبية التفاعلية العائمة (تظهر الآن فوق الداشبورد كبطاقة ذكية طائرة) */}
+      {/* 🎪 المنيو الجانبية التفاعلية العائمة الفخمة */}
       <SidebarDrawer 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
