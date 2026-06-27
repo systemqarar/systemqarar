@@ -7,7 +7,7 @@ interface GhaithButtonProps {
 
 export const GhaithButton = ({ onClick }: GhaithButtonProps) => {
   return (
-    <div className="fixed bottom-24 left-5 right-5 z-30 select-none" dir="rtl">
+    <div className="fixed bottom-5 left-5 right-5 z-30 select-none" dir="rtl">
       
       {/* الحاوية التفاعلية بالكامل قابلة للضغط لتسهيل التجربة على الموبايل */}
       <div className="relative group cursor-pointer" onClick={onClick}>
