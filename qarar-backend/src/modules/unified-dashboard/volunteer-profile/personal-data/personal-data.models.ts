@@ -7,6 +7,9 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+/**
+ * 📥 1. دالة حفظ وتحديث البيانات (UPSERT)
+ */
 export const saveOrUpdateProfileModel = async (data: VolunteerProfileInput) => {
   const queryText = `
     INSERT INTO volunteer_profiles (
@@ -39,5 +42,33 @@ export const saveOrUpdateProfileModel = async (data: VolunteerProfileInput) => {
   ];
 
   const result = await pool.query(queryText, values);
+  return result.rows[0];
+};
+
+/**
+ * 📤 2. دالة جلب وقراءة البيانات الحقيقية من قاعدة بيانات Neon
+ */
+export const getProfileFromDBModel = async (volunteerId: string) => {
+  const queryText = `
+    SELECT 
+      volunteer_id AS "volunteerId", 
+      full_name AS "fullName", 
+      national_id AS "nationalId", 
+      gender, 
+      birth_date AS "birthDate", 
+      blood_type AS "bloodType", 
+      marital_status AS "maritalStatus", 
+      email, 
+      education, 
+      occupation, 
+      address, 
+      preferred_office AS "preferredOffice", 
+      is_niqabi AS "isNiqabi", 
+      profile_image_url AS "profileImageUrl"
+    FROM volunteer_profiles 
+    WHERE volunteer_id = $1;
+  `;
+  
+  const result = await pool.query(queryText, [volunteerId]);
   return result.rows[0];
 };
