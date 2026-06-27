@@ -4,7 +4,7 @@ import { Home, User, ClipboardList, MessageSquare, FileText } from 'lucide-react
 import { useDashboard } from '../../../../../hooks/useDashboard';
 import { SidebarDrawer } from '../../../../../components/SidebarDrawer';
 import { GhaithButton } from '../../../../../components/GhaithButton';
-import { Header } from '../../../../../components/Header'; // 🚀 الهيدر الملكي الجديد
+import { Header } from '../../../../../components/Header'; 
 
 import { EmergencyCards } from '../components/EmergencyCards';
 import { BentoGrid } from '../components/BentoGrid';
@@ -21,19 +21,11 @@ export const DashboardLayout = () => {
   ];
 
   return (
-    // الخلفية الأساسية بلون غيث الذكي الفخم عند انكماش الصفحة
-    <div className="min-h-screen bg-[#0B1528] relative overflow-hidden select-none" dir="rtl">
+    {/* 💻 الخلفية الأساسية للمنظومة: تم توحيدها بلون مريح للعين ومتناسق */}
+    <div className="min-h-screen bg-[#f8f9fa] relative overflow-hidden select-none" dir="rtl">
       
-      {/* جسم التطبيق بالكامل ينكمش وتدور زواياه عند فتح القائمة */}
-      <motion.div
-        animate={{ 
-          scale: isSidebarOpen ? 0.93 : 1,
-          x: isSidebarOpen ? '-65vw' : '0%', 
-          borderRadius: isSidebarOpen ? '40px' : '0px'
-        }}
-        transition={{ type: 'spring', damping: 26, stiffness: 210 }}
-        className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans text-right pb-32 shadow-2xl origin-right relative z-10 overflow-hidden"
-      >
+      {/* 📱 جسم التطبيق المستقر: تم إلغاء حركات الـ Scale والإزاحة العشوائية لضمان أعلى درجات السرعة على الهواتف */}
+      <div className="min-h-screen flex flex-col font-sans text-right pb-32 relative z-10">
         
         {/* 🏛️ حقن الهيدر المستقل بالبيانات والتحكم الذكي بالأزرار */}
         <Header 
@@ -42,7 +34,7 @@ export const DashboardLayout = () => {
           onMenuClick={() => setIsSidebarOpen(true)} 
         />
 
-        {/* عرض المحتوى الديناميكي حسب التبويب */}
+        {/* عرض المحتوى الديناميكي حسب القسم المفتوح */}
         <main className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <AnimatePresence mode="wait">
             {activeTab === 'overview' ? (
@@ -85,12 +77,12 @@ export const DashboardLayout = () => {
           </AnimatePresence>
         </main>
 
-        {/* مساعد غيث الذكي (أسفل الشاشة تماماً لجمالية وراحة اليد) */}
+        {/* مساعد غيث الذكي (أسفل الشاشة تماماً لجمالية وراحة اليد أثناء استخدام الموبايل) */}
         <GhaithButton onClick={() => setActiveTab('communication')} />
 
-      </motion.div>
+      </div>
 
-      {/* المنيو الجانبية التفاعلية */}
+      {/* 🎪 المنيو الجانبية التفاعلية العائمة (تظهر الآن فوق الداشبورد كبطاقة ذكية طائرة) */}
       <SidebarDrawer 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
