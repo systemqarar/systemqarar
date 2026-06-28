@@ -8,7 +8,6 @@ const dataModel = new PersonalDataModel();
 export class PersonalDataController {
   
   // GET: /api/volunteer/profile/personal-data/:volunteerId
-  // ملاحظة: الـ volunteerId الممرر هنا هو الـ id بتاع اليوزر المسجل دخول
   async getProfileData(req: Request, res: Response) {
     try {
       const { volunteerId } = req.params;
@@ -20,26 +19,27 @@ export class PersonalDataController {
       const volunteer = await dataModel.findVolunteerById(volunteerId);
       
       if (!volunteer) {
-        return res.status(404).json({ success: false, message: 'هذا العضو غير مسجل ببيانات الحصر أو الحساب غير مرتبط' });
+        return res.status(404).json({ success: false, message: 'هذا العضو غير مسجل أو الحساب غير مرتبط' });
       }
 
-      // الربط السحري: تحويل أسماء أعمدة نيون الحقيقية للمسميات البيفهمها الفرونت إند
+      // إرسال البيانات كاملة ومطابقة لما يتوقعه الفرونت إند تماماً
       return res.status(200).json({
         success: true,
         data: {
-          volunteerId: volunteer.volunteer_number, // يعرض رقم الحصر المألوف (SRCS-XXXX)
+          volunteerId: volunteer.volunteer_number, 
           fullName: volunteer.full_name,
+          nationalId: volunteer.national_id, // هسي حيقرا قيمته الحقيقية والتعليقة حتفك!
           gender: volunteer.gender,
-          birthDate: volunteer.date_of_birth, // مطابقة الاسم الحقيقي
+          birthDate: volunteer.date_of_birth, 
           bloodType: volunteer.blood_type,
           maritalStatus: volunteer.marital_status,
           email: volunteer.email,
-          education: volunteer.education_level, // مطابقة الاسم الحقيقي
-          occupation: volunteer.job_title, // مطابقة الاسم الحقيقي
-          address: volunteer.detailed_address, // مطابقة الاسم الحقيقي
-          preferredOffice: volunteer.desired_department, // مطابقة الاسم الحقيقي
+          education: volunteer.education_level, 
+          occupation: volunteer.job_title, 
+          address: volunteer.detailed_address, 
+          preferredOffice: volunteer.desired_department, 
           isNiqabi: volunteer.is_niqabi,
-          profileImageUrl: volunteer.photo_url || volunteer.secure_photo_url, // مطابقة الاسم الحقيقي
+          profileImageUrl: volunteer.photo_url || volunteer.secure_photo_url, 
           isProfileCompleted: volunteer.is_profile_completed
         }
       });
