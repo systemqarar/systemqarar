@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
-import { hasrApiClient } from '../../../services/hasrApiClient'; // 🔌 تعديل المسار ليخرج 3 مجلدات للوصول للخدمات
-import db from '../../../config/db'; // 🔌 تعديل المسار ليخرج 3 مجلدات للوصول لقاعدة البيانات
+import { hasrApiClient } from '../../../services/hasrApiClient'; 
+import db from '../../../config/db'; 
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { whatsappService } from '../../../services/whatsappService'; // 🔌 تعديل المسار ليخرج 3 مجلدات للوصول لخدمة الواتساب
+import { whatsappService } from '../../../services/whatsappService'; 
 
 export const authController = {
   // 1️⃣ الشاشة 1: تسجيل الدخول الروتيني الفعلي من قاعدة البيانات
@@ -46,9 +46,13 @@ export const authController = {
 
       await db.query('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
 
+      // 🆕 جلب حالة اكتمال الملف الشخصي لتمريرها في التوكن والـ response
+      const profileResult = await db.query('SELECT is_profile_completed FROM volunteer_profiles WHERE user_id = $1', [user.id]);
+      const isProfileCompleted = profileResult.rows[0]?.is_profile_completed ?? false;
+
       const jwtSecret = process.env.JWT_SECRET || 'qarar-secret-key-2026-strict';
       const token = jwt.sign(
-        { userId: user.id, username: user.username, role: user.role, is_acting: user.is_acting },
+        { userId: user.id, username: user.username, role: user.role, is_acting: user.is_acting, isProfileCompleted },
         jwtSecret,
         { expiresIn: '24h' }
       );
@@ -56,8 +60,14 @@ export const authController = {
       res.status(200).json({
         message: 'تم تسجيل الدخول بنجاح',
         token,
-        // ✅ تمرير رقم المتطوع في الـ user object عشان نحتاجه في الفرونت إند
-        user: { id: user.id, username: user.username, role: user.role, volunteer_number: user.volunteer_number, is_acting: user.is_acting }
+        user: { 
+          id: user.id, 
+          username: user.username, 
+          role: user.role, 
+          volunteer_number: user.volunteer_number, 
+          is_acting: user.is_acting,
+          is_profile_completed: isProfileCompleted // 🆕 هامة جداً لتوجيه الفرونت إند
+        }
       });
     } catch (error) {
       console.error('Login Error:', error);
@@ -65,10 +75,9 @@ export const authController = {
     }
   },
 
-  // 2️⃣ الشاشة 2: فحص المعرف وصياغة رسالة الـ OTP وإرسالها
+  // 2️⃣ الشاشة 2: فحص المعرف وصياغة رسالة الـ OTP وإرسالها وسحب البيانات كاملة
   verifyVolunteer: async (req: Request, res: Response): Promise<void> => {
     try {
-      // ✅ التعديل هنا: استقبال volunteer_number بدلاً من volunteer_id
       const { volunteer_number } = req.body;
 
       if (!volunteer_number) {
@@ -89,9 +98,9 @@ export const authController = {
         return;
       }
 
+      // 🛠️ تم التوسيع هنا لسحب كافة البيانات المطابقة من نظام الحصر دون نقصان
       const volunteerSnapshot = {
-        // ✅ التعديل هنا: حفظه باسم volunteer_number في اللقطة
-        volunteer_number: volunteerData.volunteerId, // من الـ API الخارجي
+        volunteer_number: volunteerData.volunteerId, 
         national_id: volunteerData.nationalId,
         full_name: volunteerData.fullName,
         phone: volunteerData.phone,
@@ -99,17 +108,23 @@ export const authController = {
         photo_url: volunteerData.photoUrl,
         is_tot_trainer: volunteerData.isTotTrainer,
         current_status_in_khartoum: volunteerData.currentStatusInKhartoum || 'داخل الولاية',
-        unit_name: volunteerData.unitName
+        unit_name: volunteerData.unitName,
+        // 🆕 الحقول المضافة حديثاً لحل المشكلة الأولى:
+        tot_year: volunteerData.totYear ? parseInt(volunteerData.totYear) : null,
+        tot_certificate_url: volunteerData.totCertificateUrl || null,
+        other_certificate_url: volunteerData.otherCertificateUrl || null,
+        last_first_aid_refresher: volunteerData.lastFirstAidRefresher || null,
+        other_programs: volunteerData.otherPrograms || null,
+        expected_return_time: volunteerData.expectedReturnTime || null,
+        availability_level: volunteerData.availabilityLevel || null
       };
 
       const targetWhatsapp = volunteerSnapshot.whatsapp || '';
 
       if (targetWhatsapp) {
         console.log(`🚀 جاري تجهيز رسالة الـ OTP وتمريرها للرقم: ${targetWhatsapp}`);
-        
         const otpCode = '123456'; 
         const customMessage = `🔐 [نظام قرار الرقمي]\n\nرمز التحقق الخاص بك هو: ${otpCode}\n\nيرجى عدم مشاركة هذا الرمز مع أي شخص للحفاظ على أمان حسابك.`;
-        
         await whatsappService.sendMessage(targetWhatsapp, customMessage);
       }
 
@@ -129,7 +144,6 @@ export const authController = {
   // 3️⃣ الشاشة 3: مطابقة رمز الـ OTP
   verifyOTP: async (req: Request, res: Response): Promise<void> => {
     try {
-      // ✅ التعديل هنا
       const { volunteer_number, otp_code } = req.body;
 
       if (otp_code === '123456') {
@@ -146,7 +160,6 @@ export const authController = {
   // 3️⃣ مكرر: مسار الطوارئ الميداني والطلب اليدوي
   emergencyRequest: async (req: Request, res: Response): Promise<void> => {
     try {
-      // ✅ التعديل هنا
       const { volunteer_number } = req.body;
       res.status(200).json({ 
         message: `🚨 تم رفع طلب طوارئ يدوي للمعرف ${volunteer_number}. يرجى مراجعة قيادة الوحدة لتفعيل الحساب يدوياً.` 
@@ -156,7 +169,7 @@ export const authController = {
     }
   },
 
-  // 4️⃣ الشاشة 4: إنشاء الحساب النهائي الفعلي وحفظ البيانات المعزولة في جداول Neon السحابية
+  // 4️⃣ الشاشة 4: إنشاء الحساب وحفظ البيانات كاملة في جداول Neon السحابية
   register: async (req: Request, res: Response): Promise<void> => {
     try {
       const { username, password, snapshot } = req.body;
@@ -172,7 +185,6 @@ export const authController = {
         return;
       }
 
-      // ✅ التعديل هنا في الـ Query
       const checkVolunteer = await db.query('SELECT id FROM users WHERE volunteer_number = $1', [snapshot.volunteer_number]);
       if (checkVolunteer.rows.length > 0) {
         res.status(400).json({ error: 'رقم المتطوع الموحد هذا مبرمج ومسجل بحساب آخر بالفعل!' });
@@ -183,7 +195,6 @@ export const authController = {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       const assignedRole = snapshot.is_tot_trainer ? 'volunteer_trainer' : 'volunteer';
 
-      // ✅ التعديل هنا في الـ Insert
       const userInsertQuery = `
         INSERT INTO users (volunteer_number, national_id, username, password_hash, role)
         VALUES ($1, $2, $3, $4, $5)
@@ -194,19 +205,32 @@ export const authController = {
       
       const newUserId = userInsertResult.rows[0].id;
 
+      // 🛠️ تم تحديث هذا الاستعلام ليشمل حفظ كل البيانات المستوردة من الحصر، ووضع علم عدم اكتمال الملف الشخصي لخطوة الأسئلة التفاعلية لاحقاً
       const profileInsertQuery = `
         INSERT INTO volunteer_profiles (
-          user_id, full_name, phone, whatsapp, photo_url, is_tot_trainer, current_status_in_khartoum
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7);
+          user_id, volunteer_number, full_name, phone, whatsapp, photo_url, is_tot_trainer, 
+          current_status_in_khartoum, tot_year, tot_certificate_url, other_certificate_url, 
+          last_first_aid_refresher, other_programs, expected_return_time, availability_level, is_profile_completed
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
       `;
+      
       const profileValues = [
         newUserId,
+        snapshot.volunteer_number,
         snapshot.full_name,
         snapshot.phone,
         snapshot.whatsapp,
         snapshot.photo_url,
         snapshot.is_tot_trainer,
-        snapshot.current_status_in_khartoum
+        snapshot.current_status_in_khartoum,
+        snapshot.tot_year,
+        snapshot.tot_certificate_url,
+        snapshot.other_certificate_url,
+        snapshot.last_first_aid_refresher,
+        snapshot.other_programs,
+        snapshot.expected_return_time,
+        snapshot.availability_level,
+        false // 🆕 يتم وضعها False إجبارياً هنا ليدخل المستخدم في نظام الترحيب والأسئلة التفاعلية فور تسجيل دخوله الأول
       ];
       
       await db.query(profileInsertQuery, profileValues);

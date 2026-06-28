@@ -7,7 +7,7 @@ const model = new PersonalDataModel();
 
 export class PersonalDataController {
   
-  // 🔍 جلب بيانات الملف الشخصي
+  // 🔍 جلب بيانات الملف الشخصي كاملة (الحصر + قرار) للقراءة
   async getProfileData(req: Request, res: Response): Promise<void> {
     try {
       // استلام القيمة القادمة من الرابط (سواء كانت UUID أو رقم الحصر SRCS)
@@ -26,15 +26,26 @@ export class PersonalDataController {
         return;
       }
 
-      // إرجاع البيانات في قالب JSON نظيف ومفهوم للفرونت إند
+      // 🛠️ إرجاع كافة البيانات في قالب JSON نظيف يشمل الحقول المستوردة والجديدة لتغذية الفرونتد
       res.status(200).json({
         success: true,
         data: {
+          // 1️⃣ بيانات الربط والحساب الأساسية
           id: volunteer.id,
           userId: volunteer.user_id,
           volunteerNumber: volunteer.volunteer_number,
-          nationalId: volunteer.national_id, // الحقل الجديد المجلوب من جدول users
+          nationalId: volunteer.national_id, 
           fullName: volunteer.full_name,
+          profileImageUrl: volunteer.photo_url,
+          securePhotoUrl: volunteer.secure_photo_url,
+          isProfileCompleted: volunteer.is_profile_completed,
+          adminPosition: volunteer.admin_position,
+
+          // 2️⃣ بيانات الاتصال (المستوردة حديثاً للواجهة)
+          phone: volunteer.phone,
+          whatsapp: volunteer.whatsapp,
+
+          // 3️⃣ الحقول الجديدة الخاصة بنظام قرار (التي ستُملأ عبر صفحة الأسئلة)
           gender: volunteer.gender,
           birthDate: volunteer.date_of_birth,
           bloodType: volunteer.blood_type,
@@ -45,10 +56,19 @@ export class PersonalDataController {
           address: volunteer.detailed_address,
           preferredOffice: volunteer.desired_department,
           isNiqabi: volunteer.is_niqabi,
-          profileImageUrl: volunteer.photo_url,
-          securePhotoUrl: volunteer.secure_photo_url,
-          adminPosition: volunteer.admin_position,
-          isProfileCompleted: volunteer.is_profile_completed
+
+          // 4️⃣ بيانات الـ TOT والدورات التدريبية (المستوردة من الحصر بالكامل الآن)
+          isTotTrainer: volunteer.is_tot_trainer,
+          totYear: volunteer.tot_year,
+          totCertificateUrl: volunteer.tot_certificate_url,
+          otherCertificateUrl: volunteer.other_certificate_url,
+          lastFirstAidRefresher: volunteer.last_first_aid_refresher,
+          otherPrograms: volunteer.other_programs,
+
+          // 5️⃣ الموقف الميداني وفترات الجاهزية (مستوردة من الحصر)
+          currentStatusInKhartoum: volunteer.current_status_in_khartoum,
+          expectedReturnTime: volunteer.expected_return_time,
+          availabilityLevel: volunteer.availability_level
         }
       });
     } catch (error: any) {
@@ -57,7 +77,7 @@ export class PersonalDataController {
     }
   }
 
-  // 📥 حفظ وتحديث بيانات الملف الشخصي
+  // 📥 حفظ وتحديث بيانات الملف الشخصي (مؤمنة لخدمة صفحة الأسئلة التفاعلية لاحقاً)
   async saveProfileData(req: Request, res: Response): Promise<void> {
     try {
       const { userId, ...updateData } = req.body;

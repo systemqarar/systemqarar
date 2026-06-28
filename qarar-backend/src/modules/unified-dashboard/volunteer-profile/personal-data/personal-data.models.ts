@@ -6,8 +6,8 @@ import { NewProfilePayload } from './personal-data.types';
 export class PersonalDataModel {
   
   /**
-   * 🔍 دالة ذكية: تجلب البيانات سواءً أرسل الفرونت إند الـ UUID أو رقم الحصر (SRCS)
-   * لإنهاء مشكلة تعليق "جاري التحميل" الناتجة عن اختلاف أنواع المعرفات
+   * 🔍 دالة ذكية: تجلب البيانات كاملة (الحصر + قرار) سواءً أرسل الفرونت إند الـ UUID أو رقم الحصر (SRCS)
+   * تم فتح محبس الاستعلام ليشمل كافة حقول التدريب، الاتصال، والجاهزية الميدانية.
    */
   async findVolunteerById(identifier: string) {
     // الفحص عبر الـ Regex: هل المدخل عبارة عن UUID معقد أم رقم حصر عادي (SRCS)؟
@@ -18,11 +18,22 @@ export class PersonalDataModel {
 
     const query = `
       SELECT 
+        -- 1️⃣ بيانات الحساب والربط الأساسية
         vp.id, 
         vp.user_id, 
         u.volunteer_number, 
-        u.national_id, -- جلب الرقم الوطني من جدول الحسابات بنجاح
+        u.national_id, 
         vp.full_name, 
+        vp.photo_url, 
+        vp.secure_photo_url,
+        vp.admin_position, 
+        vp.is_profile_completed,
+
+        -- 2️⃣ بيانات الاتصال (المضافة حديثاً للاستعلام)
+        vp.phone,
+        vp.whatsapp,
+
+        -- 3️⃣ الحقول الخاصة بنظام قرار
         vp.gender, 
         vp.date_of_birth, 
         vp.blood_type, 
@@ -32,11 +43,21 @@ export class PersonalDataModel {
         vp.job_title, 
         vp.detailed_address, 
         vp.desired_department, 
-        vp.is_niqabi, 
-        vp.photo_url, 
-        vp.secure_photo_url,
-        vp.admin_position, 
-        vp.is_profile_completed
+        vp.is_niqabi,
+
+        -- 4️⃣ حقول الـ TOT والدورات التدريبية (المضافة حديثاً للاستعلام)
+        vp.is_tot_trainer,
+        vp.tot_year,
+        vp.tot_certificate_url,
+        vp.other_certificate_url,
+        vp.last_first_aid_refresher,
+        vp.other_programs,
+
+        -- 5️⃣ الموقف الميداني والجاهزية (المضافة حديثاً للاستعلام)
+        vp.current_status_in_khartoum,
+        vp.expected_return_time,
+        vp.availability_level
+
       FROM volunteer_profiles vp
       INNER JOIN users u ON vp.user_id = u.id -- الربط المتين والآمن بين الجدولين
       WHERE ${condition}
@@ -48,6 +69,7 @@ export class PersonalDataModel {
 
   /**
    * 📥 تحديث البيانات الشخصية في جدول البروفايل وتفعيل حقل إكمال الملف الشخصي
+   * (تم الإبقاء عليها لخدمة صفحة الأسئلة التفاعلية Wizard لاحقاً)
    */
   async updateVolunteerProfile(userId: string, data: NewProfilePayload) {
     const query = `
