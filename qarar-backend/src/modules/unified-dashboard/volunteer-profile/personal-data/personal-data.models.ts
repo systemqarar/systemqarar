@@ -47,6 +47,8 @@ export class PersonalDataModel {
     ];
 
     const result = await db.query(query, values);
-    return result.rowCount > 0;
+    
+    // ✨ التعديل الآمن لحل مشكلة TS18047 وإرضاء سيرفر ريندر الصارم
+    return (result.rowCount ?? 0) > 0;
   }
 }
