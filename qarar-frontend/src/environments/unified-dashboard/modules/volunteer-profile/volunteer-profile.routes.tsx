@@ -16,15 +16,15 @@ const PersonalDataWrapper = () => {
   const { user } = useAuth(); 
 
   /**
-   * 🎯 قراءة الـ ID ديناميكياً:
-   * السيستم حيشوف أولاً volunteerId، لو مش موجود حيشوف id، لو مفيش خالص حياخد الكود التجريبي
-   * (💡 يرجى التأكد من اسم الحقل الفعلي داخل ملف الـ AuthContext وتعديله هنا لو اختلف)
+   * 🎯 قراءة رقم المتطوع ديناميكياً:
+   * السيستم سيقرأ حقل الـ volunteer_number المعتمد والمربوط بالجلسة الحية.
+   * في حال عدم وجوده (مثلاً حساب مسؤول أو حساب جديد)، يمكن الاعتماد على الـ id كخيار احتياطي.
    */
-  const volunteerId = user?.volunteerId || user?.id || 'SRCS-2026-9000'; 
+  const volunteerNumber = user?.volunteer_number || user?.id || ''; 
 
   return (
     <PersonalDataPage 
-      volunteerId={volunteerId}
+      volunteerId={volunteerNumber} // 👈 تمرير الرقم الديناميكي الحقيقي لصفحة البيانات لتشغيل الـ API
       // عند الضغط على زر الرجوع يرجع للوحة التحكم الرئيسية
       onBack={() => navigate('/dashboard')} 
     />
@@ -41,9 +41,5 @@ export const volunteerProfileRoutes: RouteObject[] = [
     path: 'profile/personal-data', // 🪪 الرابط الفعلي الحقيقي والكامل
     element: <PersonalDataWrapper />,
   },
-  /* 💡 مستقبلاً لما تعمل صفحة البطاقة الرقمية أو الإعدادات، حترميهم هنا كأبناء بكل سهولة: */
-  // {
-  //   path: 'profile/digital-card',
-  //   element: <DigitalCardPage />,
-  // },
 ];
+ 

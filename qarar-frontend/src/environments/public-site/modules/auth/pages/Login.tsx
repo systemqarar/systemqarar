@@ -9,7 +9,19 @@ import authApi from '../api/auth-api';
 export const Login: React.FC = () => {
   const navigate = useNavigate(); 
   const { loginUser } = useAuth();
-  const { step, volunteerId, snapshot, maskedWhatsapp, setStep, setVolunteerId, setSnapshot, setMaskedWhatsapp, resetStore } = useRegisterStore();
+  
+  // 🔄 تحديث استخراج البيانات من Zustand Store لتطابق المسميات الجديدة الموحدة
+  const { 
+    step, 
+    volunteerNumber, 
+    snapshot, 
+    maskedWhatsapp, 
+    setStep, 
+    setVolunteerNumber, 
+    setSnapshot, 
+    setMaskedWhatsapp, 
+    resetStore 
+  } = useRegisterStore();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -22,7 +34,7 @@ export const Login: React.FC = () => {
   const clearMessages = () => { setError(null); setSuccessMessage(null); };
 
   const formatSudanWhatsapp = (num: string) => {
-    if (!num) return '249912***345+';
+    if (!num) return '+249912***345';
     return num.startsWith('+') ? num : `+249 ${num}`;
   };
 
@@ -35,7 +47,7 @@ export const Login: React.FC = () => {
       loginUser(data.token, data.user); 
       navigate('/dashboard'); 
     } catch (err: any) {
-      setError(err.response?.data?.error || 'تعذر التحقق من الحساب، يرجى التأكد من المرفقات');
+      setError(err.response?.data?.error || 'تعذر التحقق من الحساب، يرجى التأكد من المعطيات المرفقة');
     } finally {
       setLoading(false);
     }
@@ -46,7 +58,8 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      const data = await authApi.verifyVolunteer(volunteerId);
+      // 📡 إرسال رقم المتطوع الموحد إلى الـ API بدلاً من الـ ID العشوائي
+      const data = await authApi.verifyVolunteer(volunteerNumber);
       setMaskedWhatsapp(data.masked_whatsapp);
       setSnapshot(data.snapshot);
       setTimeout(() => {
@@ -64,7 +77,8 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      await authApi.verifyOTP(volunteerId, otpCode);
+      // 🔐 تمرير رقم المتطوع للتحقق من كود الـ OTP
+      await authApi.verifyOTP(volunteerNumber, otpCode);
       setStep(4);
     } catch (err: any) {
       setError(err.response?.data?.error || 'الرمز السري غير صحيح أو انتهت مهلة صلاحيته الزمنية');
@@ -77,7 +91,8 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      const data = await authApi.emergencyRequest(volunteerId);
+      // 🚨 مسار الطوارئ المعتمد على رقم المتطوع
+      const data = await authApi.emergencyRequest(volunteerNumber);
       setSuccessMessage(data.message);
       setTimeout(() => { resetStore(); }, 5000);
     } catch (err: any) {
@@ -114,7 +129,6 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#f8f9fa] flex flex-col justify-center items-center p-5 font-sans text-right select-none relative overflow-hidden" dir="rtl">
       
-      {/* 🌟 تأثيرات الألوان الهوية الحركية الخلفية الفخمة */}
       <motion.div 
         animate={{ scale: [1, 1.15, 1], x: [0, 20, 0], y: [0, -20, 0] }}
         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
@@ -126,18 +140,14 @@ export const Login: React.FC = () => {
         className="absolute bottom-0 left-0 w-[450px] h-[450px] bg-amber-500/5 rounded-full blur-[100px] pointer-events-none" 
       />
 
-      {/* 📦 بطاقة تسجيل الدخول الرئيسية المحمية بظلال ناعمة */}
       <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] overflow-hidden border border-gray-100 relative z-10">
         
-        {/* 🏛️ هيدر المنظومة الاحترافي الموحد باللوقو */}
         <div className="p-8 pb-4 text-center flex flex-col items-center bg-white relative">
           <motion.div whileHover={{ scale: 1.03 }} className="relative mb-3 z-10">
-            {/* 🖼️ حاوية اللوقو الرسمي المستدعى من مجلد public */}
             <div className="w-16 h-16 bg-white rounded-2xl p-2.5 flex items-center justify-center shadow-[0_8px_25px_rgba(122,28,46,0.12)] border border-red-100 select-none">
                <img src="/logo.png" alt="شعار منظومة قرار" className="w-full h-full object-contain" />
             </div>
             
-            {/* شارة الذكاء الاصطناعي المتناغمة ذهبياً */}
             <motion.div 
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -152,7 +162,6 @@ export const Login: React.FC = () => {
           <p className="text-[10px] text-[#7A1C2E] font-black mt-1 bg-red-50 px-3 py-0.5 rounded-full tracking-wide">جمعية الهلال الأحمر السوداني</p>
         </div>
 
-        {/* 📊 شريط تتبع خطوات التسجيل الذكي باللون الكبدي */}
         {step > 1 && (
           <div className="px-8 mb-2">
             <div className="h-1.5 w-full bg-red-50 rounded-full overflow-hidden p-0.5">
@@ -165,7 +174,6 @@ export const Login: React.FC = () => {
           </div>
         )}
 
-        {/* 🚨 نافذة رسائل الخطأ والنجاح الفخمة */}
         <AnimatePresence mode="wait">
           {(error || successMessage) && (
             <motion.div initial={{ opacity: 0, height: 0, y: -10 }} animate={{ opacity: 1, height: 'auto', y: 0 }} exit={{ opacity: 0, height: 0, y: -10 }} className="px-8 pt-2">
@@ -188,7 +196,6 @@ export const Login: React.FC = () => {
         <div className="px-8 pb-8 pt-4">
           <AnimatePresence mode="wait">
             
-            {/* 🚪 الخطوة 1: شاشة الدخول الرئيسية باللون الموحد */}
             {step === 1 && (
               <motion.form key="login" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.25 }} onSubmit={handleLogin} className="space-y-4">
                 <div className="text-center mb-5">
@@ -226,7 +233,6 @@ export const Login: React.FC = () => {
               </motion.form>
             )}
 
-            {/* 🆔 الخطوة 2: لوحة الانتظار الحركية لـ غيث (Ghaith Engine) */}
             {step === 2 && (
               <motion.div key="verify-id-container" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.25 }}>
                 {loading ? (
@@ -265,7 +271,8 @@ export const Login: React.FC = () => {
 
                     <div className="relative group">
                       <CreditCard className="absolute right-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-[#7A1C2E] transition-colors duration-300" />
-                      <input type="text" value={volunteerId} onChange={(e) => setVolunteerId(e.target.value)} required className="w-full pr-11 pl-4 py-3.5 bg-gray-50/70 border border-slate-100 rounded-2xl text-slate-900 outline-none focus:border-[#7A1C2E] focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-black tracking-widest placeholder-slate-400 text-xs uppercase" dir="ltr" placeholder="VOL-XXXXXX" />
+                      {/* 🔄 تحديث الحقل والدالة ليعتمدا على الـ volunteerNumber الموحد */}
+                      <input type="text" value={volunteerNumber} onChange={(e) => setVolunteerNumber(e.target.value)} required className="w-full pr-11 pl-4 py-3.5 bg-gray-50/70 border border-slate-100 rounded-2xl text-slate-900 outline-none focus:border-[#7A1C2E] focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-black tracking-widest placeholder-slate-400 text-xs uppercase" dir="ltr" placeholder="VOL-XXXXXX" />
                     </div>
 
                     <motion.button whileTap={{ scale: 0.97 }} type="submit" className="w-full bg-gradient-to-r from-[#560E1A] via-[#7A1C2E] to-[#400A13] text-white font-black py-3.5 rounded-2xl transition duration-300 shadow-md shadow-red-900/10 text-xs mt-4 cursor-pointer">
@@ -276,7 +283,6 @@ export const Login: React.FC = () => {
               </motion.div>
             )}
 
-            {/* 🔑 الخطوة 3: إدخال رمز التحقق (OTP) */}
             {step === 3 && (
               <motion.form key="otp" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.25 }} onSubmit={handleVerifyOTP} className="space-y-4">
                 <div className="text-center mb-4">
@@ -311,7 +317,6 @@ export const Login: React.FC = () => {
               </motion.form>
             )}
 
-            {/* 📝 الخطوة 4: بطاقة الهوية الرقمية للـ VIP وإنشاء الحساب */}
             {step === 4 && (
               <motion.form key="finalize" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.25 }} onSubmit={handleRegister} className="space-y-4">
                 <div className="mb-3">
@@ -319,7 +324,6 @@ export const Login: React.FC = () => {
                   <p className="text-[10px] text-slate-400 mt-0.5 font-medium">قم بصياغة بيانات الاعتماد الشخصية لربطها بملفك الإلكتروني</p>
                 </div>
                 
-                {/* 💳 كارت بيانات المتطوع الفخم والملكي المنسق */}
                 <motion.div 
                   initial={{ y: 8, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -336,7 +340,8 @@ export const Login: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center border-b border-white/10 pb-2">
                       <span className="text-[9px] text-red-200/70 font-bold">الرقم التنظيمي:</span>
-                      <span className="font-mono text-xs bg-black/20 px-2 py-0.5 rounded-lg text-amber-300 font-bold border border-white/5">{snapshot?.volunteer_id}</span>
+                      {/* 🔄 تحديث قراءة رقم المتطوع من الـ Snapshot المعدل ليطابق قاعدة البيانات بدقة */}
+                      <span className="font-mono text-xs bg-black/20 px-2 py-0.5 rounded-lg text-amber-300 font-bold border border-white/5">{snapshot?.volunteer_number}</span>
                     </div>
                     <div className="flex justify-between items-center pt-0.5">
                       <span className="text-[9px] text-red-200/70 font-bold">مستوى الصلاحية الممنوح:</span>
