@@ -1,11 +1,12 @@
-import React from 'react';
+import React from 'react'; // ✨ تصليح الحرف الصغير (import)
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AuthRoutes from '../environments/public-site/modules/auth/auth.routes';
+
 // 👑 استيراد الواجهة الملكية الجديدة للوحة التحكم الموحدة
 import DashboardLayout from '../environments/unified-dashboard/modules/overview/pages/DashboardLayout';
 
-// 📦 استيراد خط المسارات المستقل الخاص بموديول البروفايل (العملناه قبل شوية)
+// 📦 استيراد خط المسارات المستقل الخاص بموديول البروفايل
 import { volunteerProfileRoutes } from '../environments/unified-dashboard/modules/volunteer-profile/volunteer-profile.routes';
 
 // حارس المسارات المحمية: يمنع دخول غير المسجلين للمنظومة
@@ -31,7 +32,7 @@ export const AppRoutes: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 📦 موديول الأمان والتحقق: يستقبل ويشغل صفحات الدخول الآمن تلقائياً */}
+        {/* 📦 موديول الأمان والتحقق */}
         <Route path="/*" element={<AuthRoutes />} />
 
         {/* 📱 المسارات المحمية: لوحة التحكم الموحدة المخصصة للجوال (منظومة قرار) */}
@@ -43,13 +44,13 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         >
-          {/* 🌲 هنا بتصب مسارات موديول البروفايل تلقائياً كأبناء داخل لوحة التحكم بدون ما نلخبط باقي الصفحات */}
+          {/* 🌲 تصب مسارات موديول البروفايل كأبناء (تأكد أن الـ paths جواها لا تبدأ بـ / ) */}
           {volunteerProfileRoutes.map((route, index) => (
             <Route key={index} path={route.path} element={route.element} />
           ))}
         </Route>
 
-        {/* التوجيه التلقائي لأي رابط عشوائي أو غير معروف مباشرة لصفحة الدخول */}
+        {/* التوجيه التلقائي لأي رابط عشوائي مباشرة لصفحة الدخول */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
