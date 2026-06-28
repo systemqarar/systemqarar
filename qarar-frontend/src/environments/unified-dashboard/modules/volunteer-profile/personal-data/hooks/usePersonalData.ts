@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react';
 // الرابط الديناميكي المقروء من env
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://systemqarar.onrender.com/api';
 
-// 🆕 تعريف واجهة بيانات شاملة ومؤمنة لمنع أي خطأ تعليق في الـ TypeScript
+// 🆕 الواجهة الشاملة المحدثة والمؤمنة لتخطي خطأ الـ Build
 export interface FullProfileData {
   id?: string;
   userId?: string;
   volunteerNumber?: string;
+  volunteerId?: string; // 👈 هنا السر: أضفنا التعريف لحل خطأ الـ TS2353
   nationalId?: string;
   fullName: string;
   profileImageUrl?: string | null;
@@ -43,10 +44,10 @@ export const usePersonalData = (volunteerId: string) => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // 🎯 مصدر الحقيقة الواحد: كائن شامل لكل حقول المتطوع (حصر + قرار)
+  // 🎯 الآن التايب سكريبت حيرضى تماماً عن الـ Object literal دا
   const [profileData, setProfileData] = useState<FullProfileData>({
     fullName: 'جاري التحميل...',
-    volunteerId: volunteerId,
+    volunteerId: volunteerId, 
     nationalId: '------------',
   });
 
@@ -60,15 +61,16 @@ export const usePersonalData = (volunteerId: string) => {
         if (resData.success && resData.data) {
           const d = resData.data;
           
-          // 📥 تخزين كافة البيانات القادمة من الباكيند بدون استثناء أو فلترة عمياء
+          // 📥 تخزين كافة البيانات وتأمين وجود المعرف بالجهتين
           setProfileData({
             ...d,
-            birthDate: d.birthDate ? d.birthDate.split('T')[0] : '', // تنظيف صيغة التاريخ للعرض
+            volunteerId: d.volunteerId || d.volunteerNumber || volunteerId,
+            birthDate: d.birthDate ? d.birthDate.split('T')[0] : '', 
           });
           
           setIsCompleted(d.isProfileCompleted || false);
         }
-        setLoading(false);
+        setLoading(false)
       })
       .catch((err) => {
         console.error('Error fetching full personal data:', err);
@@ -76,7 +78,7 @@ export const usePersonalData = (volunteerId: string) => {
       });
   }, [volunteerId]);
 
-  // 📥 دالة الحفظ (تركناها مأمنة وجاهزة لتخدم صفحة الأسئلة التفاعلية Wizard لاحقاً)
+  // 📥 دالة الحفظ الذكية
   const savePersonalData = async (updatedFields: Partial<FullProfileData>) => {
     setSaving(true);
     setMessage(null);
@@ -109,7 +111,7 @@ export const usePersonalData = (volunteerId: string) => {
     loading,
     saving,
     message,
-    profileData, // ⬅️ مررنا الكائن الشامل الجديد
+    profileData, 
     savePersonalData,
     isCompleted,
     setMessage
