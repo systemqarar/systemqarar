@@ -1,7 +1,9 @@
 // src/environments/unified-dashboard/modules/volunteer-profile/volunteer-profile.routes.tsx
 
-import { RouteObject, Navigate, useNavigate } from 'react-router-dom'; // ✨ تم تصليح import بالحرف الصغير
+import { RouteObject, Navigate, useNavigate } from 'react-router-dom';
 import { PersonalDataPage } from './personal-data/pages/PersonalDataPage';
+// 🔐 استيراد الـ Context العام لسيستم قرار لقراءة بيانات الجلسة ديناميكياً
+import { useAuth } from '../../../../context/AuthContext'; 
 
 /**
  * 📦 PersonalDataWrapper
@@ -10,19 +12,26 @@ import { PersonalDataPage } from './personal-data/pages/PersonalDataPage';
 const PersonalDataWrapper = () => {
   const navigate = useNavigate();
   
-  // مؤقتاً للتشغيل لحين ربطه بالـ Auth Context العام لسيستم قرار:
-  const volunteerId = 'SRCS-2026-9000; 
+  // 👤 سحب بيانات المتطوع الحالي المسجل في المنظومة
+  const { user } = useAuth(); 
+
+  /**
+   * 🎯 قراءة الـ ID ديناميكياً:
+   * السيستم حيشوف أولاً volunteerId، لو مش موجود حيشوف id، لو مفيش خالص حياخد الكود التجريبي
+   * (💡 يرجى التأكد من اسم الحقل الفعلي داخل ملف الـ AuthContext وتعديله هنا لو اختلف)
+   */
+  const volunteerId = user?.volunteerId || user?.id || 'SRCS-2026-9000'; 
 
   return (
     <PersonalDataPage 
       volunteerId={volunteerId}
-      // ✨ تم التعديل ليوافق الروت الرئيسي /dashboard المعتمد في السيستم
+      // عند الضغط على زر الرجوع يرجع للوحة التحكم الرئيسية
       onBack={() => navigate('/dashboard')} 
     />
   );
 };
 
-// 🛣️ تعريف مسارات موديول البروفايل (مُسطحة لتتوافق 100% مع لـ .map في AppRoutes)
+// 🛣️ تعريف مسارات موديول البروفايل بنظام التداخل الاحترافي (Nested Routes)
 export const volunteerProfileRoutes: RouteObject[] = [
   {
     path: 'profile', // ↩️ لو المتطوع دخل على dashboard/profile مباشرة حيحوله تلقائياً للبيانات الشخصية
@@ -32,7 +41,7 @@ export const volunteerProfileRoutes: RouteObject[] = [
     path: 'profile/personal-data', // 🪪 الرابط الفعلي الحقيقي والكامل
     element: <PersonalDataWrapper />,
   },
-  /* 💡 مستقبلاً لما تضيف صفحات جديدة، بتضيفها مسطحة كدة بكل سهولة وحتقراها الـ .map طوالي: */
+  /* 💡 مستقبلاً لما تعمل صفحة البطاقة الرقمية أو الإعدادات، حترميهم هنا كأبناء بكل سهولة: */
   // {
   //   path: 'profile/digital-card',
   //   element: <DigitalCardPage />,
