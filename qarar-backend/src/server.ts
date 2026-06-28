@@ -34,9 +34,10 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 
 // 🪪 4. تفعيل موديول البروفايل العام (منظومة قرار) عبر الراوتر المجمع
-// 📝 الرابط النهائي للبيانات الشخصية حيبقى تلقائياً: /api/volunteer/profile/personal-data
-// 📝 ولو حفظ بيانات حيبقى: /api/volunteer/profile/personal-data/update
-app.use('/api/volunteer/profile', volunteerProfileRouter);
+// 🎯 التعديل السحري هنا: غيّرنا المسار لـ '/api/volunteer' عشان لما يتجمع مع الفروع التانية يطابق الفرونت إند تماماً
+// 📝 الرابط النهائي للبيانات الشخصية حيبقى هسي: /api/volunteer/profile/:identifier
+// 📝 ولو حفظ بيانات حيبقى نظيف وممتاز: /api/volunteer/profile/update
+app.use('/api/volunteer', volunteerProfileRouter);
 
 // 5. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
 app.listen(PORT, async () => {
