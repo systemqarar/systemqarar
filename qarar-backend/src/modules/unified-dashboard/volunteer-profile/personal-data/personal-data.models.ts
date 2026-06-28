@@ -1,6 +1,6 @@
 // src/modules/unified-dashboard/volunteer-profile/personal-data/personal-data.models.ts
 
-import { db } from '../../../config/database'; 
+import { db } from '../../../../config/db'; 
 import { NewProfilePayload } from './personal-data.types';
 
 export class PersonalDataModel {
