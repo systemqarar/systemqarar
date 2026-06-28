@@ -1,12 +1,11 @@
-import express from 'express';
-import { updateProfileController, getProfileController } from './personal-data.controller';
+import { Router } from 'express';
+import { PersonalDataController } from './personal-data.controller';
 
-const router = express.Router();
+const router = Router();
+const controller = new PersonalDataController();
 
-// 📥 الرابط الداخلي المباشر لتحديث وحفظ البيانات الشخصية (POST)
-router.post('/update', updateProfileController);
-
-// 📤 الرابط الداخلي المباشر لجلب وقراءة البيانات الحقيقية برقم العضوية (GET)
-router.get('/:volunteerId', getProfileController);
+// 🛣️ مسارات قسم البيانات الشخصية
+router.get('/:volunteerId', controller.getProfileData);
+router.post('/update', controller.saveProfileData);
 
 export default router;

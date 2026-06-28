@@ -3,8 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './modules/public-site/auth-profile/auth.routes'; // 🌐 موديول الحسابات والأمان القديم
 
-// 🪪 🛡️ استيراد خط المسارات الجديد للبيانات الشخصية بناءً على الشجرة المعتمدة
-import personalDataRoutes from './modules/unified-dashboard/volunteer-profile/personal-data/personal-data.routes';
+// 🪪 🛡️ استيراد الراوتر الرئيسي للموديول (الـ Gateway الجديد اللي بيجمع كل الفروع)
+import volunteerProfileRouter from './modules/unified-dashboard/volunteer-profile/volunteer-profile.routes';
 
 import { whatsappService } from './services/whatsappService'; // 🟢 خدمة الواتساب المركزية
 
@@ -33,9 +33,10 @@ app.get('/health', (req, res) => {
 // 3. ربط وتفعيل موديول الحسابات والأمان (Auth Routes)
 app.use('/api/auth', authRoutes);
 
-// 🪪 4. تفعيل موديول البيانات الشخصية والأساسية للمتطوع (منظومة قرار)
-// الرابط النهائي الآمن للاستدعاء من الفرونتد حيكون بالظبط: /api/volunteer/profile/update
-app.use('/api/volunteer/profile', personalDataRoutes);
+// 🪪 4. تفعيل موديول البروفايل العام (منظومة قرار) عبر الراوتر المجمع
+// 📝 الرابط النهائي للبيانات الشخصية حيبقى تلقائياً: /api/volunteer/profile/personal-data
+// 📝 ولو حفظ بيانات حيبقى: /api/volunteer/profile/personal-data/update
+app.use('/api/volunteer/profile', volunteerProfileRouter);
 
 // 5. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
 app.listen(PORT, async () => {

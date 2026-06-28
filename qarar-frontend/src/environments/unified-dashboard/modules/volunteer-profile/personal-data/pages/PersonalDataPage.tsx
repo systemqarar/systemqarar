@@ -1,118 +1,36 @@
-import React, { useState, useEffect } from 'react';
+ import React from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Upload, Check, EyeOff, ShieldCheck, User, Loader2 } from 'lucide-react';
+import { usePersonalData } from '../hooks/usePersonalData';
 
-export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
-  // --- 🌐 إعدادات روابط السيرفر (Render) ---
-  const BACKEND_URL = 'https://systemqarar.onrender.com/api/volunteer/profile'; 
-  const VOLUNTEER_ID = 'SRC-KRT-2026-88'; // رقم العضوية الحالي المستهدف
+interface PersonalDataPageProps {
+  volunteerId: string; // يُمرر ديناميكياً من الـ Auth Context الحالي
+  onBack?: () => void;
+}
 
-  // --- حالات التحميل وحفظ البيانات الحية ---
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId, onBack }) => {
+  // استدعاء المحرك النظيف
+  const {
+    loading,
+    saving,
+    message,
+    fixedData,
+    formData,
+    setFormData,
+    savePersonalData,
+    isCompleted,
+  } = usePersonalData(volunteerId);
 
-  // --- خانات الحصر الثابتة (تأتي من السيرفر) ---
-  const [fixedData, setFixedData] = useState({
-    fullName: "جاري التحميل...",
-    volunteerId: VOLUNTEER_ID,
-    nationalId: "------------"
-  });
-
-  // --- خانات الإدخال القابلة للتعديل والحفظ ---
-  const [gender, setGender] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [bloodType, setBloodType] = useState('');
-  const [maritalStatus, setMaritalStatus] = useState('');
-  const [email, setEmail] = useState('');
-  const [education, setEducation] = useState('');
-  const [occupation, setOccupation] = useState('');
-  const [address, setAddress] = useState('');
-  const [preferredOffice, setPreferredOffice] = useState('');
-  const [isNiqabi, setIsNiqabi] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  // 🔄 1. سحب البيانات حياً من ريندر فور فتح الشاشة
-  useEffect(() => {
-    fetch(`${BACKEND_URL}/${VOLUNTEER_ID}`)
-      .then(res => res.json())
-      .then(resData => {
-        if (resData.success && resData.data) {
-          const d = resData.data;
-          // صب بيانات الحصر الثابتة
-          setFixedData({
-            fullName: d.fullName || "بلا اسم",
-            volunteerId: d.volunteerId || VOLUNTEER_ID,
-            nationalId: d.nationalId || "-------"
-          });
-          // صب البيانات الاختيارية لو كانت محفوظة مسبقاً
-          setGender(d.gender || '');
-          setBirthDate(d.birthDate ? d.birthDate.split('T')[0] : '');
-          setBloodType(d.bloodType || '');
-          setMaritalStatus(d.maritalStatus || '');
-          setEmail(d.email || '');
-          setEducation(d.education || '');
-          setOccupation(d.occupation || '');
-          setAddress(d.address || '');
-          setPreferredOffice(d.preferredOffice || '');
-          setIsNiqabi(d.isNiqabi || false);
-          setImagePreview(d.profileImageUrl || null);
-        }
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("خطأ في جلب بيانات قرار:", err);
-        setLoading(false);
-      });
-  }, []);
-
-  // 📥 2. دالة إرسال وحفظ البيانات الشخصية في قاعدة البيانات (Neon)
-  const handleSaveProfile = async () => {
-    setSaving(true);
-    setMessage(null);
-
-    const payload = {
-      volunteerId: fixedData.volunteerId,
-      fullName: fixedData.fullName,
-      nationalId: fixedData.nationalId,
-      gender,
-      birthDate: birthDate || null,
-      bloodType,
-      maritalStatus,
-      email,
-      education,
-      occupation,
-      address,
-      preferredOffice,
-      isNiqabi,
-      profileImageUrl: imagePreview
-    };
-
-    try {
-      const response = await fetch(`${BACKEND_URL}/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const result = await response.json();
-
-      if (result.success) {
-        setMessage({ type: 'success', text: result.message });
-      } else {
-        setMessage({ type: 'error', text: result.message || 'فشل الحفظ' });
-      }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'فشل الاتصال بسيرفر منظومة قرار' });
-    } finally {
-      setSaving(false);
-    }
+  // تحديث الحقول في الـ Form
+  const handleInputChange = (key: string, value: any) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
   };
 
-  // معالجة اختيار الصورة مؤقتاً في الواجهة
+  // معالجة اختيار الصورة مؤقتاً (لحين إضافة الـ Cropper في مجلد components)
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const reader = new FileReader();
-      reader.onload = (x) => setImagePreview(x.target?.result as string);
+      reader.onload = (x) => handleInputChange('profileImageUrl', x.target?.result as string);
       reader.readAsDataURL(e.target.files[0]);
     }
   };
@@ -121,7 +39,7 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
     return (
       <div className="w-full h-96 flex flex-col items-center justify-center gap-3 text-slate-500">
         <Loader2 className="w-8 h-8 animate-spin text-[#7A1C2E]" />
-        <span className="text-xs font-bold font-sans">جاري قراءة بياناتك من منظومة قرار...</span>
+        <span className="text-xs font-bold">جاري قراءة بياناتك من منظومة قرار...</span>
       </div>
     );
   }
@@ -131,18 +49,27 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -15 }}
-      className="w-full text-right pb-10"
+      className="w-full text-right pb-10 max-w-3xl mx-auto"
       dir="rtl"
     >
-      {/* 🔝 الهيدر وزرار الرجوع الذكي للداشبورد */}
+      {/* 🔝 الهيدر وزرار الرجوع (يختفي إجبارياً لو المتطوع لم يكمل بياناته أول مرة) */}
       <div className="flex justify-between items-center mb-6 px-1">
-        <h1 className="text-xl font-black text-slate-900">تحديث البيانات الأساسية</h1>
-        <button 
-          onClick={onBack}
-          className="text-xs font-bold text-[#7A1C2E] bg-red-50/50 px-3 py-1.5 rounded-xl border border-red-100/50 active:scale-95 transition-transform"
-        >
-          رجوع للرئيسية ⬅️
-        </button>
+        <div>
+          <h1 className="text-xl font-black text-slate-900">تحديث البيانات الأساسية</h1>
+          {!isCompleted && (
+            <p className="text-[11px] text-amber-600 font-bold mt-1">⚠️ يرجى إكمال الـ 11 خانة المطلوبة لتفعيل حسابك في المنظومة</p>
+          )}
+        </div>
+        
+        {/* زر الرجوع يظهر فقط إذا كان الملف الشخصي مكتمل مسبقاً وصلاحية الرجوع متاحة */}
+        {isCompleted && onBack && (
+          <button 
+            onClick={onBack}
+            className="text-xs font-bold text-[#7A1C2E] bg-red-50/50 px-3 py-1.5 rounded-xl border border-red-100/50 active:scale-95 transition-transform"
+          >
+            رجوع للرئيسية ⬅️
+          </button>
+        )}
       </div>
 
       {/* 🔔 رسائل الإشعار بنجاح أو فشل الحفظ */}
@@ -154,7 +81,7 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
         </div>
       )}
 
-      {/* 🛡️ كرت بيانات الحصر الرسمية (قفل أمني رمادي) */}
+      {/* 🛡️ كرت بيانات الحصر الرسمية الثابتة */}
       <div className="bg-gray-50 border border-gray-200/60 rounded-2xl p-4 mb-6 shadow-sm">
         <div className="flex items-center gap-2 mb-3 text-gray-500">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -176,25 +103,25 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
         </div>
       </div>
 
-      {/* 📸 كرت الصورة الشخصية الرسمي مع ميزة الحجب للمنقبات */}
+      {/* 📸 كرت الصورة الشخصية ومعالجة حجب المنقبات */}
       <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6 shadow-sm flex flex-col items-center text-center">
         <span className="text-xs font-black text-slate-800 self-start mb-3">الصورة الشخصية للبطاقة الرقمية</span>
         
         <div className="relative w-28 h-28 rounded-2xl bg-slate-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden mb-3 shadow-inner">
-          {imagePreview ? (
+          {formData.profileImageUrl ? (
             <img 
-              src={imagePreview} 
+              src={formData.profileImageUrl} 
               alt="Preview" 
-              className={`w-full h-full object-cover transition-all duration-300 ${gender === 'female' && isNiqabi ? 'blur-md scale-105' : ''}`} 
+              className={`w-full h-full object-cover transition-all duration-300 ${formData.gender === 'female' && formData.isNiqabi ? 'blur-md scale-105' : ''}`} 
             />
           ) : (
             <User className="w-10 h-10 text-gray-300 stroke-[1.2]" />
           )}
 
-          {gender === 'female' && isNiqabi && imagePreview && (
+          {formData.gender === 'female' && formData.isNiqabi && formData.profileImageUrl && (
             <div className="absolute inset-0 bg-slate-900/40 flex flex-col items-center justify-center text-white p-1 backdrop-blur-sm">
               <EyeOff className="w-5 h-5 mb-1 text-white" />
-              <span className="text-[9px] font-black">الصورة مخفية</span>
+              <span className="text-[9px] font-black">الصورة مخفية نظاماً</span>
             </div>
           )}
         </div>
@@ -208,7 +135,7 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
           يفضل صورة واضحة الملامح وبخلفية سادة (مقاس صور الجوازات).
         </p>
 
-        {gender === 'female' && (
+        {formData.gender === 'female' && (
           <motion.label 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -216,27 +143,31 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
           >
             <input 
               type="checkbox" 
-              checked={isNiqabi} 
-              onChange={(e) => setIsNiqabi(e.target.checked)}
+              checked={formData.isNiqabi} 
+              onChange={(e) => {
+                handleInputChange('isNiqabi', e.target.checked);
+              }}
               className="w-4 h-4 accent-purple-700" 
             />
             <div>
               <p className="text-xs font-black text-purple-950">العضو منقبة (تفعيل الحجب الأمني)</p>
-              <p className="text-[9px] text-purple-600">سيتم تشويش الصورة في البروفايل تلقائياً وحفظ الأصلية للشهادات فقط.</p>
+              <p className="text-[9px] text-purple-600">سيتم تشويش الصورة في الواجهة تلقائياً ويحتفظ السيرفر بالأصل للشهادات الرسمية.</p>
             </div>
           </motion.label>
         )}
       </div>
 
-      {/* 📝 نموذج الخانات الإضافية الجديدة */}
+      {/* 📝 نموذج الـ 11 خانة الجديدة */}
       <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
         
-        {/* 1. الجنس */}
         <div>
           <label className="block text-xs font-black text-slate-700 mb-1.5">الجنس</label>
           <select 
-            value={gender} 
-            onChange={(e) => { setGender(e.target.value); if(e.target.value !== 'female') setIsNiqabi(false); }}
+            value={formData.gender} 
+            onChange={(e) => { 
+              handleInputChange('gender', e.target.value);
+              if(e.target.value !== 'female') handleInputChange('isNiqabi', false);
+            }}
             className="w-full bg-slate-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#7A1C2E]"
           >
             <option value="">اختر الجنس</option>
@@ -245,23 +176,21 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
           </select>
         </div>
 
-        {/* 2. تاريخ الميلاد */}
         <div>
           <label className="block text-xs font-black text-slate-700 mb-1.5">تاريخ الميلاد</label>
           <input 
             type="date" 
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
+            value={formData.birthDate}
+            onChange={(e) => handleInputChange('birthDate', e.target.value)}
             className="w-full bg-slate-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#7A1C2E]" 
           />
         </div>
 
-        {/* 3. فصيلة الدم */}
         <div>
           <label className="block text-xs font-black text-slate-700 mb-1.5">فصيلة الدم</label>
           <select 
-            value={bloodType}
-            onChange={(e) => setBloodType(e.target.value)}
+            value={formData.bloodType}
+            onChange={(e) => handleInputChange('bloodType', e.target.value)}
             className="w-full bg-slate-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#7A1C2E]"
           >
             <option value="">اختر الفصيلة</option>
@@ -269,12 +198,11 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
           </select>
         </div>
 
-        {/* 4. الحالة الاجتماعية */}
         <div>
           <label className="block text-xs font-black text-slate-700 mb-1.5">الحالة الاجتماعية</label>
           <select 
-            value={maritalStatus}
-            onChange={(e) => setMaritalStatus(e.target.value)}
+            value={formData.maritalStatus}
+            onChange={(e) => handleInputChange('maritalStatus', e.target.value)}
             className="w-full bg-slate-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#7A1C2E]"
           >
             <option value="">اختر الحالة</option>
@@ -284,60 +212,55 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
           </select>
         </div>
 
-        {/* 5. البريد الإلكتروني */}
         <div>
           <label className="block text-xs font-black text-slate-700 mb-1.5">البريد الإلكتروني</label>
           <input 
             type="email" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={formData.email}
+            onChange={(e) => handleInputChange('email', e.target.value)}
             placeholder="example@mail.com" 
             className="w-full bg-slate-50 border border-gray-200 rounded-xl p-2.5 text-xs font-mono font-bold text-left text-slate-800 focus:outline-none focus:border-[#7A1C2E]" 
           />
         </div>
 
-        {/* 6. المؤهل العلمي */}
         <div>
           <label className="block text-xs font-black text-slate-700 mb-1.5">المؤهل العلمي</label>
           <input 
             type="text" 
-            value={education}
-            onChange={(e) => setEducation(e.target.value)}
+            value={formData.education}
+            onChange={(e) => handleInputChange('education', e.target.value)}
             placeholder="ثانوي، دبلوم، بكالوريوس هندسة..." 
             className="w-full bg-slate-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#7A1C2E]" 
           />
         </div>
 
-        {/* 7. المهنة أو الوظيفة الحالية */}
         <div>
           <label className="block text-xs font-black text-slate-700 mb-1.5">المهنة أو الوظيفة الحالية</label>
           <input 
             type="text" 
-            value={occupation}
-            onChange={(e) => setOccupation(e.target.value)}
+            value={formData.occupation}
+            onChange={(e) => handleInputChange('occupation', e.target.value)}
             placeholder="طالب، مهندس، أعمال حرة..." 
             className="w-full bg-slate-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#7A1C2E]" 
           />
         </div>
 
-        {/* 8. Sكن بالتفصيل */}
         <div>
           <label className="block text-xs font-black text-slate-700 mb-1.5">السكن بالتفصيل</label>
           <textarea 
             rows={2} 
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="المدينة، الحي، الحارة، أقرب معلم بارز..." 
+            value={formData.address}
+            onChange={(e) => handleInputChange('address', e.target.value)}
+            placeholder="المدينة، الحي، الحارة..." 
             className="w-full bg-slate-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#7A1C2E] resize-none" 
           />
         </div>
 
-        {/* 9. المكتب الذي ترى نفسك فيه */}
         <div>
           <label className="block text-xs font-black text-slate-700 mb-1.5">المكتب الذي ترى نفسك فيه</label>
           <select 
-            value={preferredOffice}
-            onChange={(e) => setPreferredOffice(e.target.value)}
+            value={formData.preferredOffice}
+            onChange={(e) => handleInputChange('preferredOffice', e.target.value)}
             className="w-full bg-slate-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-[#7A1C2E]"
           >
             <option value="">اختر المكتب المفضل</option>
@@ -348,7 +271,6 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
           </select>
         </div>
 
-        {/* 🔒 10. المنصب الإداري بالوحدة (مقفل أمنياً من واجهة المتطوع) */}
         <div>
           <label className="block text-xs font-black text-gray-400 mb-1.5 flex items-center gap-1">
             <Lock className="w-3 h-3 text-amber-600" /> المنصب الإداري الحالي بالوحدة
@@ -359,10 +281,10 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
           </div>
         </div>
 
-        {/* 💾 زر الحفظ الفعلي المتصل بـ Render */}
+        {/* 💾 زر الحفظ والمزامنة الفعلي */}
         <button 
           type="button"
-          onClick={handleSaveProfile}
+          onClick={savePersonalData}
           disabled={saving}
           className="w-full mt-4 bg-[#7A1C2E] hover:bg-[#631423] disabled:bg-slate-400 text-white font-black text-sm py-3 rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
         >
@@ -374,7 +296,7 @@ export const PersonalDataPage = ({ onBack }: { onBack: () => void }) => {
           ) : (
             <>
               <Check className="w-4 h-4" />
-              حفظ وتحديث البيانات الشخصية
+              حفظ وتأكيد البيانات الشخصية
             </>
           )}
         </button>
