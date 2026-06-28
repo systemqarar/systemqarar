@@ -5,14 +5,23 @@ import { NewProfilePayload } from './personal-data.types';
 
 export class PersonalDataModel {
   
-  // 🔍 جلب البيانات الكاملة بدمج جدول الحسابات مع جدول البروفايل بشكل صحيح
-  async findVolunteerById(userId: string) {
+  /**
+   * 🔍 دالة ذكية: تجلب البيانات سواءً أرسل الفرونت إند الـ UUID أو رقم الحصر (SRCS)
+   * لإنهاء مشكلة تعليق "جاري التحميل" الناتجة عن اختلاف أنواع المعرفات
+   */
+  async findVolunteerById(identifier: string) {
+    // الفحص عبر الـ Regex: هل المدخل عبارة عن UUID معقد أم رقم حصر عادي (SRCS)؟
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+    
+    // بناء شرط الاستعلام ديناميكياً بناءً على القيمة القادمة من الواجهة (الفرونت إند)
+    const condition = isUuid ? `vp.user_id = $1` : `u.volunteer_number = $1`;
+
     const query = `
       SELECT 
         vp.id, 
         vp.user_id, 
         u.volunteer_number, 
-        u.national_id, -- تم جلب الرقم الوطني من جدول users بنجاح
+        u.national_id, -- جلب الرقم الوطني من جدول الحسابات بنجاح
         vp.full_name, 
         vp.gender, 
         vp.date_of_birth, 
@@ -29,14 +38,17 @@ export class PersonalDataModel {
         vp.admin_position, 
         vp.is_profile_completed
       FROM volunteer_profiles vp
-      INNER JOIN users u ON vp.user_id = u.id -- الربط المتين بين الجدولين
-      WHERE vp.user_id = $1
+      INNER JOIN users u ON vp.user_id = u.id -- الربط المتين والآمن بين الجدولين
+      WHERE ${condition}
     `;
-    const result = await db.query(query, [userId]);
+    
+    const result = await db.query(query, [identifier]);
     return result.rows[0] || null;
   }
 
-  // 📥 تحديث البيانات الشخصية وتفعيل حقل إكمال الملف الشخصي
+  /**
+   * 📥 تحديث البيانات الشخصية في جدول البروفايل وتفعيل حقل إكمال الملف الشخصي
+   */
   async updateVolunteerProfile(userId: string, data: NewProfilePayload) {
     const query = `
       UPDATE volunteer_profiles 
