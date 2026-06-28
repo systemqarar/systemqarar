@@ -1,7 +1,7 @@
-import { useEffect } from 'react'; 
+import { useEffect } from 'react'; // ✨ تم تصليح الحرف الصغير (import)
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, User, ClipboardList, MessageSquare, FileText } from 'lucide-react'; 
-import { Outlet, useNavigate, useLocation } from 'react-router-dom'; // ✨ أضفنا useLocation هنا
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'; 
 
 import { useDashboard } from '../../../../../hooks/useDashboard';
 import { SidebarDrawer } from '../../../../../components/SidebarDrawer';
@@ -14,12 +14,13 @@ import { BentoGrid } from '../components/BentoGrid';
 export const DashboardLayout = () => {
   const { activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen } = useDashboard();
   const navigate = useNavigate(); 
-  const location = useLocation(); // ✨ مستشعر الرابط الحالي في المتصفح
+  const location = useLocation(); 
 
   // 🗺️ الروابط الأساسية للوحة التحكم
   const navigationItems = [
     { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
-    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
+    // 👇 توجيه مباشر للمسار النهائي لسرعة استجابة أعلى وبدون تأخير ريندر
+    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile/personal-data' },
     { id: 'tasks', name: 'المهام والأنشطة (Tasks & Activities)', icon: ClipboardList, path: '#' },
     { id: 'communication', name: 'مركز التواصل الذكي (Smart Communication)', icon: MessageSquare, path: '#' },
     { id: 'documents', name: 'الخطابات والوثائق (Official Documents)', icon: FileText, path: '#' },
@@ -53,13 +54,13 @@ export const DashboardLayout = () => {
         
         <Header 
           activeTab={activeTab} 
-          setActiveTab={handleTabChange} // ✨ تحويل آمن عبر الدالة المحدثة
+          setActiveTab={handleTabChange} 
           onMenuClick={() => setIsSidebarOpen(true)} 
         />
 
         <main className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <AnimatePresence mode="wait">
-            {isOverviewRoute ? ( // ✨ الاعتماد هنا بقى على الرابط الفعلي وليس الـ State
+            {isOverviewRoute ? ( 
               <motion.div
                 key="overview"
                 initial={{ opacity: 0, y: 10 }}
@@ -86,7 +87,7 @@ export const DashboardLayout = () => {
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
         activeTab={activeTab} 
-        setActiveTab={handleTabChange} // ✨ تحويل آمن عبر الدالة المحدثة
+        setActiveTab={handleTabChange} 
       />
 
     </div>

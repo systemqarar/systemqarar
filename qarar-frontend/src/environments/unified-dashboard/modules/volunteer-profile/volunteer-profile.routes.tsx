@@ -1,4 +1,6 @@
-import { RouteObject, Navigate, useNavigate } from 'react-router-dom';
+// src/environments/unified-dashboard/modules/volunteer-profile/volunteer-profile.routes.tsx
+
+import { RouteObject, Navigate, useNavigate } from 'react-router-dom'; // ✨ تم تصليح import بالحرف الصغير
 import { PersonalDataPage } from './personal-data/pages/PersonalDataPage';
 
 /**
@@ -14,34 +16,25 @@ const PersonalDataWrapper = () => {
   return (
     <PersonalDataPage 
       volunteerId={volunteerId}
-      // عند الضغط على زر الرجوع يرجع للوحة التحكم الرئيسية
-      onBack={() => navigate('/unified-dashboard/overview')} 
+      // ✨ تم التعديل ليوافق الروت الرئيسي /dashboard المعتمد في السيستم
+      onBack={() => navigate('/dashboard')} 
     />
   );
 };
 
-// 🛣️ تعريف مسارات موديول البروفايل بنظام التداخل الاحترافي (Nested Routes)
+// 🛣️ تعريف مسارات موديول البروفايل (مُسطحة لتتوافق 100% مع لـ .map في AppRoutes)
 export const volunteerProfileRoutes: RouteObject[] = [
   {
-    path: 'profile', // 🏢 المسار الأب المشترك للموديول بالكامل
-    children: [
-      {
-        index: true, // ↩️ لو المتطوع دخل على dashboard/profile مباشرة
-        element: <Navigate to="personal-data" replace />, // حيحوله تلقائياً ونسبياً لـ profile/personal-data بشكل صحيح 100%
-      },
-      {
-        path: 'personal-data', // 🪪 الرابط الفعلي حيكون تلقائياً: dashboard/profile/personal-data
-        element: <PersonalDataWrapper />,
-      },
-      /* 💡 مستقبلاً لما تعمل صفحة البطاقة الرقمية أو الإعدادات، حترميهم هنا كأبناء للمسار الرئيسي بكل سهولة: */
-      // {
-      //   path: 'digital-card', // الرابط تلقائياً حيكون: dashboard/profile/digital-card
-      //   element: <DigitalCardPage />,
-      // },
-      // {
-      //   path: 'settings', // الرابط تلقائياً حيكون: dashboard/profile/settings
-      //   element: <ProfileSettingsPage />,
-      // }
-    ],
+    path: 'profile', // ↩️ لو المتطوع دخل على dashboard/profile مباشرة حيحوله تلقائياً للبيانات الشخصية
+    element: <Navigate to="/dashboard/profile/personal-data" replace />,
   },
+  {
+    path: 'profile/personal-data', // 🪪 الرابط الفعلي الحقيقي والكامل
+    element: <PersonalDataWrapper />,
+  },
+  /* 💡 مستقبلاً لما تضيف صفحات جديدة، بتضيفها مسطحة كدة بكل سهولة وحتقراها الـ .map طوالي: */
+  // {
+  //   path: 'profile/digital-card',
+  //   element: <DigitalCardPage />,
+  // },
 ];
