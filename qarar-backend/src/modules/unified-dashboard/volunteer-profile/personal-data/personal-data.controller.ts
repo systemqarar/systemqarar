@@ -3,78 +3,81 @@
 import { Request, Response } from 'express';
 import { PersonalDataModel } from './personal-data.models';
 
-const dataModel = new PersonalDataModel();
+const model = new PersonalDataModel();
 
 export class PersonalDataController {
   
-  // GET: /api/volunteer/profile/personal-data/:volunteerId
-  async getProfileData(req: Request, res: Response) {
+  // 🔍 جلب بيانات الملف الشخصي
+  async getProfileData(req: Request, res: Response): Promise<void> {
     try {
-      const { volunteerId } = req.params;
-      
-      if (!volunteerId) {
-        return res.status(400).json({ success: false, message: 'رقم حساب المستخدم مطلوب' });
+      // استلام القيمة القادمة من الرابط (سواء كانت UUID أو رقم الحصر SRCS)
+      const { identifier } = req.params;
+
+      if (!identifier) {
+        res.status(400).json({ success: false, message: 'المُعرّف مطلوب' });
+        return;
       }
 
-      const volunteer = await dataModel.findVolunteerById(volunteerId);
-      
+      // استدعاء الدالة الذكية من الموديل
+      const volunteer = await model.findVolunteerById(identifier);
+
       if (!volunteer) {
-        return res.status(404).json({ success: false, message: 'هذا العضو غير مسجل أو الحساب غير مرتبط' });
+        res.status(404).json({ success: false, message: 'لم يتم العثور على المتطوع' });
+        return;
       }
 
-      // إرسال البيانات كاملة ومطابقة لما يتوقعه الفرونت إند تماماً
-      return res.status(200).json({
+      // إرجاع البيانات في قالب JSON نظيف ومفهوم للفرونت إند
+      res.status(200).json({
         success: true,
         data: {
-          volunteerId: volunteer.volunteer_number, 
+          id: volunteer.id,
+          userId: volunteer.user_id,
+          volunteerNumber: volunteer.volunteer_number,
+          nationalId: volunteer.national_id, // الحقل الجديد المجلوب من جدول users
           fullName: volunteer.full_name,
-          nationalId: volunteer.national_id, // هسي حيقرا قيمته الحقيقية والتعليقة حتفك!
           gender: volunteer.gender,
-          birthDate: volunteer.date_of_birth, 
+          birthDate: volunteer.date_of_birth,
           bloodType: volunteer.blood_type,
           maritalStatus: volunteer.marital_status,
           email: volunteer.email,
-          education: volunteer.education_level, 
-          occupation: volunteer.job_title, 
-          address: volunteer.detailed_address, 
-          preferredOffice: volunteer.desired_department, 
+          education: volunteer.education_level,
+          occupation: volunteer.job_title,
+          address: volunteer.detailed_address,
+          preferredOffice: volunteer.desired_department,
           isNiqabi: volunteer.is_niqabi,
-          profileImageUrl: volunteer.photo_url || volunteer.secure_photo_url, 
+          profileImageUrl: volunteer.photo_url,
+          securePhotoUrl: volunteer.secure_photo_url,
+          adminPosition: volunteer.admin_position,
           isProfileCompleted: volunteer.is_profile_completed
         }
       });
-    } catch (error) {
-      console.error('Fetch Profile Error:', error);
-      return res.status(500).json({ success: false, message: 'خطأ في سيرفر قرار الداخلي أثناء جلب البيانات' });
+    } catch (error: any) {
+      console.error('Error in getProfileData:', error);
+      res.status(500).json({ success: false, message: 'خطأ داخلي في السيرفر', error: error.message });
     }
   }
 
-  // POST: /api/volunteer/profile/personal-data/update
-  async saveProfileData(req: Request, res: Response) {
+  // 📥 حفظ وتحديث بيانات الملف الشخصي
+  async saveProfileData(req: Request, res: Response): Promise<void> {
     try {
-      const { volunteerId, ...payload } = req.body;
+      const { userId, ...updateData } = req.body;
 
-      if (!volunteerId) {
-        return res.status(400).json({ success: false, message: 'رقم الحساب مطلوب لحفظ البيانات' });
+      if (!userId) {
+        res.status(400).json({ success: false, message: 'معرف المستخدم مطلوب للتحديث' });
+        return;
       }
 
-      if (!payload.gender || !payload.bloodType || !payload.address) {
-        return res.status(400).json({ success: false, message: 'يرجى إكمال الحقول الأساسية المطلوبة' });
+      const isUpdated = await model.updateVolunteerProfile(userId, updateData);
+
+      if (!isUpdated) {
+        res.status(400).json({ success: false, message: 'فشل تحديث البيانات، تأكد من صحة البيانات المرسلة' });
+        return;
       }
 
-      const updated = await dataModel.updateVolunteerProfile(volunteerId, payload);
-
-      if (updated) {
-        return res.status(200).json({
-          success: true,
-          message: 'تم تحديث بياناتك الشخصية بنجاح، وتفعيل حسابك في منظومة قرار! 🎉'
-        });
-      } else {
-        return res.status(404).json({ success: false, message: 'فشل التحديث، الحساب غير موجود' });
-      }
-    } catch (error) {
-      console.error('Update Profile Error:', error);
-      return res.status(500).json({ success: false, message: 'فشل حفظ البيانات في نيون DB' });
+      res.status(200).json({ success: true, message: 'تم تحديث البيانات الشخصية بنجاح' });
+    } catch (error: any) {
+      console.error('Error in saveProfileData:', error);
+      res.status(500).json({ success: false, message: 'خطأ داخلي أثناء تحديث البيانات', error: error.message });
     }
   }
 }
