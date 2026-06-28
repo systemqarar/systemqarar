@@ -24,7 +24,8 @@ const PersonalDataWrapper = () => {
 
   return (
     <PersonalDataPage 
-      volunteerId={volunteerNumber} // 👈 تمرير الرقم الديناميكي الحقيقي لصفحة البيانات لتشغيل الـ API
+      // 💡 تم التعديل هنا ليتوافق تماماً مع حقل الـ volunteerNumber الجديد في الصفحة
+      volunteerNumber={volunteerNumber} 
       // عند الضغط على زر الرجوع يرجع للوحة التحكم الرئيسية
       onBack={() => navigate('/dashboard')} 
     />
@@ -42,4 +43,3 @@ export const volunteerProfileRoutes: RouteObject[] = [
     element: <PersonalDataWrapper />,
   },
 ];
- 

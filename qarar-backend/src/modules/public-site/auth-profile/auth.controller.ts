@@ -56,7 +56,8 @@ export const authController = {
       res.status(200).json({
         message: 'تم تسجيل الدخول بنجاح',
         token,
-        user: { id: user.id, username: user.username, role: user.role, is_acting: user.is_acting }
+        // ✅ تمرير رقم المتطوع في الـ user object عشان نحتاجه في الفرونت إند
+        user: { id: user.id, username: user.username, role: user.role, volunteer_number: user.volunteer_number, is_acting: user.is_acting }
       });
     } catch (error) {
       console.error('Login Error:', error);
@@ -67,14 +68,15 @@ export const authController = {
   // 2️⃣ الشاشة 2: فحص المعرف وصياغة رسالة الـ OTP وإرسالها
   verifyVolunteer: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { volunteer_id } = req.body;
+      // ✅ التعديل هنا: استقبال volunteer_number بدلاً من volunteer_id
+      const { volunteer_number } = req.body;
 
-      if (!volunteer_id) {
+      if (!volunteer_number) {
         res.status(400).json({ error: 'الرجاء إدخال رقم المتطوع الموحد' });
         return;
       }
 
-      const volunteerData = await hasrApiClient.getVolunteerById(volunteer_id);
+      const volunteerData = await hasrApiClient.getVolunteerById(volunteer_number);
 
       if (volunteerData.status !== 'approved') {
         res.status(403).json({ error: 'عذراً، هذا الحساب معلق أو غير معتمد في نظام الحصر الرسمي' });
@@ -88,7 +90,8 @@ export const authController = {
       }
 
       const volunteerSnapshot = {
-        volunteer_id: volunteerData.volunteerId,
+        // ✅ التعديل هنا: حفظه باسم volunteer_number في اللقطة
+        volunteer_number: volunteerData.volunteerId, // من الـ API الخارجي
         national_id: volunteerData.nationalId,
         full_name: volunteerData.fullName,
         phone: volunteerData.phone,
@@ -126,7 +129,8 @@ export const authController = {
   // 3️⃣ الشاشة 3: مطابقة رمز الـ OTP
   verifyOTP: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { volunteer_id, otp_code } = req.body;
+      // ✅ التعديل هنا
+      const { volunteer_number, otp_code } = req.body;
 
       if (otp_code === '123456') {
         res.status(200).json({ message: 'تم التحقق من الرمز بنجاح وعزل البيانات' });
@@ -142,9 +146,10 @@ export const authController = {
   // 3️⃣ مكرر: مسار الطوارئ الميداني والطلب اليدوي
   emergencyRequest: async (req: Request, res: Response): Promise<void> => {
     try {
-      const { volunteer_id } = req.body;
+      // ✅ التعديل هنا
+      const { volunteer_number } = req.body;
       res.status(200).json({ 
-        message: `🚨 تم رفع طلب طوارئ يدوي للمعرف ${volunteer_id}. يرجى مراجعة قيادة الوحدة لتفعيل الحساب يدوياً.` 
+        message: `🚨 تم رفع طلب طوارئ يدوي للمعرف ${volunteer_number}. يرجى مراجعة قيادة الوحدة لتفعيل الحساب يدوياً.` 
       });
     } catch (error) {
       res.status(500).json({ error: 'فشل تسجيل طلب الطوارئ' });
@@ -167,7 +172,8 @@ export const authController = {
         return;
       }
 
-      const checkVolunteer = await db.query('SELECT id FROM users WHERE volunteer_id = $1', [snapshot.volunteer_id]);
+      // ✅ التعديل هنا في الـ Query
+      const checkVolunteer = await db.query('SELECT id FROM users WHERE volunteer_number = $1', [snapshot.volunteer_number]);
       if (checkVolunteer.rows.length > 0) {
         res.status(400).json({ error: 'رقم المتطوع الموحد هذا مبرمج ومسجل بحساب آخر بالفعل!' });
         return;
@@ -177,12 +183,13 @@ export const authController = {
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       const assignedRole = snapshot.is_tot_trainer ? 'volunteer_trainer' : 'volunteer';
 
+      // ✅ التعديل هنا في الـ Insert
       const userInsertQuery = `
-        INSERT INTO users (volunteer_id, national_id, username, password_hash, role)
+        INSERT INTO users (volunteer_number, national_id, username, password_hash, role)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id;
       `;
-      const userValues = [snapshot.volunteer_id, snapshot.national_id, username, hashedPassword, assignedRole];
+      const userValues = [snapshot.volunteer_number, snapshot.national_id, username, hashedPassword, assignedRole];
       const userInsertResult = await db.query(userInsertQuery, userValues);
       
       const newUserId = userInsertResult.rows[0].id;

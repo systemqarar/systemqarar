@@ -1,15 +1,15 @@
- import React from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Upload, Check, EyeOff, ShieldCheck, User, Loader2 } from 'lucide-react';
 import { usePersonalData } from '../hooks/usePersonalData';
 
 interface PersonalDataPageProps {
-  volunteerId: string; // يُمرر ديناميكياً من الـ Auth Context الحالي
+  volunteerNumber: string; // التعديل الأهم: استقبال رقم المتطوع
   onBack?: () => void;
 }
 
-export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId, onBack }) => {
-  // استدعاء المحرك النظيف
+export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerNumber, onBack }) => {
+  // استدعاء المحرك النظيف مع تمرير رقم المتطوع
   const {
     loading,
     saving,
@@ -19,14 +19,13 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId,
     setFormData,
     savePersonalData,
     isCompleted,
-  } = usePersonalData(volunteerId);
+  } = usePersonalData(volunteerNumber);
 
   // تحديث الحقول في الـ Form
   const handleInputChange = (key: string, value: any) => {
     setFormData(prev => ({ ...prev, [key]: value }));
   };
 
-  // معالجة اختيار الصورة مؤقتاً (لحين إضافة الـ Cropper في مجلد components)
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const reader = new FileReader();
@@ -52,7 +51,6 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId,
       className="w-full text-right pb-10 max-w-3xl mx-auto"
       dir="rtl"
     >
-      {/* 🔝 الهيدر وزرار الرجوع (يختفي إجبارياً لو المتطوع لم يكمل بياناته أول مرة) */}
       <div className="flex justify-between items-center mb-6 px-1">
         <div>
           <h1 className="text-xl font-black text-slate-900">تحديث البيانات الأساسية</h1>
@@ -61,7 +59,6 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId,
           )}
         </div>
         
-        {/* زر الرجوع يظهر فقط إذا كان الملف الشخصي مكتمل مسبقاً وصلاحية الرجوع متاحة */}
         {isCompleted && onBack && (
           <button 
             onClick={onBack}
@@ -72,7 +69,6 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId,
         )}
       </div>
 
-      {/* 🔔 رسائل الإشعار بنجاح أو فشل الحفظ */}
       {message && (
         <div className={`p-3.5 mb-5 rounded-xl text-xs font-bold text-center border ${
           message.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' : 'bg-red-50 border-red-100 text-red-800'
@@ -81,7 +77,6 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId,
         </div>
       )}
 
-      {/* 🛡️ كرت بيانات الحصر الرسمية الثابتة */}
       <div className="bg-gray-50 border border-gray-200/60 rounded-2xl p-4 mb-6 shadow-sm">
         <div className="flex items-center gap-2 mb-3 text-gray-500">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -93,8 +88,9 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId,
             <span className="font-bold text-slate-700">{fixedData.fullName}</span>
           </div>
           <div className="flex justify-between border-b border-gray-200/50 pb-2">
-            <span className="text-gray-400">رقم العضوية:</span>
-            <span className="font-mono font-bold text-[#7A1C2E]">{fixedData.volunteerId}</span>
+            <span className="text-gray-400">رقم المتطوع:</span>
+            {/* عرض رقم المتطوع المعتمد بدل الـ ID العشوائي */}
+            <span className="font-mono font-bold text-[#7A1C2E]">{volunteerNumber}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">الرقم الوطني:</span>
@@ -103,7 +99,6 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId,
         </div>
       </div>
 
-      {/* 📸 كرت الصورة الشخصية ومعالجة حجب المنقبات */}
       <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6 shadow-sm flex flex-col items-center text-center">
         <span className="text-xs font-black text-slate-800 self-start mb-3">الصورة الشخصية للبطاقة الرقمية</span>
         
@@ -157,7 +152,6 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId,
         )}
       </div>
 
-      {/* 📝 نموذج الـ 11 خانة الجديدة */}
       <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
         
         <div>
@@ -281,7 +275,6 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerId,
           </div>
         </div>
 
-        {/* 💾 زر الحفظ والمزامنة الفعلي */}
         <button 
           type="button"
           onClick={savePersonalData}

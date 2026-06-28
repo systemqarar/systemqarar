@@ -9,9 +9,9 @@ export const AuthModel = {
     return result.rows[0] || null;
   },
 
-  // فحص هل رقم المتطوع مسجل مسبقاً لمنع التكرار
-  findByVolunteerId: async (volunteerId: string): Promise<IUser | null> => {
-    const result = await db.query('SELECT * FROM users WHERE volunteer_id = $1', [volunteerId]);
+  // ✅ التعديل هنا: فحص هل رقم المتطوع مسجل مسبقاً لمنع التكرار (استخدام volunteer_number)
+  findByVolunteerNumber: async (volunteerNumber: string): Promise<IUser | null> => {
+    const result = await db.query('SELECT * FROM users WHERE volunteer_number = $1', [volunteerNumber]);
     return result.rows[0] || null;
   },
 
@@ -28,41 +28,40 @@ export const AuthModel = {
     await db.query('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [userId]);
   },
 
-  // حفظ رمز الـ OTP المشفر
-  saveOTP: async (volunteerId: string, codeHash: string, expiresAt: Date): Promise<void> => {
-    // حذف أي رموز قديمة لنفس المتطوع لتنظيف الجدول أولاً بأول
-    await db.query('DELETE FROM otp_codes WHERE volunteer_id = $1', [volunteerId]);
+  // ✅ التعديل هنا: حفظ رمز الـ OTP باستخدام volunteer_number
+  saveOTP: async (volunteerNumber: string, codeHash: string, expiresAt: Date): Promise<void> => {
+    await db.query('DELETE FROM otp_codes WHERE volunteer_number = $1', [volunteerNumber]);
     await db.query(
-      'INSERT INTO otp_codes (volunteer_id, code_hash, expires_at) VALUES ($1, $2, $3)',
-      [volunteerId, codeHash, expiresAt]
+      'INSERT INTO otp_codes (volunteer_number, code_hash, expires_at) VALUES ($1, $2, $3)',
+      [volunteerNumber, codeHash, expiresAt]
     );
   },
 
-  // جلب آخر رمز OTP صالح للمطابقة
-  getLatestOTP: async (volunteerId: string): Promise<{ code_hash: string; expires_at: Date } | null> => {
+  // ✅ التعديل هنا: جلب آخر رمز OTP صالح للمطابقة
+  getLatestOTP: async (volunteerNumber: string): Promise<{ code_hash: string; expires_at: Date } | null> => {
     const result = await db.query(
-      'SELECT code_hash, expires_at FROM otp_codes WHERE volunteer_id = $1 ORDER BY expires_at DESC LIMIT 1',
-      [volunteerId]
+      'SELECT code_hash, expires_at FROM otp_codes WHERE volunteer_number = $1 ORDER BY expires_at DESC LIMIT 1',
+      [volunteerNumber]
     );
     return result.rows[0] || null;
   },
 
-  // تسجيل طلب طوارئ يدوي في حال عدم الوصول للواتساب
-  createEmergencyRequest: async (volunteerId: string): Promise<void> => {
+  // ✅ التعديل هنا: تسجيل طلب طوارئ يدوي باستخدام volunteer_number
+  createEmergencyRequest: async (volunteerNumber: string): Promise<void> => {
     await db.query(
-      'INSERT INTO verification_requests (volunteer_id, status) VALUES ($1, \'pending\') ON CONFLICT (volunteer_id) DO NOTHING',
-      [volunteerId]
+      'INSERT INTO verification_requests (volunteer_number, status) VALUES ($1, \'pending\') ON CONFLICT (volunteer_number) DO NOTHING',
+      [volunteerNumber]
     );
   },
 
-  // إنشاء الحساب الأساسي (يستخدم الـ Client لضمان الـ Transaction)
-  createUser: async (client: PoolClient, volunteerId: string, nationalId: string, username: string, passwordHash: string, role: string): Promise<IUser> => {
+  // ✅ التعديل هنا: إنشاء الحساب الأساسي (استخدام volunteer_number)
+  createUser: async (client: PoolClient, volunteerNumber: string, nationalId: string, username: string, passwordHash: string, role: string): Promise<IUser> => {
     const query = `
-      INSERT INTO users (volunteer_id, national_id, username, password_hash, role)
+      INSERT INTO users (volunteer_number, national_id, username, password_hash, role)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *;
     `;
-    const result = await client.query(query, [volunteerId, nationalId, username, passwordHash, role]);
+    const result = await client.query(query, [volunteerNumber, nationalId, username, passwordHash, role]);
     return result.rows[0];
   },
 
