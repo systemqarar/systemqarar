@@ -2,12 +2,15 @@
 
 import { Router } from 'express';
 import personalDataRoutes from './personal-data/personal-data.routes';
+// 🏆 استيراد موديول المسارات الجديد الخاص بالشهادات والبطاقات الرقمية
+import certificatesCardsRoutes from './certificates-cards/certificates-cards.routes';
 
 const volunteerProfileRouter = Router();
 
-// 🎯 التعديل السحري هنا: غيّرنا المسار لـ '/profile' عشان يطابق طلب الواجهة (Frontend) تماماً
+// 🪪 مسار البيانات الشخصية الأساسي
 volunteerProfileRouter.use('/profile', personalDataRoutes);
 
-/* مستقبلاً: volunteerProfileRouter.use('/digital-card', digitalCardRoutes); */
+// 🎖️ التوجيه السحري والمظبوط: ربط مسار الشهادات ليتطابق مع طلب الفرونتد تماماً
+volunteerProfileRouter.use('/profile/certificates-cards', certificatesCardsRoutes);
 
 export default volunteerProfileRouter;
