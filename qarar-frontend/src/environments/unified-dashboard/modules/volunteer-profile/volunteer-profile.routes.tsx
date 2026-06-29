@@ -1,6 +1,6 @@
 import { RouteObject, useNavigate } from 'react-router-dom';
 import { PersonalDataPage } from './personal-data/pages/PersonalDataPage';
-// 🆕 استيراد صفحة صالة الاستقبال (لوحة تحكم الملف الشخصي) الجديدة التي أنشأناها سوا
+// 🆕 استيراد صفحة صالة الاستقبال (لوحة تحكم الملف الشخصي) الجديدة
 import ProfileDashboardPage from './profile-dashboard/pages/ProfileDashboardPage';
 // 🏆 استيراد الصفحة الجديدة الخاصة بالشهادات والبطاقات الرقمية
 import { CertificatesCardsPage } from './certificates-cards/pages/CertificatesCardsPage';
@@ -14,11 +14,12 @@ import { useAuth } from '../../../../context/AuthContext';
 const PersonalDataWrapper = () => {
   const navigate = useNavigate();
   const { user } = useAuth(); 
-  const volunteerNumber = user?.volunteer_number || user?.id || ''; 
+  // 🛡️ استخدام المعرف الذكي (رقم المتطوع الموحد أو الـ ID الداخلي كبديل آمن)
+  const userIdentifier = user?.volunteer_number || user?.id || ''; 
 
   return (
     <PersonalDataPage 
-      volunteerNumber={volunteerNumber} 
+      volunteerNumber={userIdentifier} 
       onBack={() => navigate('/dashboard/profile')} 
     />
   );
@@ -31,11 +32,12 @@ const PersonalDataWrapper = () => {
 const CertificatesCardsWrapper = () => {
   const navigate = useNavigate();
   const { user } = useAuth(); 
-  const volunteerNumber = user?.volunteer_number || user?.id || ''; 
+  // 🛡️ تمرير المعرف الذكي المتوافق تماماً مع آلية الفحص الذكي في الباكيند الجديد
+  const userIdentifier = user?.volunteer_number || user?.id || ''; 
 
   return (
     <CertificatesCardsPage 
-      volunteerNumber={volunteerNumber} 
+      volunteerNumber={userIdentifier} 
       onBack={() => navigate('/dashboard/profile')} 
     />
   );

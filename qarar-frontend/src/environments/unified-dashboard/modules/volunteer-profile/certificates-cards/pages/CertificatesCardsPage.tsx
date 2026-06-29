@@ -155,14 +155,6 @@ export const CertificatesCardsPage: React.FC<CertificatesCardsPageProps> = ({ vo
                 📭 لا توجد شهادات رقمية مرفوعة على هذا الحساب حالياً.
               </div>
             )}
-
-            {/* عرض معلومات الدورة التنشيطية */}
-            {certificatesData.lastFirstAidRefresher && (
-              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl text-[11px] text-slate-600 font-medium flex justify-between items-center shadow-3xs">
-                <span>آخر دورة تنشيطية للإسعافات الأولية مسجلة:</span>
-                <span className="font-bold text-slate-800 bg-white border border-slate-200 px-2.5 py-0.5 rounded-md shadow-3xs">{certificatesData.lastFirstAidRefresher}</span>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

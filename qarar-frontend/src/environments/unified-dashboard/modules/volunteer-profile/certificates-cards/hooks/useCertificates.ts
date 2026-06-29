@@ -1,6 +1,9 @@
+// src/modules/unified-dashboard/volunteer-profile/certificates-cards/hooks/useCertificates.ts
+
 import { useState, useEffect } from 'react';
 
-// 📋 الواجهة المعتمدة لبيانات الشهادات والبطاقة الرقمية في منظومة قرار
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://systemqarar.onrender.com/api';
+
 export interface VolunteerCertificatesData {
   volunteerId: string;
   fullName: string;
@@ -16,7 +19,6 @@ export interface VolunteerCertificatesData {
   lastFirstAidRefresher?: string | null;
 }
 
-// 🌐 الـ Hook الموحد لإدارة جلب وحفظ حالة السجل الرقمي للمتطوع
 export const useCertificates = (volunteerNumber: string) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,31 +30,20 @@ export const useCertificates = (volunteerNumber: string) => {
         setLoading(true);
         setError(null);
 
-        // 🛡️ بيانات تجريبية (Mock Data) متكاملة ومطابقة للـ Types لتمرير الـ Build بنجاح
-        // ملاحظة: يمكنك لاحقاً ربط هذا الجزء بـ axios أو fetch لجلب البيانات الحقيقية من السيرفر
-        const mockData: VolunteerCertificatesData = {
-          volunteerId: volunteerNumber,
-          fullName: "متطوع منظومة قرار",
-          profileImageUrl: null,
-          adminPosition: "مكتب الطوارئ والعمليات",
-          phone: "0912345678",
-          unitName: "مكتب طوارئ محلية جبل أولياء",
-          approvedAt: new Date().toISOString(),
-          isTotTrainer: true,
-          totYear: 2026,
-          totCertificateUrl: null,
-          otherCertificateUrl: null,
-          lastFirstAidRefresher: "2026-05"
-        };
+        // 🚀 الربط الحقيقي والديناميكي المباشر مع سيرفر قرار بدون بيانات وهمية
+        const response = await fetch(`${BACKEND_URL}/volunteer/profile/certificates-cards/${volunteerNumber}`);
+        const resData = await response.json();
 
-        // محاكاة زمن استجابة الشبكة (نصف ثانية) لتظهر علامة التحميل بشكل طبيعي
-        setTimeout(() => {
-          setCertificatesData(mockData);
-          setLoading(false);
-        }, 500);
+        if (resData.success && resData.data) {
+          setCertificatesData(resData.data);
+        } else {
+          setError(resData.message || 'عذراً، فشل نظام قرار في جلب السجل الرقمي.');
+        }
+        setLoading(false);
 
       } catch (err) {
-        setError('عذراً، فشل نظام قرار في جلب السجل الرقمي للمتطوع حالياً.');
+        console.error('Error fetching real certificates:', err);
+        setError('عذراً، فشل الاتصال بسيرفر منظومة قرار حالياً.');
         setLoading(false);
       }
     };
@@ -65,9 +56,5 @@ export const useCertificates = (volunteerNumber: string) => {
     }
   }, [volunteerNumber]);
 
-  return { 
-    loading, 
-    error, 
-    certificatesData 
-  };
+  return { loading, error, certificatesData };
 };
