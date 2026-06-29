@@ -19,7 +19,7 @@ export class CertificatesCardsController {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
       const condition = isUuid ? `vp.user_id = $1` : `u.volunteer_number = $1`;
 
-      // استعلام آمن ومتين بجلب الحقول المطلوبة للشهادات والبطاقة فقط
+      // ✅ تعديل أمن: استبدال vp.created_at بـ CURRENT_TIMESTAMP لمنع ضرب قاعدة البيانات
       const query = `
         SELECT 
           vp.user_id,
@@ -28,7 +28,7 @@ export class CertificatesCardsController {
           vp.photo_url,
           vp.admin_position,
           vp.phone,
-          vp.created_at AS approved_at,
+          CURRENT_TIMESTAMP AS approved_at, 
           vp.is_tot_trainer,
           vp.tot_year,
           vp.tot_certificate_url,
@@ -51,12 +51,12 @@ export class CertificatesCardsController {
       res.status(200).json({
         success: true,
         data: {
-          volunteerId: volunteer.volunteer_number, // المظهر الخارجي للرقم
+          volunteerId: volunteer.volunteer_number, 
           fullName: volunteer.full_name,
           profileImageUrl: volunteer.photo_url,
           adminPosition: volunteer.admin_position || 'متطوع ميداني',
           phone: volunteer.phone || '-----------',
-          unitName: 'مكتب طوارئ محلية جبل أولياء', // قيمة ثابتة تنظيمية للقطاع الحالي
+          unitName: 'مكتب طوارئ محلية جبل أولياء', 
           approvedAt: volunteer.approved_at,
           isTotTrainer: volunteer.is_tot_trainer,
           totYear: volunteer.tot_year,
