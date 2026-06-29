@@ -12,7 +12,7 @@ interface PersonalDataPageProps {
 }
 
 export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerNumber, onBack }) => {
-  // استدعاء الكائن الشامل الموحد الجديد من الـ Hook
+  // استدعاء الكائن الشامل الموحد الجديد من الـ Hook بعد التعديل
   const { loading, profileData } = usePersonalData(volunteerNumber);
 
   if (loading) {
@@ -179,7 +179,7 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerNum
           </div>
         </div>
 
-        {/* 3️⃣ كارت السجل التدريبي وـ TOT (المستورد بالكامل) */}
+        {/* 3️⃣ كارت السجل التدريبي وـ TOT (المحدث بدون ملفات الشهادات) */}
         <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4 text-slate-800 border-b border-slate-50 pb-2">
             <Award className="w-4 h-4 text-amber-600" />
@@ -200,34 +200,6 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerNum
               <span className="text-gray-400">آخر دورة تنشيطية للإسعافات:</span>
               <span className="font-bold text-slate-700">{profileData.lastFirstAidRefresher || '---'}</span>
             </div>
-            <div className="flex flex-col gap-1.5 border-b border-gray-100 pb-2 sm:col-span-2">
-              <span className="text-gray-400">البرامج والمشاريع التدريبية الإضافية:</span>
-              <p className="bg-slate-50 p-2.5 rounded-xl text-slate-700 leading-relaxed font-medium">
-                {profileData.otherPrograms || 'لم يتم تدوين مشاريع إضافية.'}
-              </p>
-            </div>
-            
-            {/* روابط الشهادات الحية إن وجدت */}
-            {profileData.totCertificateUrl && (
-              <a 
-                href={profileData.totCertificateUrl} 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-[11px] font-bold text-[#7A1C2E] bg-red-50 text-center py-2 rounded-xl border border-red-100 hover:bg-red-100/50 transition-colors"
-              >
-                📄 استعراض شهادة TOT المعتمدة
-              </a>
-            )}
-            {profileData.otherCertificateUrl && (
-              <a 
-                href={profileData.otherCertificateUrl} 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-[11px] font-bold text-slate-700 bg-slate-50 text-center py-2 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors"
-              >
-                🔗 استعراض المرفقات والشهادات الأخرى
-              </a>
-            )}
           </div>
         </div>
 

@@ -3,12 +3,12 @@ import { useState, useEffect } from 'react';
 // الرابط الديناميكي المقروء من env
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://systemqarar.onrender.com/api';
 
-// 🆕 الواجهة الشاملة المحدثة والمؤمنة لتخطي خطأ الـ Build
+// 🆕 الواجهة الشاملة المحدثة والمخصصة للبيانات الشخصية فقط (بدون الشهادات)
 export interface FullProfileData {
   id?: string;
   userId?: string;
   volunteerNumber?: string;
-  volunteerId?: string; // 👈 هنا السر: أضفنا التعريف لحل خطأ الـ TS2353
+  volunteerId?: string; 
   nationalId?: string;
   fullName: string;
   profileImageUrl?: string | null;
@@ -29,10 +29,7 @@ export interface FullProfileData {
   isNiqabi?: boolean;
   isTotTrainer?: boolean;
   totYear?: number | null;
-  totCertificateUrl?: string | null;
-  otherCertificateUrl?: string | null;
   lastFirstAidRefresher?: string | null;
-  otherPrograms?: string | null;
   currentStatusInKhartoum?: string;
   expectedReturnTime?: string | null;
   availabilityLevel?: string | null;
@@ -44,14 +41,14 @@ export const usePersonalData = (volunteerId: string) => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // 🎯 الآن التايب سكريبت حيرضى تماماً عن الـ Object literal دا
+  // التايب سكريبت هنا حيقبل الـ Object تماماً بعد تعديل الـ Interface
   const [profileData, setProfileData] = useState<FullProfileData>({
     fullName: 'جاري التحميل...',
     volunteerId: volunteerId, 
     nationalId: '------------',
   });
 
-  // 🔄 جلب البيانات فوراً عند فتح الصفحة الشخصية
+  // 🔄 جلب البيانات الشخصية فوراً عند فتح الصفحة
   useEffect(() => {
     if (!volunteerId) return;
 
@@ -61,7 +58,7 @@ export const usePersonalData = (volunteerId: string) => {
         if (resData.success && resData.data) {
           const d = resData.data;
           
-          // 📥 تخزين كافة البيانات وتأمين وجود المعرف بالجهتين
+          // 📥 تخزين البيانات الشخصية فقط وتأمين المعرف
           setProfileData({
             ...d,
             volunteerId: d.volunteerId || d.volunteerNumber || volunteerId,
@@ -78,7 +75,7 @@ export const usePersonalData = (volunteerId: string) => {
       });
   }, [volunteerId]);
 
-  // 📥 دالة الحفظ الذكية
+  // 📥 دالة الحفظ الذكية للبيانات الشخصية
   const savePersonalData = async (updatedFields: Partial<FullProfileData>) => {
     setSaving(true);
     setMessage(null);
