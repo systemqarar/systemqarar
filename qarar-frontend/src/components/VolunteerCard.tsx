@@ -43,7 +43,7 @@ export const VolunteerCard = ({ volunteer }: { volunteer: VolunteerCardData }) =
       dir="rtl"
       style={{ fontFamily: "'Cairo', sans-serif" }}
     >
-      {/* 🕸️ الخلفية الزخرفية */}
+      {/* 🕸️ الخلفية الزخرفية للهلال الأحمر */}
       <div className="absolute inset-0 opacity-[0.05] pointer-events-none">
         <svg width="100%" height="100%">
           <pattern id="mesh-pattern" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
@@ -57,8 +57,10 @@ export const VolunteerCard = ({ volunteer }: { volunteer: VolunteerCardData }) =
         </svg>
       </div>
       
+      {/* الشريط العلوي */}
       <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-red-800 via-red-600 to-red-800 shadow-md"></div>
 
+      {/* 🌙 الترويسة والشعار الرسمي */}
       <div className="relative z-10 w-full mb-4 mt-2 flex flex-col items-center">
         <div className="w-14 h-14 mb-2 flex items-center justify-center">
           <svg viewBox="0 0 100 100" className="w-full h-full text-[#c10d28] drop-shadow-md" fill="currentColor">
@@ -76,6 +78,7 @@ export const VolunteerCard = ({ volunteer }: { volunteer: VolunteerCardData }) =
         <div className="text-[10px] text-black font-black mt-0.5">مكتب طوارئ محلية جبل أولياء</div>
       </div>
 
+      {/* 👤 الصورة الشخصية الدائرية */}
       <div className="relative z-10 mb-6 mt-2">
         <div className="absolute inset-0 bg-red-500/5 blur-[25px] rounded-full scale-110"></div>
         <div className="relative w-28 h-28 rounded-full border-[5px] border-white shadow-xl p-0.5 bg-gradient-to-tr from-red-600 via-red-500 to-red-400 overflow-hidden mx-auto">
@@ -94,6 +97,7 @@ export const VolunteerCard = ({ volunteer }: { volunteer: VolunteerCardData }) =
         </div>
       </div>
 
+      {/* 📊 صندوق البيانات الأساسية */}
       <div className="relative z-10 w-full bg-white/95 backdrop-blur-md rounded-[2.5rem] border border-red-50 shadow-lg p-5 mb-3 overflow-hidden border-b-[4px] border-b-red-50/50">
         <div className="relative z-20 mb-5 text-right">
           <div className="text-[9px] text-gray-400 font-bold mb-0.5">الاسم الكامل للمتطوع</div>
@@ -101,6 +105,7 @@ export const VolunteerCard = ({ volunteer }: { volunteer: VolunteerCardData }) =
         </div>
 
         <div className="relative z-20 flex flex-row-reverse items-start justify-between border-t border-gray-100 pt-4">
+          {/* 🔍 رمز الـ QR الذكي */}
           <div className="bg-white p-1 rounded-xl border border-red-100 shadow-sm shrink-0 ml-2">
             <img 
               src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(qrValue)}&color=${qrColor}`}
@@ -137,6 +142,7 @@ export const VolunteerCard = ({ volunteer }: { volunteer: VolunteerCardData }) =
         </div>
       </div>
 
+      {/* التذييل الرسمي */}
       <div className="relative z-10 w-full mt-auto">
         <div className="bg-red-600 text-white py-2.5 px-4 rounded-xl mb-2 shadow-sm text-center">
           <p className="text-[9px] font-black tracking-wide">معتمدة من مكتب طوارئ محلية جبل أولياء 2026</p>
