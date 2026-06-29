@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IdCard, Award, Loader2, ArrowRight, ShieldAlert, FileImage, ExternalLink } from 'lucide-react';
+// 🔄 تم تبديل IdCard بـ CreditCard المضمونة في كل إصدارات lucide-react لسلامة الـ Build
+import { Award, Loader2, ArrowRight, ShieldAlert, FileImage, ExternalLink, CreditCard } from 'lucide-react';
 import { useCertificates } from '../hooks/useCertificates';
 import { CertificateModal } from '../components/CertificateModal';
 import { DigitalCardModal } from '../components/DigitalCardModal';
@@ -16,7 +17,7 @@ export const CertificatesCardsPage: React.FC<CertificatesCardsPageProps> = ({ vo
   // التحكم في عرض لستة الشهادات تحت الأزرار
   const [showCertificatesList, setShowCertificatesList] = useState(false);
 
-  // التحكم في النوافذ المنبثقة (Modals)
+  // التحكم في النوافذ المنبثقة (Modals) المفصولة
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isCertModalOpen, setIsCertModalOpen] = useState(false);
   const [activeCert, setActiveCert] = useState<{ title: string; url: string | null | undefined }>({
@@ -47,12 +48,6 @@ export const CertificatesCardsPage: React.FC<CertificatesCardsPageProps> = ({ vo
       </div>
     );
   }
-
-  // دالة ذكية لفتح مودال الشهادة المحددة
-  const handleOpenCertificate = (title: string, url: string | null | undefined) => {
-    setActiveCert({ title, url });
-    setIsCertModalOpen(true);
-  };
 
   // تجهيز مصفوفة الشهادات الفعلية المتاحة للمتطوع لعرضها ديناميكياً
   const availableCertificates = [
@@ -103,13 +98,13 @@ export const CertificatesCardsPage: React.FC<CertificatesCardsPageProps> = ({ vo
           className="flex flex-col items-center justify-center p-6 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-emerald-100 hover:bg-emerald-50/20 active:scale-98 transition-all group"
         >
           <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-            <IdCard className="w-6 h-6 stroke-[1.5]" />
+            <CreditCard className="w-6 h-6 stroke-[1.5]" />
           </div>
           <span className="text-xs font-black text-slate-800">بطاقتي الرقمية</span>
           <span className="text-[9px] text-slate-400 font-bold mt-1">عرض بطاقة حصر الذكية</span>
         </button>
 
-        {/* زر شهاداتي لعرض القائمة */}
+        {/* زر/تبويب شهاداتي لعرض القائمة بالأسفل */}
         <button
           onClick={() => setShowCertificatesList(!showCertificatesList)}
           className={`flex flex-col items-center justify-center p-6 bg-white border rounded-2xl shadow-sm active:scale-98 transition-all group ${showCertificatesList ? 'border-[#7A1C2E] bg-red-50/10' : 'border-slate-100 hover:border-red-100 hover:bg-red-50/20'}`}
@@ -122,7 +117,7 @@ export const CertificatesCardsPage: React.FC<CertificatesCardsPageProps> = ({ vo
         </button>
       </div>
 
-      {/* 📜 منطقة عرض قائمة الشهادات (تظهر وتختفي ديناميكياً) */}
+      {/* 📜 منطقة عرض قائمة الشهادات */}
       <AnimatePresence>
         {showCertificatesList && (
           <motion.div
@@ -135,11 +130,12 @@ export const CertificatesCardsPage: React.FC<CertificatesCardsPageProps> = ({ vo
             
             {availableCertificates.length > 0 ? (
               availableCertificates.map((cert) => (
-                <motion.div
+                <div
                   key={cert.id}
-                  initial={{ x: 15, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  onClick={() => handleOpenCertificate(cert.title, cert.url)}
+                  onClick={() => {
+                    setActiveCert({ title: cert.title, url: cert.url });
+                    setIsCertModalOpen(true);
+                  }}
                   className="flex justify-between items-center bg-white border border-slate-100 rounded-xl p-4 shadow-2xs hover:border-slate-200 hover:bg-slate-50/50 cursor-pointer transition-all active:scale-[0.99]"
                 >
                   <div className="flex items-center gap-3">
@@ -152,7 +148,7 @@ export const CertificatesCardsPage: React.FC<CertificatesCardsPageProps> = ({ vo
                     </div>
                   </div>
                   <ExternalLink className="w-4 h-4 text-slate-300" />
-                </motion.div>
+                </div>
               ))
             ) : (
               <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs font-bold">
@@ -160,7 +156,7 @@ export const CertificatesCardsPage: React.FC<CertificatesCardsPageProps> = ({ vo
               </div>
             )}
 
-            {/* عرض معلومات إضافية مساعدة كـ سياق إداري */}
+            {/* عرض معلومات الدورة التنشيطية */}
             {certificatesData.lastFirstAidRefresher && (
               <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-xl text-[11px] text-slate-600 font-medium flex justify-between items-center shadow-3xs">
                 <span>آخر دورة تنشيطية للإسعافات الأولية مسجلة:</span>
@@ -171,7 +167,7 @@ export const CertificatesCardsPage: React.FC<CertificatesCardsPageProps> = ({ vo
         )}
       </AnimatePresence>
 
-      {/* 📥 النوافذ المنبثقة الذكية (Modals) */}
+      {/* 📥 النوافذ المنبثقة الذكية والمفصولة (Modals) */}
       <DigitalCardModal 
         isOpen={isCardModalOpen}
         onClose={() => setIsCardModalOpen(false)}
