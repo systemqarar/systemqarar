@@ -19,14 +19,13 @@ export const DashboardLayout = () => {
   // 🗺️ الروابط الأساسية للوحة التحكم
   const navigationItems = [
     { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
-    // 🎯 تم التعديل هنا ليوجه إلى صالة استقبال الملف الشخصي الجديدة مباشرة بدلاً من البيانات الشخصية
     { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
     { id: 'tasks', name: 'المهام والأنشطة (Tasks & Activities)', icon: ClipboardList, path: '#' },
     { id: 'communication', name: 'مركز التواصل الذكي (Smart Communication)', icon: MessageSquare, path: '#' },
     { id: 'documents', name: 'الخطابات والوثائق (Official Documents)', icon: FileText, path: '#' },
   ];
 
-  // 1️⃣ مزامنة الـ Tabs مع الرابط الحالي (عشان الأيقونات تنور صح لو المستخدم عمل Refresh)
+  // 1️⃣ مزامنة الـ Tabs مع الرابط الحالي
   useEffect(() => {
     if (location.pathname === '/dashboard' || location.pathname === '/dashboard/') {
       setActiveTab('overview');
@@ -35,9 +34,13 @@ export const DashboardLayout = () => {
     }
   }, [location.pathname, setActiveTab]);
 
-  // 2️⃣ دالة موحدة للتحويل عند الضغط الفعلي من القائمة الجانبية أو الهيدر
+  // 2️⃣ دالة موحدة للتحويل عند الضغط الفعلي
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
+    
+    // 🌟 تعديل 1: إغلاق القائمة الجانبية فوراً لمنع الطبقة الشفافة من حجب الضغطات
+    setIsSidebarOpen(false); 
+
     const currentItem = navigationItems.find(n => n.id === tabId);
     if (currentItem && currentItem.path !== '#') {
       navigate(currentItem.path);
@@ -71,10 +74,17 @@ export const DashboardLayout = () => {
                 <BentoGrid />
               </motion.div>
             ) : (
-              /* 🎯 الأوتلت السحري حيفضل عايش ومستعد يعرض أي صفحة فرعية فوراً */
-              <div className="px-5 mt-6">
+              /* 🎯 تعديل 2: تحويل الحاوية إلى motion.div وإعطائها مفتاحاً ذكياً يعتمد على المسار لمنع تجمد الشاشة وضمان سلاسة الانتقال */
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                transition={{ duration: 0.2 }}
+                className="px-5 mt-6"
+              >
                 <Outlet />
-              </div>
+              </motion.div>
             )}
           </AnimatePresence>
         </main>
