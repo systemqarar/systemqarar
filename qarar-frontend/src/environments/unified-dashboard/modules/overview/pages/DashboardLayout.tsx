@@ -1,4 +1,4 @@
-import { useEffect } from 'react'; // ✨ تم تصليح الحرف الصغير (import)
+import { useEffect } from 'react'; 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Home, User, ClipboardList, MessageSquare, FileText } from 'lucide-react'; 
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'; 
@@ -19,8 +19,8 @@ export const DashboardLayout = () => {
   // 🗺️ الروابط الأساسية للوحة التحكم
   const navigationItems = [
     { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
-    // 👇 توجيه مباشر للمسار النهائي لسرعة استجابة أعلى وبدون تأخير ريندر
-    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile/personal-data' },
+    // 🎯 تم التعديل هنا ليوجه إلى صالة استقبال الملف الشخصي الجديدة مباشرة بدلاً من البيانات الشخصية
+    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
     { id: 'tasks', name: 'المهام والأنشطة (Tasks & Activities)', icon: ClipboardList, path: '#' },
     { id: 'communication', name: 'مركز التواصل الذكي (Smart Communication)', icon: MessageSquare, path: '#' },
     { id: 'documents', name: 'الخطابات والوثائق (Official Documents)', icon: FileText, path: '#' },
