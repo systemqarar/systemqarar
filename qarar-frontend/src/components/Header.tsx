@@ -1,17 +1,18 @@
-import { Bell, Menu, ChevronRight, Sparkles, Home } from 'lucide-react'; // 🆕 استيراد أيقونة الهوم (البيت)
+import { Bell, Menu, ChevronRight, Sparkles, Home } from 'lucide-react'; 
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom'; // 🆕 استيراد أدوات التوجيه الذكية لقراءة المسارات
+import { useLocation, useNavigate } from 'react-router-dom'; 
 
 interface HeaderProps {
-  activeTab: string;
+  activeTab: string; // نتركها هنا في الواجهة لكي لا يعترض الملف الأب (DashboardLayout)
   setActiveTab: (tab: string) => void;
   onMenuClick: () => void;
 }
 
-export const Header = ({ activeTab, setActiveTab, onMenuClick }: HeaderProps) => {
+// 🎯 تم التعديل هنا: حذفنا activeTab من المتغيرات المستلمة لحل مشكلة الـ TS6133 فوراً
+export const Header = ({ setActiveTab, onMenuClick }: HeaderProps) => {
   const [greeting, setGreeting] = useState('مرحباً بك يا قائد');
-  const location = useLocation(); // 🗺️ لمعرفة المسار الحالي بدقة
-  const navigate = useNavigate(); // 🚀 للتنقل الذكي بين الصفحات
+  const location = useLocation(); 
+  const navigate = useNavigate(); 
 
   // 🕒 حساب الترحيب الذكي تلقائياً بناءً على وقت جهاز المستخدم
   useEffect(() => {
@@ -35,15 +36,13 @@ export const Header = ({ activeTab, setActiveTab, onMenuClick }: HeaderProps) =>
   // 🔍 فحص ذكي ومقسّم لموقع المستخدم الحالي في المنظومة
   const isOverviewPage = location.pathname === '/dashboard' || location.pathname === '/dashboard/';
   const isProfileDashboard = location.pathname === '/dashboard/profile' || location.pathname === '/dashboard/profile/';
-  const isDeepSubPage = !isOverviewPage && !isProfileDashboard; // صفحات عميقة (مثل البيانات الشخصية، الشهادات، إلخ)
+  const isDeepSubPage = !isOverviewPage && !isProfileDashboard; 
 
   // ↩️ دالة التوجيه الديناميكية عند الضغط على سهم الرجوع
   const handleBackClick = () => {
     if (isDeepSubPage) {
-      // لو في صفحة عميقة، يرجعه خطوة للخلف لصالة استقبال البروفايل
       navigate('/dashboard/profile');
     } else if (isProfileDashboard) {
-      // لو في صالة البروفايل، يرجعه للوحة التحكم الرئيسية الخارجية
       setActiveTab('overview');
       navigate('/dashboard');
     }
@@ -55,7 +54,7 @@ export const Header = ({ activeTab, setActiveTab, onMenuClick }: HeaderProps) =>
       {/* 🔹 اليمين: الأزرار الحركية الذكية + اللوقو الفخم والاسم */}
       <div className="flex items-center gap-3">
         
-        {/* 🔄 الزر الديناميكي الأول: منيو في الرئيسية، وسهم رجوع في أي صفحة أخرى */}
+        {/* 🔄 الزر الديناميكي الأول */}
         {isOverviewPage ? (
           <button 
             onClick={onMenuClick} 
@@ -73,7 +72,7 @@ export const Header = ({ activeTab, setActiveTab, onMenuClick }: HeaderProps) =>
           </button>
         )}
 
-        {/* 🏠 الزر الخارق الإضافي (الهوم): يظهر "فقط" بجانب السهم عندما نكون داخل الصفحات العميقة */}
+        {/* 🏠 الزر الخارق الإضافي (الهوم) */}
         {isDeepSubPage && (
           <button 
             onClick={() => {
