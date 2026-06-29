@@ -1,7 +1,7 @@
-// src/environments/unified-dashboard/modules/volunteer-profile/volunteer-profile.routes.tsx
-
-import { RouteObject, Navigate, useNavigate } from 'react-router-dom';
+import { RouteObject, useNavigate } from 'react-router-dom';
 import { PersonalDataPage } from './personal-data/pages/PersonalDataPage';
+// 🆕 استيراد صفحة صالة الاستقبال (لوحة تحكم الملف الشخصي) الجديدة التي أنشأناها سوا
+import ProfileDashboardPage from './profile-dashboard/pages/ProfileDashboardPage';
 // 🔐 استيراد الـ Context العام لسيستم قرار لقراءة بيانات الجلسة ديناميكياً
 import { useAuth } from '../../../../context/AuthContext'; 
 
@@ -18,16 +18,14 @@ const PersonalDataWrapper = () => {
   /**
    * 🎯 قراءة رقم المتطوع ديناميكياً:
    * السيستم سيقرأ حقل الـ volunteer_number المعتمد والمربوط بالجلسة الحية.
-   * في حال عدم وجوده (مثلاً حساب مسؤول أو حساب جديد)، يمكن الاعتماد على الـ id كخيار احتياطي.
    */
   const volunteerNumber = user?.volunteer_number || user?.id || ''; 
 
   return (
     <PersonalDataPage 
-      // 💡 تم التعديل هنا ليتوافق تماماً مع حقل الـ volunteerNumber الجديد في الصفحة
       volunteerNumber={volunteerNumber} 
-      // عند الضغط على زر الرجوع يرجع للوحة التحكم الرئيسية
-      onBack={() => navigate('/dashboard')} 
+      // 🔄 تم التعديل هنا: عند الضغط على زر الرجوع يرجع لصالة استقبال الملف الشخصي بدلاً من الداشبورد الخارجي
+      onBack={() => navigate('/dashboard/profile')} 
     />
   );
 };
@@ -35,11 +33,11 @@ const PersonalDataWrapper = () => {
 // 🛣️ تعريف مسارات موديول البروفايل بنظام التداخل الاحترافي (Nested Routes)
 export const volunteerProfileRoutes: RouteObject[] = [
   {
-    path: 'profile', // ↩️ لو المتطوع دخل على dashboard/profile مباشرة حيحوله تلقائياً للبيانات الشخصية
-    element: <Navigate to="/dashboard/profile/personal-data" replace />,
+    path: 'profile', // ↩️ الآن عندما يضغط المتطوع على "الملف الشخصي" ستفتح له الواجهة الجديدة مباشرة
+    element: <ProfileDashboardPage />,
   },
   {
-    path: 'profile/personal-data', // 🪪 الرابط الفعلي الحقيقي والكامل
+    path: 'profile/personal-data', // 🪪 الرابط الفعلي لصفحة البيانات الشخصية عند الضغط على الكرت الأول
     element: <PersonalDataWrapper />,
   },
 ];
