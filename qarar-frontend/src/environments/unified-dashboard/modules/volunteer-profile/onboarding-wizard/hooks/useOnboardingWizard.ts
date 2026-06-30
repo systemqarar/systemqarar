@@ -24,8 +24,10 @@ const uploadToCloudinary = async (base64String: string): Promise<string> => {
     return base64String;
   }
 
-  const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME; 
-  const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET; 
+  // تجاوز ذكي لأي قيود في الـ TypeScript للتعرف على متغيرات البيئة في Vercel
+  const env = (import.meta as any).env || {};
+  const CLOUD_NAME = env.VITE_CLOUDINARY_CLOUD_NAME; 
+  const UPLOAD_PRESET = env.VITE_CLOUDINARY_UPLOAD_PRESET; 
 
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     throw new Error('المتغيرات VITE_CLOUDINARY_CLOUD_NAME أو VITE_CLOUDINARY_UPLOAD_PRESET غير معرفة في Vercel');
@@ -67,7 +69,6 @@ export const useOnboardingWizard = (onComplete: () => void) => {
   const nextStep = () => setCurrentStep((i) => i + 1);
   const prevStep = () => setCurrentStep((i) => i - 1);
 
-  // الدالة النهائية بعد تزويدها بكاشف الأعطال الدقيق
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
     try {
@@ -87,28 +88,32 @@ export const useOnboardingWizard = (onComplete: () => void) => {
             finalSecurePhotoUrl = ''; 
           }
         } catch (cloudinaryError: any) {
-          alert(`❌ [مشكلة في كلاودنري]: ${cloudinaryError.message}`);
-          throw cloudinaryError; // إيقاف العملية هنا لأن الصورة لم ترفع
+          alert(`❌ [مشكلة في كلاودنري]: ${cloudinaryError?.message || cloudinaryError}`);
+          throw cloudinaryError;
         }
       }
 
-      // تجهيز كائن البيانات النهائي
+      // تجهيز كائن البيانات النهائي النظيف والآمن
       const cleanedFormData: OnboardingFormData = {
         ...formData,
         photo_url: finalPhotoUrl,
         secure_photo_url: finalSecurePhotoUrl,
       };
 
-      // 2. مرحلة الحفظ في سيرفر قاعدة البيانات (Backend)
+      // 2. مرحلة الحفظ في سيرفر قاعدة البيانات (Backend) عبر الـ Rewrite الموجه لـ Render
       try {
         const res = await submitOnboardingData(cleanedFormData);
         if (res.success) {
           onComplete();
         } else {
-          alert('❌ [رفض من السيرفر]: السيرفر استلم البيانات لكن رفض الحفظ. تأكد من إدخال جميع الحقول الإلزامية.');
+          alert('❌ [رفض من السيرفر]: السيرفر استلم البيانات لكن رفض الحفظ.');
         }
       } catch (apiError: any) {
-        alert(`❌ [فشل اتصال السيرفر Backend]: تعذر إرسال البيانات لقاعدة البيانات. قد يكون سيرفر Render نائماً أو متوقفاً.`);
+        // استخراج كود الخطأ والرسالة الحقيقية الراجعة من سيرفر ريندر
+        const statusCode = apiError.response?.status; 
+        const serverMessage = apiError.response?.data?.message || apiError.response?.data || apiError.message;
+        
+        alert(`❌ [خطأ من سيرفر الـ Backend]:\n- رمز الخطأ (Status): ${statusCode || 'مشكلة شبكة / اتصال مقطوع'}\n- تفاصيل السيرفر: ${JSON.stringify(serverMessage)}`);
         throw apiError;
       }
 
