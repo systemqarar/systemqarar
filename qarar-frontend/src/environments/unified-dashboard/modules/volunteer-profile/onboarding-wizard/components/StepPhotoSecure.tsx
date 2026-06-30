@@ -1,84 +1,26 @@
-import React, { useState, useEffect } from 'react';
+// unified-dashboard/modules/volunteer-profile/onboarding-wizard/components/StepPhotoSecure.tsx
+
+import React from 'react';
 import { WizardStepProps } from '../types/onboarding.types';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as faceapi from 'face-api.js';
+import { usePhotoVerification } from '../hooks/usePhotoVerification'; // 🚀 استدعاء الهوك الذكي حقنا
 
 export const StepPhotoSecure: React.FC<WizardStepProps & { isSubmitting: boolean; onFinalSubmit: () => void }> = ({
   formData, updateFields, prevStep, isSubmitting, onFinalSubmit
 }) => {
-  const [preview, setPreview] = useState<string | null>(formData.photo_url || null);
-  const [isModelLoading, setIsModelLoading] = useState(true);
-  const [isValidating, setIsValidating] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // 1. تحميل موديلات الذكاء الاصطناعي عند فتح الصفحة
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        // نستخدم رابط CDN سريع ومفتوح للموديلات عشان ما نثقل السيرفر حقك
-        const MODEL_URL = 'https://cdn.jsdelivr.net/gh/cstefanache/face-api.js-models@master/weights/';
-        
-        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-        
-        setIsModelLoading(false);
-      } catch (err) {
-        console.error("فشل تحميل موديلات فحص الوجه:", err);
-        // لو الـ CDN علق لأي سبب، نخلي المستخدم يمر عشان السيستم ما يقيف
-        setIsModelLoading(false);
-      }
-    };
-    loadModels();
-  }, []);
-
-  // 2. دالة فحص وتدقيق الصورة
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setErrorMessage(null);
-    setIsValidating(true);
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64Image = reader.result as string;
-
-      // إنشاء عنصر صورة وهمي في الذاكرة لفحصه
-      const img = new Image();
-      img.src = base64Image;
-      img.onload = async () => {
-        try {
-          // تشغيل الفحص الذكي (نبحث عن كل الوجوه للتأكد إنها ما صورة جماعية)
-          const detections = await faceapi.detectAllFaces(img, new faceapi.TinyFaceDetectorOptions());
-
-          if (detections.length === 0) {
-            setErrorMessage('❌ عذراً، لم يتم العثور على وجه واضح. يرجى رفع صورة شخصية رسمية تظهر فيها ملامح الوجه كاملة (مثل صور الجواز أو اللوتري).');
-            setIsValidating(false);
-            return;
-          }
-
-          if (detections.length > 1) {
-            setErrorMessage('❌ عذراً، تم العثور على أكثر من شخص في الصورة. يرجى رفع صورة شخصية خاصة بك فقط.');
-            setIsValidating(false);
-            return;
-          }
-
-          // إذا نجح الفحص بنسبة 100%
-          setPreview(base64Image);
-          updateFields({ photo_url: base64Image });
-          setErrorMessage(null);
-        } catch (err) {
-          console.error("خطأ أثناء فحص الصورة:", err);
-          // في حال حدوث خطأ تقني غير متوقع في الفحص، نمشي الصورة عشان ما نعطل المستخدم
-          setPreview(base64Image);
-          updateFields({ photo_url: base64Image });
-        } finally {
-          setIsValidating(false);
-        }
-      };
-    };
-    reader.readAsDataURL(file);
-  };
+  
+  // 🎯 استدعاء كل منطق الذكاء الاصطناعي في سطر واحد فقط!
+  const {
+    preview,
+    isModelLoading,
+    isValidating,
+    errorMessage,
+    handlePhotoChange,
+    clearPhoto
+  } = usePhotoVerification({
+    initialPhotoUrl: formData.photo_url || null,
+    updateFields
+  });
 
   return (
     <div className="space-y-5">
@@ -108,7 +50,7 @@ export const StepPhotoSecure: React.FC<WizardStepProps & { isSubmitting: boolean
               <label htmlFor="niqab" className="font-bold text-gray-800 cursor-pointer">هل المتطوعة منقبة؟</label>
             </div>
             <p className="text-xs text-gray-600 mt-2 leading-relaxed">
-              🛡️ لحمايتكِ.. عند تفعيل هذا الخيار، سيقوم النظام تلقائياً بتشفير صورتكِ وتحويلها إلى نسخة ضبابية تماماً لا تظهر معالمها لأي مستخدم، بينما تُحفظ الصورة الرسمية في خادم آمن جداً للمعاملات الإدارية المعتمدة والشهادات فقط.
+              🛡️ لحمايتكِ.. عند تفعيل this الخيار، سيقوم النظام تلقائياً بتشفير صورتكِ وتحويلها إلى نسخة ضبابية تماماً لا تظهر معالمها لأي مستخدم، بينما تُحفظ الصورة الرسمية في خادم آمن جداً للمعاملات الإدارية المعتمدة والشهادات فقط.
             </p>
           </motion.div>
         )}
@@ -142,7 +84,7 @@ export const StepPhotoSecure: React.FC<WizardStepProps & { isSubmitting: boolean
             </div>
             <button 
               type="button"
-              onClick={() => { setPreview(null); updateFields({ photo_url: '' }); }} 
+              onClick={clearPhoto} 
               className="text-xs font-bold text-red-600 underline"
             >
               تغيير الصورة
@@ -153,7 +95,7 @@ export const StepPhotoSecure: React.FC<WizardStepProps & { isSubmitting: boolean
             <p className="text-sm text-gray-600 mb-2">ارفع صورتك الرسمية هنا</p>
             <label className={`px-4 py-2 bg-white border shadow-sm rounded-lg font-bold text-sm text-gray-700 cursor-pointer hover:bg-gray-50 transition ${isModelLoading ? 'opacity-50 pointer-events-none' : ''}`}>
               اختيار ملف الصورة
-              <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={isModelLoading} />
+              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} disabled={isModelLoading} />
             </label>
           </div>
         )}
