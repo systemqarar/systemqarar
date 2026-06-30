@@ -2,9 +2,31 @@ import axios from 'axios';
 import { OnboardingFormData } from '../types/onboarding.types';
 
 export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ success: boolean }> => {
+  
+  // 🕵️‍♂️ محاولة جلب الـ userId تلقائياً من الـ localStorage بكافة الصيغ المتوقعة في السيستم
+  let userId = localStorage.getItem('userId');
+  
+  if (!userId) {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        userId = parsed.id || parsed.userId || parsed._id || parsed.data?.id;
+      } catch (e) {
+        console.error('Error parsing user from localStorage', e);
+      }
+    }
+  }
+
+  // إذا لم يجد المعرف، يرمي خطأ واضح للواجهة بدل ما يرسل طلب أعمى للسيرفر
+  if (!userId) {
+    throw new Error('لم يتم العثور على معرّف المستخدم (userId) في ذاكرة المتصفح. يرجى إعادة تسجيل الدخول وتجربة الخطوة مجدداً.');
+  }
+
   const fullAddress = `المنطقة: ${data.main_address} - تفاصيل: ${data.detailed_address}`;
   
   const payload = {
+    userId, // 🎯 المُنقذ اللي كان مستنيه السيرفر بالظبط عشان يوافق على الحفظ!
     gender: data.gender,
     date_of_birth: data.date_of_birth,
     marital_status: data.marital_status,
@@ -20,7 +42,6 @@ export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ 
     is_profile_completed: true
   };
 
-  // 🎯 التعديل الذهبي: الإرسال للمسار الصحيح المفتوح في الباك إند تماماً
   const response = await axios.post('/api/volunteer/profile/update', payload);
   return response.data;
 };
