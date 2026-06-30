@@ -9,9 +9,12 @@ import DashboardLayout from '../environments/unified-dashboard/modules/overview/
 // 📦 استيراد خط المسارات المستقل الخاص بموديول البروفايل
 import { volunteerProfileRoutes } from '../environments/unified-dashboard/modules/volunteer-profile/volunteer-profile.routes';
 
+// 🆕 استيراد صفحة معالج استكمال البيانات الجديدة من مسارها الصحيح بحسب الهيكل الشجري
+import { OnboardingWizardPage } from '../environments/unified-dashboard/modules/volunteer-profile/onboarding-wizard/pages/OnboardingWizardPage';
+
 // حارس المسارات المحمية: يمنع دخول غير المسجلين للمنظومة
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth(); // 🔑 جلب بيانات المستخدم هنا للفحص العلوي
 
   if (isLoading) {
     return (
@@ -25,12 +28,16 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <Navigate to="/login" replace />;
   }
 
+  // 🛡️ بوابة الفحص العلوية (Onboarding Gate):
+  // إذا كان المتطوع غير مكمل لبياناته، يتم حظره علوياً وعرض صفحة الاستكمال الجديدة فوراً في الشاشة كلها
+  if (user?.is_profile_completed === false) {
+    return <OnboardingWizardPage onWizardComplete={() => window.location.reload()} />;
+  }
+
   return <>{children}</>;
 };
 
 export const AppRoutes: React.FC = () => {
-  const { user, isAuthenticated } = useAuth(); // 🔑 جلب بيانات المستخدم الحالي لفحص حالة قفل البوابة
-
   return (
     <BrowserRouter>
       <Routes>
@@ -46,27 +53,10 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         >
-          {/* 🛡️ الحارس الذكي لقرار: لو ملف المتطوع غير مكتمل، اقفله في صفحة البيانات الشخصية غصب عنه */}
-          {isAuthenticated && user?.is_profile_completed === false ? (
-            <>
-              {/* تمرير وعرض مسار البيانات الشخصية/الويزارد فقط وحجب باقي الصفحات إدارياً */}
-              {volunteerProfileRoutes
-                .filter(route => route.path && (route.path.includes('personal-data') || route.path.includes('onboarding')))
-                .map((route, index) => (
-                  <Route key={index} path={route.path || ''} element={route.element} />
-                ))}
-              
-              {/* ⛔ حماية مطلقة وتوجيه صحيح: هسي حيرجعه لصفحة الاستكمال بالمسار الكامل والمظبوط لمنع الدوامة */}
-              <Route path="*" element={<Navigate to="profile/personal-data" replace />} />
-            </>
-          ) : (
-            <>
-              {/* 🔓 الوضع الطبيعي: المتطوع مكمل بيانات قرار، افتح ليهو كل مسارات السيستم المعتمدة بالكامل */}
-              {volunteerProfileRoutes.map((route, index) => (
-                <Route key={index} path={route.path || ''} element={route.element} />
-              ))}
-            </>
-          )}
+          {/* 🌲 تصب مسارات موديول البروفايل كأبناء (تأكد أن الـ paths جواها لا تبدأ بـ / ) */}
+          {volunteerProfileRoutes.map((route, index) => (
+            <Route key={index} path={route.path} element={route.element} />
+          ))}
         </Route>
 
         {/* التوجيه التلقائي لأي رابط عشوائي مباشرة لصفحة الدخول */}
