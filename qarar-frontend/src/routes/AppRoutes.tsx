@@ -56,8 +56,8 @@ export const AppRoutes: React.FC = () => {
                   <Route key={index} path={route.path || ''} element={route.element} />
                 ))}
               
-              {/* ⛔ حماية مطلقة: أي محاولة لكتابة رابط آخر يدوياً داخل الداشبورد هترجعه طوالي لصفحة الاستكمال */}
-              <Route path="*" element={<Navigate to="personal-data" replace />} />
+              {/* ⛔ حماية مطلقة وتوجيه صحيح: هسي حيرجعه لصفحة الاستكمال بالمسار الكامل والمظبوط لمنع الدوامة */}
+              <Route path="*" element={<Navigate to="profile/personal-data" replace />} />
             </>
           ) : (
             <>
