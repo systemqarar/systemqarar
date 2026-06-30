@@ -1,4 +1,4 @@
-import { ComponentType } from 'react';
+import { ComponentType } from 'react'; // ✨ تصحيح الحرف الصغير لـ import
 
 // كتالوج أزرار التنقل الرئيسية في السيستم كله
 export interface NavigationItem {
@@ -41,6 +41,7 @@ export interface IAuthUser {
   role: UserRole;
   is_acting: boolean;
   volunteer_number?: string; // إضافة حقل رقم المتطوع هنا لربط الجلسة مباشرة بالبروفايل
+  is_profile_completed?: boolean; // 🛡️ الحارس الذكي: فحص حالة استكمال الملف الشخصي للمتطوع (تمت الإضافة هنا بنجاح)
 }
 
 // واجهة إدارة حالة الشاشات الأربعة لإنشاء الحساب (Zustand State)

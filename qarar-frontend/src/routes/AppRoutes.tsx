@@ -1,4 +1,4 @@
-import React from 'react'; // ✨ تصليح الحرف الصغير (import)
+import React from 'react'; 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AuthRoutes from '../environments/public-site/modules/auth/auth.routes';
@@ -51,9 +51,9 @@ export const AppRoutes: React.FC = () => {
             <>
               {/* تمرير وعرض مسار البيانات الشخصية/الويزارد فقط وحجب باقي الصفحات إدارياً */}
               {volunteerProfileRoutes
-                .filter(route => route.path.includes('personal-data') || route.path.includes('onboarding'))
+                .filter(route => route.path && (route.path.includes('personal-data') || route.path.includes('onboarding')))
                 .map((route, index) => (
-                  <Route key={index} path={route.path} element={route.element} />
+                  <Route key={index} path={route.path || ''} element={route.element} />
                 ))}
               
               {/* ⛔ حماية مطلقة: أي محاولة لكتابة رابط آخر يدوياً داخل الداشبورد هترجعه طوالي لصفحة الاستكمال */}
@@ -63,7 +63,7 @@ export const AppRoutes: React.FC = () => {
             <>
               {/* 🔓 الوضع الطبيعي: المتطوع مكمل بيانات قرار، افتح ليهو كل مسارات السيستم المعتمدة بالكامل */}
               {volunteerProfileRoutes.map((route, index) => (
-                <Route key={index} path={route.path} element={route.element} />
+                <Route key={index} path={route.path || ''} element={route.element} />
               ))}
             </>
           )}
