@@ -77,7 +77,7 @@ export class PersonalDataController {
     }
   }
 
-  // 📥 حفظ وتحديث بيانات الملف الشخصي (مؤمنة لخدمة صفحة الأسئلة التفاعلية لاحقاً)
+  // 📥 حفظ وتحديث بيانات الملف الشخصي (مؤمنة ومطورة لكشف أخطاء قاعدة البيانات فوراً)
   async saveProfileData(req: Request, res: Response): Promise<void> {
     try {
       const { userId, ...updateData } = req.body;
@@ -87,17 +87,29 @@ export class PersonalDataController {
         return;
       }
 
-      const isUpdated = await model.updateVolunteerProfile(userId, updateData);
+      // 🛡️ تنظيف وقائي للبيانات لمنع تعارض الأنواع مع PostgreSQL
+      const cleanData = { ...updateData };
+      if (cleanData.birthDate === '') cleanData.birthDate = null;
+      if (cleanData.isNiqabi === '' || cleanData.isNiqabi === undefined) cleanData.isNiqabi = null;
+
+      const isUpdated = await model.updateVolunteerProfile(userId, cleanData);
 
       if (!isUpdated) {
-        res.status(400).json({ success: false, message: 'فشل تحديث البيانات، تأكد من صحة البيانات المرسلة' });
+        res.status(400).json({ success: false, message: 'فشل تحديث البيانات، تأكد من صحة البيانات المرسلة ووجود السجل' });
         return;
       }
 
       res.status(200).json({ success: true, message: 'تم تحديث البيانات الشخصية بنجاح' });
     } catch (error: any) {
       console.error('Error in saveProfileData:', error);
-      res.status(500).json({ success: false, message: 'خطأ داخلي أثناء تحديث البيانات', error: error.message });
+      
+      // 🎯 دمج تفاصيل خطأ الـ DB الحقيقي داخل حقل الـ message عشان يظهر في الـ Alert على الموبايل مباشرة
+      const dbErrorDetail = error.message || JSON.stringify(error);
+      res.status(500).json({ 
+        success: false, 
+        message: `❌ خطأ في السيرفر أو الـ DB: (${dbErrorDetail})`, 
+        error: error.message 
+      });
     }
   }
 }
