@@ -4,7 +4,7 @@ import { OnboardingFormData } from '../types/onboarding.types';
 export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ success: boolean }> => {
   // دمج المنطقة مع التفاصيل الدقيقة لتخزينها في حقل detailed_address بالداتابيز
   const fullAddress = `المنطقة: ${data.main_address} - تفاصيل: ${data.detailed_address}`;
-  
+
   const payload = {
     gender: data.gender,
     date_of_birth: data.date_of_birth,
@@ -21,7 +21,7 @@ export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ 
     is_profile_completed: true // العسكري يفتح البوابة هنا
   };
 
-  // 🔄 التعديل الجديد: جربنا POST و PUT ورفضهم، الآن نستخدم PATCH للتعديل الجزئي
-  const response = await axios.patch('/api/volunteer/profile/update', payload);
+  // 👑 التعديل السحري: العنوان الصحيح الحقيقي للباكيند مع طريقة POST المطلوبة
+  const response = await axios.post('/api/volunteer/profile/onboarding/complete', payload);
   return response.data;
 };
