@@ -20,7 +20,7 @@ export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ 
     is_profile_completed: true
   };
 
-  // الإرسال للرابط الداخلي، وفرسيل ح يتكفل بتمريره فوراً لسيرفر ريندر
-  const response = await axios.post('/api/volunteer/profile/onboarding/complete', payload);
+  // 🎯 التعديل الذهبي: الإرسال للمسار الصحيح المفتوح في الباك إند تماماً
+  const response = await axios.post('/api/volunteer/profile/update', payload);
   return response.data;
 };
