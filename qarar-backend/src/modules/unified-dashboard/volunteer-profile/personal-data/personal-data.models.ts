@@ -69,7 +69,7 @@ export class PersonalDataModel {
 
   /**
    * 📥 تحديث البيانات الشخصية في جدول البروفايل وتفعيل حقل إكمال الملف الشخصي
-   * (تم الإبقاء عليها لخدمة صفحة الأسئلة التفاعلية Wizard لاحقاً)
+   * 🛠️ (تم تنظيف الاستعلام بإزالة updated_at لعدم وجود العمود في جدول قاعدة البيانات الحالي)
    */
   async updateVolunteerProfile(userId: string, data: NewProfilePayload) {
     const query = `
@@ -86,8 +86,7 @@ export class PersonalDataModel {
         desired_department = $10,
         is_niqabi = $11,
         photo_url = $12,
-        is_profile_completed = true,
-        updated_at = CURRENT_TIMESTAMP 
+        is_profile_completed = true
       WHERE user_id = $1;
     `;
 
