@@ -18,9 +18,10 @@ export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ 
     is_niqabi: data.is_niqabi,
     photo_url: data.photo_url,
     secure_photo_url: data.secure_photo_url,
-    is_profile_completed: true // العسكري يفتح البوابة هنا
+    is_profile_completed: true // 👑 العسكري يفتح البوابة هنا
   };
 
-  const response = await axios.post('/api/volunteer/profile/update', payload);
+  // 🔄 التعديل السحري: تم تغيير post إلى put لتجنب خطأ 405 بنجاح
+  const response = await axios.put('/api/volunteer/profile/update', payload);
   return response.data;
 };
