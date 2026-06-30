@@ -3,8 +3,6 @@
 import { Request, Response } from 'express';
 import { OnboardingInputData, UpdateDbPayload } from './onboarding.types';
 import { updateVolunteerProfileDb } from './onboarding.models';
-// 🏆 استدعاء الخدمة المركزية الجديدة من مجلد الخدمات بجانب الحصر والواتساب
-import { uploadProfileImage } from '../../../../services/cloudinaryService';
 
 export const completeOnboarding = async (req: Request, res: Response) => {
   try {
@@ -19,17 +17,10 @@ export const completeOnboarding = async (req: Request, res: Response) => {
     // 2. دمج المنطقة والتفاصيل في حقل السكن المعتمد الفعلي في جدولك (detailed_address)
     const fullAddress = `المنطقة: ${input.main_address} - تفاصيل: ${input.detailed_address}`;
 
-    let finalPublicUrl = '';
-    let finalSecureUrl = '';
-
-    // 3. كود الرفع السحابي الذكي والنظيف عبر السيرفس المركزية
-    if (input.photo_url) {
-      // نرسل الصورة والنوع وحالة النقاب للخدمة وهي تتولى التشفير والتشويه تلقائياً
-      const uploadResult = await uploadProfileImage(input.photo_url, input.gender, input.is_niqabi);
-      
-      finalPublicUrl = uploadResult.photo_url;         // الرابط العام (المشوش للمنقبات أو الطبيعي للعامة)
-      finalSecureUrl = uploadResult.secure_photo_url;  // الرابط الصافي المؤمن للشهادات الإدارية
-    }
+    // 3. 🔥 التعديل الجوهري: حذف الرفع السحابي من الباكيند نهائياً لقتل خطأ 413
+    // الروابط بتجينا جاهزة، مشفرة، ومغبشة من الفرونت إند مباشرة
+    const finalPublicUrl = input.photo_url || '';         
+    const finalSecureUrl = input.secure_photo_url || '';  
 
     // 4. تجهيز الحمولة النهائية بالمسميات الرسمية لجدول volunteer_profiles
     const dbPayload: UpdateDbPayload = {
@@ -65,3 +56,4 @@ export const completeOnboarding = async (req: Request, res: Response) => {
     });
   }
 };
+

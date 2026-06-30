@@ -12,7 +12,8 @@ export interface OnboardingInputData {
   detailed_address: string;     // تفاصيل السكن
   desired_department: string;   // متطابق مع الداتابيز (المكاتب السبعة)
   is_niqabi: boolean;           // متطابق مع الداتابيز
-  photo_url: string;            // كود الصورة النصي (Base64) القادم من الشاشة
+  photo_url: string;            // 🔥 تم التعديل: الرابط العام الجاهز من كلاودنري (المشوش للمنقبات أو الطبيعي للعامة)
+  secure_photo_url: string;     // 🌟 تم الإضافة: الرابط الصافي المؤمن الجاهز من كلاودنري للشهادات الإدارية
 }
 
 export interface UpdateDbPayload {
