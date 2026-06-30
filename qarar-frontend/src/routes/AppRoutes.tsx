@@ -14,7 +14,9 @@ import { OnboardingWizardPage } from '../environments/unified-dashboard/modules/
 
 // حارس المسارات المحمية: يمنع دخول غير المسجلين للمنظومة
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading, user } = useAuth(); // 🔑 جلب بيانات المستخدم هنا للفحص العلوي
+  
+  // 1️⃣ [هنا الملاحظة السريعة]: أضفنا كلمة "setUser" في نفس السطر ده عشان نحدث بيها بيانات المستخدم
+  const { isAuthenticated, isLoading, user, setUser } = useAuth(); 
 
   if (isLoading) {
     return (
@@ -29,9 +31,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
 
   // 🛡️ بوابة الفحص العلوية (Onboarding Gate):
-  // إذا كان المتطوع غير مكمل لبياناته، يتم حظره علوياً وعرض صفحة الاستكمال الجديدة فوراً في الشاشة كلها
   if (user?.is_profile_completed === false) {
-    return <OnboardingWizardPage onWizardComplete={() => window.location.reload()} />;
+    return (
+      <OnboardingWizardPage 
+        onWizardComplete={() => {
+          // 2️⃣ [التعديل التاني]: شيلنا window.location.reload() وحطينا السطرين دول
+          // بنقول للسيستم محلياً: المتطوع ده خلاص كمل بياناته وبقى true، افتح البوابة طيران!
+          if (setUser) {
+            setUser({ ...user, is_profile_completed: true });
+          } else {
+            // كود أمان احتياطي: لو الـ Context بتاعك ما فيهو دالة setUser، حنوديه صفحة الدخول عشان يستلم التوكن الجديد
+            window.location.href = '/login';
+          }
+        }} 
+      />
+    );
   }
 
   return <>{children}</>;
