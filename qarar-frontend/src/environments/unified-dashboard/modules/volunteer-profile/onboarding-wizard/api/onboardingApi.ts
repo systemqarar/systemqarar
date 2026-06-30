@@ -5,22 +5,19 @@ export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ 
   
   let userId = localStorage.getItem('userId');
   
-  // 🕵️‍♂️ محرك بحث ذكي: إذا لم نجد الـ userId مباشر، نلف على كل محتويات الذاكرة ونحللها
+  // 🕵️‍♂️ محرك البحث الذكي عن الـ userId
   if (!userId) {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key) {
         const value = localStorage.getItem(key);
         if (value) {
-          // 1. لو كان المفتاح نفسه يحتوي على كلمة id أو user
           if (key.toLowerCase().includes('userid') || key.toLowerCase() === 'id' || key.toLowerCase().includes('volunteer')) {
-            // للتأكد أنه ليس نصاً طويلاً جداً كالتوكن
             if (value.length < 50 && !value.startsWith('{')) {
               userId = value;
               break;
             }
           }
-          // 2. لو كانت القيمة كائن JSON، نفتش جواه عن أي حقل يمثل الـ id
           if (value.startsWith('{')) {
             try {
               const parsed = JSON.parse(value);
@@ -28,41 +25,37 @@ export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ 
                        parsed.data?.id || parsed.data?.userId || parsed.data?.user_id ||
                        parsed.volunteer?.id || parsed.volunteer?.user_id || parsed.user?.id || parsed.user?.userId;
               if (userId) break;
-            } catch (e) {
-              // تجاوز الأخطاء إذا لم يكن JSON سليم
-            }
+            } catch (e) {}
           }
         }
       }
     }
   }
 
-  // 🚨 خطة الطوارئ الكاشفة: لو لسه ما لقى الـ id، حيطبع ليك كل الكلمات المفتاحية الموجودة في ذاكرتك هسي!
   if (!userId) {
     const allKeys = [];
     for (let i = 0; i < localStorage.length; i++) {
       allKeys.push(localStorage.key(i));
     }
-    throw new Error(`معرّف المستخدم غير موجود. المفاتيح المتوفرة في جهازك حالياً هي: [${allKeys.join(', ')}]. يرجى تصوير الشاشة وإرسالها لي.`);
+    throw new Error(`معرّف المستخدم غير موجود. المفاتيح المتوفرة: [${allKeys.join(', ')}]`);
   }
 
   const fullAddress = `المنطقة: ${data.main_address} - تفاصيل: ${data.detailed_address}`;
   
+  // 🎯 التعديل الذهبي: صياغة الـ Payload بالأسماء اللي مستنيها الـ Model في الباك إند بالظبط
   const payload = {
-    userId, // تم العثور عليه واصطياده بنجاح!
+    userId,
     gender: data.gender,
-    date_of_birth: data.date_of_birth,
-    marital_status: data.marital_status,
-    blood_type: data.blood_type,
+    birthDate: data.date_of_birth,         // الموديل مستني birthDate
+    bloodType: data.blood_type,           // الموديل مستني bloodType
+    maritalStatus: data.marital_status,     // الموديل مستني maritalStatus
     email: data.email,
-    education_level: data.education_level,
-    job_title: data.job_title,
-    detailed_address: fullAddress,
-    desired_department: data.desired_department,
-    is_niqabi: data.is_niqabi,
-    photo_url: data.photo_url,
-    secure_photo_url: data.secure_photo_url,
-    is_profile_completed: true
+    education: data.education_level,       // الموديل مستني education
+    occupation: data.job_title,            // الموديل مستني occupation
+    address: fullAddress,                  // الموديل مستني address
+    preferredOffice: data.desired_department, // الموديل مستني preferredOffice
+    isNiqabi: data.is_niqabi,              // الموديل مستني isNiqabi
+    profileImageUrl: data.secure_photo_url || data.photo_url // الموديل مستني profileImageUrl
   };
 
   const response = await axios.post('/api/volunteer/profile/update', payload);
