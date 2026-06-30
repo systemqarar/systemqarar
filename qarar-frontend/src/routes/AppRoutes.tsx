@@ -29,6 +29,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 export const AppRoutes: React.FC = () => {
+  const { user, isAuthenticated } = useAuth(); // 🔑 جلب بيانات المستخدم الحالي لفحص حالة قفل البوابة
+
   return (
     <BrowserRouter>
       <Routes>
@@ -44,10 +46,27 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         >
-          {/* 🌲 تصب مسارات موديول البروفايل كأبناء (تأكد أن الـ paths جواها لا تبدأ بـ / ) */}
-          {volunteerProfileRoutes.map((route, index) => (
-            <Route key={index} path={route.path} element={route.element} />
-          ))}
+          {/* 🛡️ الحارس الذكي لقرار: لو ملف المتطوع غير مكتمل، اقفله في صفحة البيانات الشخصية غصب عنه */}
+          {isAuthenticated && user?.is_profile_completed === false ? (
+            <>
+              {/* تمرير وعرض مسار البيانات الشخصية/الويزارد فقط وحجب باقي الصفحات إدارياً */}
+              {volunteerProfileRoutes
+                .filter(route => route.path.includes('personal-data') || route.path.includes('onboarding'))
+                .map((route, index) => (
+                  <Route key={index} path={route.path} element={route.element} />
+                ))}
+              
+              {/* ⛔ حماية مطلقة: أي محاولة لكتابة رابط آخر يدوياً داخل الداشبورد هترجعه طوالي لصفحة الاستكمال */}
+              <Route path="*" element={<Navigate to="personal-data" replace />} />
+            </>
+          ) : (
+            <>
+              {/* 🔓 الوضع الطبيعي: المتطوع مكمل بيانات قرار، افتح ليهو كل مسارات السيستم المعتمدة بالكامل */}
+              {volunteerProfileRoutes.map((route, index) => (
+                <Route key={index} path={route.path} element={route.element} />
+              ))}
+            </>
+          )}
         </Route>
 
         {/* التوجيه التلقائي لأي رابط عشوائي مباشرة لصفحة الدخول */}
