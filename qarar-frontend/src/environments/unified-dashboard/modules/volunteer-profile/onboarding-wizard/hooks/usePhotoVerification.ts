@@ -1,3 +1,34 @@
+import { useState, useEffect } from 'react';
+import * as faceapi from 'face-api.js';
+
+interface UsePhotoVerificationProps {
+  initialPhotoUrl: string | null;
+  updateFields: (fields: Partial<any>) => void;
+}
+
+export const usePhotoVerification = ({ initialPhotoUrl, updateFields }: UsePhotoVerificationProps) => {
+  const [preview, setPreview] = useState<string | null>(initialPhotoUrl);
+  const [isModelLoading, setIsModelLoading] = useState(true);
+  const [isValidating, setIsValidating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // 1. تحميل موديلات الذكاء الاصطناعي
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const MODEL_URL = 'https://cdn.jsdelivr.net/gh/cstefanache/face-api.js-models@master/weights/';
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+        setIsModelLoading(false);
+      } catch (err) {
+        console.error("فشل تحميل موديلات فحص الوجه:", err);
+        setIsModelLoading(false);
+      }
+    };
+    loadModels();
+  }, []);
+
+  // 2. دالة المعالجة والفحص مع حماية التايم آوت
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -8,7 +39,6 @@
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64Image = reader.result as string;
-
       const img = new Image();
       
       // ⏱️ سياج الأمان الزمني (Timeout): لو الفحص علق أكتر من 4 ثواني، مرر الصورة طوالي
@@ -17,7 +47,7 @@
         setPreview(base64Image);
         updateFields({ photo_url: base64Image });
         setIsValidating(false);
-      }, 4000); // 4 ثوانٍ كافية جداً
+      }, 4000);
 
       // 🛑 حماية في حال فشل قراءة الصورة تماماً
       img.onerror = () => {
@@ -55,7 +85,7 @@
           // تشغيل الفحص
           const detections = await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions());
 
-          // إلغاء التايم آوت لأن الفحص نجح وجاب نتيجة
+          // إلغاء التايم آوت لأن الفحص جاب نتيجة
           clearTimeout(validationTimeout);
 
           if (detections.length === 0) {
@@ -88,3 +118,19 @@
     };
     reader.readAsDataURL(file);
   };
+
+  // 3. دالة تصفير الصورة
+  const clearPhoto = () => {
+    setPreview(null);
+    updateFields({ photo_url: '' });
+  };
+
+  return {
+    preview,
+    isModelLoading,
+    isValidating,
+    errorMessage,
+    handlePhotoChange,
+    clearPhoto,
+  };
+};
