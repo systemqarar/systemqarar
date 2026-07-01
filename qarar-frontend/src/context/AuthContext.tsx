@@ -3,7 +3,7 @@ import { IAuthUser } from '../types/auth.types';
 
 interface IAuthContext {
   user: IAuthUser | null;
-  setUser: (user: IAuthUser | null) => void; // 👈 تم إضافة هذا السطر لحل مشكلة فيرسال وتحديث البيانات
+  setUser: (user: any) => void; // تم فك القيود لتفادي تعارض الـ camelCase والـ snake_case
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -30,22 +30,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  // دالة مخصصة لتحديث بيانات المستخدم ومزامنتها مع ذاكرة المتصفح فوراً
-  const handleSetUser = (newUser: IAuthUser | null) => {
-    setUser(newUser);
-    if (newUser) {
-      localStorage.setItem('qarar_user', JSON.stringify(newUser));
-    } else {
+  // دالة ذكية ومطورة لدمج الحقول ومنع تعارض تسميات (volunteer_number و volunteerNumber)
+  const handleSetUser = (newUser: any) => {
+    if (!newUser) {
+      setUser(null);
       localStorage.removeItem('qarar_user');
+      return;
     }
+
+    // تأمين دمج الحقول ليرضى عنها الفرونتد والباكيند معاً دون انفجار
+    const standardizedUser = {
+      ...newUser,
+      volunteer_number: newUser.volunteer_number || newUser.volunteerNumber,
+      volunteerNumber: newUser.volunteerNumber || newUser.volunteer_number,
+      is_profile_completed: newUser.is_profile_completed !== undefined ? newUser.is_profile_completed : newUser.isProfileCompleted,
+      isProfileCompleted: newUser.isProfileCompleted !== undefined ? newUser.isProfileCompleted : newUser.is_profile_completed
+    };
+
+    setUser(standardizedUser);
+    localStorage.setItem('qarar_user', JSON.stringify(standardizedUser));
   };
 
   // دالة تسجيل الدخول الناجح وحفظ البيانات أمنياً
   const loginUser = (newToken: string, newUser: IAuthUser) => {
     setToken(newToken);
-    setUser(newUser);
+    handleSetUser(newUser); // استخدام الدالة الذكية هنا للتأمين
     localStorage.setItem('qarar_token', newToken);
-    localStorage.setItem('qarar_user', JSON.stringify(newUser));
   };
 
   // دالة تسجيل الخروج وتطهير المتصفح
