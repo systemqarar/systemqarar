@@ -81,35 +81,47 @@ export class PersonalDataController {
       // توحيد استقبال رابط الصورة القادم من الفرونتد
       const originalPhotoUrl = cleanData.profileImageUrl || cleanData.photo_url;
 
-      // 🎯 التحقق الصارم من شرط النقاب والجنس
-      const isNiqabiChecked = String(cleanData.isNiqabi) === 'true' || cleanData.isNiqabi === true || String(cleanData.is_niqabi) === 'true' || cleanData.is_niqabi === true;
-      const shouldApplyNiqabiPrivacy = cleanData.gender === 'أنثى' && isNiqabiChecked;
+      // 🎯 فحص مرن وصارم لشرط النقاب لضمان عدم التأثر بغياب حقل الجنس أو حسابات الفحص
+      const hasNiqabiField = cleanData.isNiqabi !== undefined || cleanData.is_niqabi !== undefined;
 
-      // إسناد قيمة النقاب بالصيغتين منعاً لأي تعارض
-      cleanData.isNiqabi = shouldApplyNiqabiPrivacy;
-      cleanData.is_niqabi = shouldApplyNiqabiPrivacy;
+      const isNiqabiChecked = 
+        String(cleanData.isNiqabi) === 'true' || 
+        cleanData.isNiqabi === true || 
+        String(cleanData.is_niqabi) === 'true' || 
+        cleanData.is_niqabi === true;
+
+      // 🛑 الاعتماد المباشر على الخيار الحماسي المختار
+      const shouldApplyNiqabiPrivacy = isNiqabiChecked;
+
+      if (hasNiqabiField) {
+        cleanData.isNiqabi = shouldApplyNiqabiPrivacy;
+        cleanData.is_niqabi = shouldApplyNiqabiPrivacy;
+      }
+
 
       if (originalPhotoUrl) {
         if (shouldApplyNiqabiPrivacy) {
-          // 1️⃣ تأمين الرابط الأصلي النقي في الحقل السري بالصيغتين (ليكتب في قاعدة البيانات بنجاح)
+          // 1️⃣ تأمين الرابط الأصلي النقي في الحقل السري بالصيغتين
           cleanData.securePhotoUrl = originalPhotoUrl;
           cleanData.secure_photo_url = originalPhotoUrl;
           
-          // 2️⃣ صناعة رابط التشويه الخارق (دمج البكسلة والضبابية القصوى مثل واجهة التسجيل تماماً)
+          // 2️⃣ صناعة رابط التشويه الخارق (دمج البكسلة والضبابية القصوى)
           if (originalPhotoUrl.includes('/upload/')) {
-            // تنظيف الرابط من أي تأثيرات سابقة أولاً لعدم تداخل الفلاتر
+            // تنظيف الرابط من أي تأثيرات قديمة لمنع التراكم العشوائي للفلاتر
             let rawUrl = originalPhotoUrl.replace(/\/upload\/e_[^/]+\//, '/upload/');
             
-            // حقن الفلتر المزدوج (بكسلة عملاقة 50 + ضبابية قصوى 2000) طمس كامل للملامح
+            // حقن الفلتر المزدوج النهائي الحاسم لطمس معالم الوجه 100%
             const blurredUrl = rawUrl.replace('/upload/', '/upload/e_pixelate:50,e_blur:2000/');
             
             cleanData.profileImageUrl = blurredUrl;
-            cleanData.photo_url = blurredUrl; // الحقل العام في قاعدة البيانات
+            cleanData.photo_url = blurredUrl; 
           }
         } else {
-          // الحسابات العامة (ذكور أو إناث غير منقبات): الرابط طبيعي والحقل السري فارغ
-          cleanData.securePhotoUrl = null;
-          cleanData.secure_photo_url = null;
+          // الحسابات العامة: لا يتم تصفير الحقل السري إلا إذا تم تأكيد إلغاء النقاب صراحةً (تجنباً للتحديث الجزئي)
+          if (cleanData.is_niqabi === false || cleanData.isNiqabi === false) {
+            cleanData.securePhotoUrl = null;
+            cleanData.secure_photo_url = null;
+          }
           cleanData.profileImageUrl = originalPhotoUrl;
           cleanData.photo_url = originalPhotoUrl;
         }
