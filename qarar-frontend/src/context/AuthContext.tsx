@@ -3,6 +3,7 @@ import { IAuthUser } from '../types/auth.types';
 
 interface IAuthContext {
   user: IAuthUser | null;
+  setUser: (user: IAuthUser | null) => void; // 👈 تم إضافة هذا السطر لحل مشكلة فيرسال وتحديث البيانات
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -29,6 +30,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
+  // دالة مخصصة لتحديث بيانات المستخدم ومزامنتها مع ذاكرة المتصفح فوراً
+  const handleSetUser = (newUser: IAuthUser | null) => {
+    setUser(newUser);
+    if (newUser) {
+      localStorage.setItem('qarar_user', JSON.stringify(newUser));
+    } else {
+      localStorage.removeItem('qarar_user');
+    }
+  };
+
   // دالة تسجيل الدخول الناجح وحفظ البيانات أمنياً
   const loginUser = (newToken: string, newUser: IAuthUser) => {
     setToken(newToken);
@@ -46,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, isLoading, loginUser, logoutUser }}>
+    <AuthContext.Provider value={{ user, setUser: handleSetUser, token, isAuthenticated: !!token, isLoading, loginUser, logoutUser }}>
       {children}
     </AuthContext.Provider>
   );
