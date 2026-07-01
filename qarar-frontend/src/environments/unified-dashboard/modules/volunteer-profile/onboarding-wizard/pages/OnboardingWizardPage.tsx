@@ -19,16 +19,17 @@ export const OnboardingWizardPage: React.FC<{ onWizardComplete: () => void }> = 
 
   const totalSteps = 3;
 
-  // إعدادات حركة الأنيميشن الاحترافية والمرحة (Slide Up + Fade)
+  // 🌟 تعديل 1: إعدادات حركة مطاطية مرنة وممتعة (Spring Physics) مع إزاحة أفقية ناعمة
   const pageVariants = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -20 }
+    initial: { opacity: 0, x: 20 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -20 }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100">
+    // 🌟 تعديل 2: تحويل الخلفية إلى [#f8f9fa] لتطابق تماماً هوية الداشبورد
+    <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-4" dir="rtl">
+      <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm p-6 md:p-8 border border-gray-100/80">
         
         {/* شريطة تقدم ديناميكية ومطاطية */}
         <WizardProgressBar currentStep={currentStep} totalSteps={totalSteps} />
@@ -41,7 +42,8 @@ export const OnboardingWizardPage: React.FC<{ onWizardComplete: () => void }> = 
             initial="initial"
             animate="animate"
             exit="exit"
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            // 🌟 تعديل 3: ضبط الانتقال ليكون مطاطياً وسريع الاستجابة (Stiffness & Damping) ليعطي متعة أعلى عند التنقل
+            transition={{ type: 'spring', stiffness: 320, damping: 26 }}
           >
             {currentStep === 0 && (
               <StepPersonalData 
@@ -68,3 +70,5 @@ export const OnboardingWizardPage: React.FC<{ onWizardComplete: () => void }> = 
     </div>
   );
 };
+
+export default OnboardingWizardPage;

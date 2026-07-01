@@ -5,19 +5,25 @@ export const WizardProgressBar: React.FC<{ currentStep: number; totalSteps: numb
   const progressPercentage = ((currentStep + 1) / totalSteps) * 100;
 
   return (
-    <div className="w-full mb-8">
-      <div className="flex justify-between mb-2 text-sm font-bold text-gray-700">
-        <span>الخطوة {currentStep + 1} من {totalSteps}</span>
-        <span>{Math.round(progressPercentage)}%</span>
+    <div className="w-full mb-8" dir="rtl">
+      {/* النصوص التوضيحية لنسبة التقدم بتنسيق متناسق */}
+      <div className="flex justify-between mb-2 text-xs font-bold text-gray-500 select-none">
+        <span className="text-[#800020]">الخطوة {currentStep + 1} من {totalSteps}</span>
+        <span className="font-mono text-gray-400">{Math.round(progressPercentage)}%</span>
       </div>
-      <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+      
+      {/* مجرى شريط التقدم الخلفي المستدير */}
+      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
         <motion.div
-          className="h-full bg-gradient-to-r from-red-500 to-red-600"
+          className="h-full bg-[#800020] rounded-full"
           initial={{ width: 0 }}
           animate={{ width: `${progressPercentage}%` }}
-          transition={{ type: 'spring', stiffness: 60, damping: 15 }}
+          // 🌟 تعديل الحركة لتصبح مطاطية وديناميكية (Elastic Spring) لزيادة متعة التجربة البصرية
+          transition={{ type: 'spring', stiffness: 160, damping: 15 }}
         />
       </div>
     </div>
   );
 };
+
+export default WizardProgressBar;
