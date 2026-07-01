@@ -15,12 +15,25 @@ export const completeOnboarding = async (req: Request, res: Response) => {
 
     const fullAddress = `المنطقة: ${input.main_address} - تفاصيل: ${input.detailed_address}`;
 
-    // التأكد من جلب روابط الصور بشكل صحيح وسليم
-    const finalPublicUrl = input.photo_url || '';         
-    const finalSecureUrl = input.secure_photo_url || '';  
-
     // 🎯 تحويل ذكي وصارم لقيمة النقاب لضمان عدم تمريرها بشكل خاطئ كـ String
     const isNiqabiChecked = String(input.is_niqabi) === 'true' || input.is_niqabi === true;
+
+    // التحقق مما إذا كان الحساب يخص متطوعة منقبة لتطبيق بروتوكول الخصوصية
+    const shouldApplyNiqabiPrivacy = input.gender === 'أنثى' && isNiqabiChecked;
+
+    // تجهيز متغيرات الروابط لمعالجتها
+    let finalPublicUrl = input.photo_url || '';         
+    let finalSecureUrl = input.secure_photo_url || '';  
+
+    if (shouldApplyNiqabiPrivacy && finalPublicUrl) {
+      // 1️⃣ الصورة الأصلية الحقيقية يتم نقلها فوراً وتأمينها داخل حقل الصورة السرية
+      finalSecureUrl = finalPublicUrl;
+      
+      // 2️⃣ الصورة العامة يتم حقنها بأمر التشويش الصارم من كلاودنري (تصبح مشوشة تماماً تلقائياً)
+      if (finalPublicUrl.includes('/upload/')) {
+        finalPublicUrl = finalPublicUrl.replace('/upload/', '/upload/e_blur:2000/');
+      }
+    }
 
     const dbPayload: UpdateDbPayload = {
       gender: input.gender,
