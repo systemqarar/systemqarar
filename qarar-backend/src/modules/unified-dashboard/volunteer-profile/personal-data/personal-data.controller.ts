@@ -10,7 +10,6 @@ export class PersonalDataController {
   // 🔍 جلب بيانات الملف الشخصي كاملة (الحصر + قرار) للقراءة
   async getProfileData(req: Request, res: Response): Promise<void> {
     try {
-      // استلام القيمة القادمة من الرابط (سواء كانت UUID أو رقم الحصر SRCS)
       const { identifier } = req.params;
 
       if (!identifier) {
@@ -18,7 +17,6 @@ export class PersonalDataController {
         return;
       }
 
-      // استدعاء الدالة الذكية من الموديل
       const volunteer = await model.findVolunteerById(identifier);
 
       if (!volunteer) {
@@ -26,11 +24,9 @@ export class PersonalDataController {
         return;
       }
 
-      // 🛠️ إرجاع كافة البيانات في قالب JSON نظيف يشمل الحقول المستوردة والجديدة لتغذية الفرونتد
       res.status(200).json({
         success: true,
         data: {
-          // 1️⃣ بيانات الربط والحساب الأساسية
           id: volunteer.id,
           userId: volunteer.user_id,
           volunteerNumber: volunteer.volunteer_number,
@@ -40,12 +36,8 @@ export class PersonalDataController {
           securePhotoUrl: volunteer.secure_photo_url,
           isProfileCompleted: volunteer.is_profile_completed,
           adminPosition: volunteer.admin_position,
-
-          // 2️⃣ بيانات الاتصال (المستوردة حديثاً للواجهة)
           phone: volunteer.phone,
           whatsapp: volunteer.whatsapp,
-
-          // 3️⃣ الحقول الجديدة الخاصة بنظام قرار (التي ستُملأ عبر صفحة الأسئلة)
           gender: volunteer.gender,
           birthDate: volunteer.date_of_birth,
           bloodType: volunteer.blood_type,
@@ -56,16 +48,12 @@ export class PersonalDataController {
           address: volunteer.detailed_address,
           preferredOffice: volunteer.desired_department,
           isNiqabi: volunteer.is_niqabi,
-
-          // 4️⃣ بيانات الـ TOT والدورات التدريبية (المستوردة من الحصر بالكامل الآن)
           isTotTrainer: volunteer.is_tot_trainer,
           totYear: volunteer.tot_year,
           totCertificateUrl: volunteer.tot_certificate_url,
           otherCertificateUrl: volunteer.other_certificate_url,
           lastFirstAidRefresher: volunteer.last_first_aid_refresher,
           otherPrograms: volunteer.other_programs,
-
-          // 5️⃣ الموقف الميداني وفترات الجاهزية (مستوردة من الحصر)
           currentStatusInKhartoum: volunteer.current_status_in_khartoum,
           expectedReturnTime: volunteer.expected_return_time,
           availabilityLevel: volunteer.availability_level
@@ -77,7 +65,7 @@ export class PersonalDataController {
     }
   }
 
-  // 📥 حفظ وتحديث بيانات الملف الشخصي (مؤمنة ومطورة لكشف أخطاء قاعدة البيانات فوراً)
+  // 📥 حفظ وتحديث بيانات الملف الشخصي (متوافقة كلياً مع أسماء أعمدة PostgreSQL في نيون)
   async saveProfileData(req: Request, res: Response): Promise<void> {
     try {
       const { userId, ...updateData } = req.body;
@@ -87,50 +75,66 @@ export class PersonalDataController {
         return;
       }
 
-      // 🛡️ تنظيف وقائي للبيانات لمنع تعارض الأنواع مع PostgreSQL
+      // 🛡️ دعم الصيغتين (camelCase و snake_case) لضمان مطابقة حقول قاعدة البيانات 100%
       const cleanData = { ...updateData };
-      if (cleanData.birthDate === '') cleanData.birthDate = null;
 
-      // 🎯 تحويل وضمان القيمة المنطقية للنقاب منعاً لأي تضارب حقول
-      const isNiqabiChecked = String(cleanData.isNiqabi) === 'true' || cleanData.isNiqabi === true;
-      cleanData.isNiqabi = cleanData.gender === 'أنثى' ? isNiqabiChecked : false;
+      // توحيد استقبال رابط الصورة القادم من الفرونتد
+      const originalPhotoUrl = cleanData.profileImageUrl || cleanData.photo_url;
 
-      // 📸 بروتوكول حماية خصوصية المنقبات الحاسم من قرار
+      // 🎯 التحقق الصارم من شرط النقاب والجنس
+      const isNiqabiChecked = String(cleanData.isNiqabi) === 'true' || cleanData.isNiqabi === true || String(cleanData.is_niqabi) === 'true' || cleanData.is_niqabi === true;
       const shouldApplyNiqabiPrivacy = cleanData.gender === 'أنثى' && isNiqabiChecked;
 
-      if (cleanData.profileImageUrl) {
+      // إسناد قيمة النقاب بالصيغتين منعاً لأي تعارض
+      cleanData.isNiqabi = shouldApplyNiqabiPrivacy;
+      cleanData.is_niqabi = shouldApplyNiqabiPrivacy;
+
+      if (originalPhotoUrl) {
         if (shouldApplyNiqabiPrivacy) {
-          // 1️⃣ تأمين النسخة الأصلية النظيفة في الحقل السري فوراً
-          cleanData.securePhotoUrl = cleanData.profileImageUrl;
+          // 1️⃣ تأمين الرابط الأصلي النقي في الحقل السري بالصيغتين (ليكتب في قاعدة البيانات بنجاح)
+          cleanData.securePhotoUrl = originalPhotoUrl;
+          cleanData.secure_photo_url = originalPhotoUrl;
           
-          // 2️⃣ حقن التشويه الخارق (بكسلة عملاقة + ضبابية قصوى)
-          if (cleanData.profileImageUrl.includes('/upload/')) {
-            let rawUrl = cleanData.profileImageUrl;
+          // 2️⃣ صناعة رابط التشويه الخارق (دمج البكسلة والضبابية القصوى مثل واجهة التسجيل تماماً)
+          if (originalPhotoUrl.includes('/upload/')) {
+            // تنظيف الرابط من أي تأثيرات سابقة أولاً لعدم تداخل الفلاتر
+            let rawUrl = originalPhotoUrl.replace(/\/upload\/e_[^/]+\//, '/upload/');
             
-            // تنظيف الرابط من أي معاملات تشويه سابقة لتجنب التكرار والتداخل
-            rawUrl = rawUrl.replace(/\/upload\/e_[^/]+\//, '/upload/');
+            // حقن الفلتر المزدوج (بكسلة عملاقة 50 + ضبابية قصوى 2000) طمس كامل للملامح
+            const blurredUrl = rawUrl.replace('/upload/', '/upload/e_pixelate:50,e_blur:2000/');
             
-            // حقن الفلتر المزدوج النهائي لتدمير الملامح العامة تماماً
-            cleanData.profileImageUrl = rawUrl.replace('/upload/', '/upload/e_pixelate:50,e_blur:2000/');
+            cleanData.profileImageUrl = blurredUrl;
+            cleanData.photo_url = blurredUrl; // الحقل العام في قاعدة البيانات
           }
         } else {
-          // الحسابات العامة (ذكور أو إناث غير منقبات): الرابط العام طبيعي والحقل السري فارغ
+          // الحسابات العامة (ذكور أو إناث غير منقبات): الرابط طبيعي والحقل السري فارغ
           cleanData.securePhotoUrl = null;
+          cleanData.secure_photo_url = null;
+          cleanData.profileImageUrl = originalPhotoUrl;
+          cleanData.photo_url = originalPhotoUrl;
         }
       }
 
+      // 🛠️ خريطة حماية إضافية لترجمة بقية الحقول إلى snake_case لضمان حفظها في نيون
+      if (cleanData.birthDate !== undefined) cleanData.date_of_birth = cleanData.birthDate === '' ? null : cleanData.birthDate;
+      if (cleanData.bloodType !== undefined) cleanData.blood_type = cleanData.bloodType;
+      if (cleanData.maritalStatus !== undefined) cleanData.marital_status = cleanData.maritalStatus;
+      if (cleanData.education !== undefined) cleanData.education_level = cleanData.education;
+      if (cleanData.occupation !== undefined) cleanData.job_title = cleanData.occupation;
+      if (cleanData.address !== undefined) cleanData.detailed_address = cleanData.address;
+      if (cleanData.preferredOffice !== undefined) cleanData.desired_department = cleanData.preferredOffice;
+
+      // إرسال البيانات المجهزة بالكامل للموديل
       const isUpdated = await model.updateVolunteerProfile(userId, cleanData);
 
       if (!isUpdated) {
-        res.status(400).json({ success: false, message: 'فشل تحديث البيانات، تأكد من صحة البيانات المرسلة ووجود السجل' });
+        res.status(400).json({ success: false, message: 'فشل تحديث البيانات، تأكد من صحة المعرف ووجود السجل' });
         return;
       }
 
-      res.status(200).json({ success: true, message: 'تم تحديث البيانات الشخصية بنجاح' });
+      res.status(200).json({ success: true, message: 'تم تحديث البيانات الشخصية بنجاح وضمان الخصوصية الفائقة' });
     } catch (error: any) {
       console.error('Error in saveProfileData:', error);
-      
-      // 🎯 دمج تفاصيل خطأ الـ DB الحقيقي داخل حقل الـ message عشان يظهر في الـ Alert على الموبايل مباشرة
       const dbErrorDetail = error.message || JSON.stringify(error);
       res.status(500).json({ 
         success: false, 
