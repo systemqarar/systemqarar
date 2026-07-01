@@ -111,7 +111,7 @@ export class PersonalDataController {
             let rawUrl = originalPhotoUrl.replace(/\/upload\/e_[^/]+\//, '/upload/');
             
             // حقن الفلتر المزدوج النهائي الحاسم لطمس معالم الوجه 100%
-            const blurredUrl = rawUrl.replace('/upload/', '/upload/e_pixelate:50,e_blur:2000/');
+const blurredUrl = rawUrl.replace('/upload/', '/upload/e_pixelate:150/e_blur:2000/');
             
             cleanData.profileImageUrl = blurredUrl;
             cleanData.photo_url = blurredUrl; 
