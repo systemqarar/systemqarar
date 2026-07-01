@@ -100,14 +100,18 @@ export class PersonalDataController {
 
       if (cleanData.profileImageUrl) {
         if (shouldApplyNiqabiPrivacy) {
-          // 1️⃣ تأمين النسخة الأصلية النقية في الحقل السري فوراً (بصيغة camelCase التي يفهمها الموديل لترجمتها لـ DB)
+          // 1️⃣ تأمين النسخة الأصلية النظيفة في الحقل السري فوراً
           cleanData.securePhotoUrl = cleanData.profileImageUrl;
           
-          // 2️⃣ حقن أمر التشويش الصارم في الحقل العام إذا لم يكن محقوناً مسبقاً عبر Cloudinary
+          // 2️⃣ حقن التشويه الخارق (بكسلة عملاقة + ضبابية قصوى)
           if (cleanData.profileImageUrl.includes('/upload/')) {
-            if (!cleanData.profileImageUrl.includes('e_blur')) {
-              cleanData.profileImageUrl = cleanData.profileImageUrl.replace('/upload/', '/upload/e_blur:2000/');
-            }
+            let rawUrl = cleanData.profileImageUrl;
+            
+            // تنظيف الرابط من أي معاملات تشويه سابقة لتجنب التكرار والتداخل
+            rawUrl = rawUrl.replace(/\/upload\/e_[^/]+\//, '/upload/');
+            
+            // حقن الفلتر المزدوج النهائي لتدمير الملامح العامة تماماً
+            cleanData.profileImageUrl = rawUrl.replace('/upload/', '/upload/e_pixelate:50,e_blur:2000/');
           }
         } else {
           // الحسابات العامة (ذكور أو إناث غير منقبات): الرابط العام طبيعي والحقل السري فارغ
