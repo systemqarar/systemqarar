@@ -6,7 +6,6 @@ import { updateVolunteerProfileDb } from './onboarding.models';
 
 export const completeOnboarding = async (req: Request, res: Response) => {
   try {
-    // 1. جلب الـ ID الحقيقي للمستخدم من جلسة التشفير والأمان (Auth Session)
     const userId = req.user?.id; 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'مستخدم غير مصرح له بالدخول' });
@@ -14,35 +13,33 @@ export const completeOnboarding = async (req: Request, res: Response) => {
 
     const input: OnboardingInputData = req.body;
 
-    // 2. دمج المنطقة والتفاصيل في حقل السكن المعتمد الفعلي في جدولك (detailed_address)
     const fullAddress = `المنطقة: ${input.main_address} - تفاصيل: ${input.detailed_address}`;
 
-    // 3. 🔥 التعديل الجوهري: حذف الرفع السحابي من الباكيند نهائياً لقتل خطأ 413
-    // الروابط بتجينا جاهزة، مشفرة، ومغبشة من الفرونت إند مباشرة
+    // التأكد من جلب روابط الصور بشكل صحيح وسليم
     const finalPublicUrl = input.photo_url || '';         
     const finalSecureUrl = input.secure_photo_url || '';  
 
-    // 4. تجهيز الحمولة النهائية بالمسميات الرسمية لجدول volunteer_profiles
+    // 🎯 تحويل ذكي وصارم لقيمة النقاب لضمان عدم تمريرها بشكل خاطئ كـ String
+    const isNiqabiChecked = String(input.is_niqabi) === 'true' || input.is_niqabi === true;
+
     const dbPayload: UpdateDbPayload = {
       gender: input.gender,
-      date_of_birth: new Date(input.date_of_birth), // تحويل النص التاريخي إلى صيغة Date للداتابيز
+      date_of_birth: new Date(input.date_of_birth), 
       marital_status: input.marital_status,
       blood_type: input.blood_type,
       email: input.email,
       education_level: input.education_level,
       job_title: input.job_title,
       detailed_address: fullAddress,
-      desired_department: input.desired_department, // نظام المكاتب السبعة الإدارية
-      is_niqabi: input.gender === 'أنثى' ? input.is_niqabi : false, // حماية منطقية ضد الإدخال الخاطئ للذكور
+      desired_department: input.desired_department, 
+      is_niqabi: input.gender === 'أنثى' ? isNiqabiChecked : false, // الحماية الصارمة
       photo_url: finalPublicUrl,
       secure_photo_url: finalSecureUrl,
-      is_profile_completed: true // تفعيل الحساب لفتح لوحة التحكم الذكية للمتطوع
+      is_profile_completed: true 
     };
 
-    // 5. الحفظ النهائي في قاعدة بيانات Neon عبر الموديل المعزول
     await updateVolunteerProfileDb(userId, dbPayload);
 
-    // 6. استجابة النجاح الرسمية للمنظومة
     return res.status(200).json({
       success: true,
       message: 'تم تفعيل حسابك بنجاح، ومزامنة بياناتك في نظام قرار الإداري!'
@@ -56,4 +53,3 @@ export const completeOnboarding = async (req: Request, res: Response) => {
     });
   }
 };
-
