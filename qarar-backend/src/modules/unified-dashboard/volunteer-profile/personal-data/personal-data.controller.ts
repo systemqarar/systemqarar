@@ -90,7 +90,30 @@ export class PersonalDataController {
       // 🛡️ تنظيف وقائي للبيانات لمنع تعارض الأنواع مع PostgreSQL
       const cleanData = { ...updateData };
       if (cleanData.birthDate === '') cleanData.birthDate = null;
-      if (cleanData.isNiqabi === '' || cleanData.isNiqabi === undefined) cleanData.isNiqabi = null;
+
+      // 🎯 تحويل وضمان القيمة المنطقية للنقاب منعاً لأي تضارب حقول
+      const isNiqabiChecked = String(cleanData.isNiqabi) === 'true' || cleanData.isNiqabi === true;
+      cleanData.isNiqabi = cleanData.gender === 'أنثى' ? isNiqabiChecked : false;
+
+      // 📸 بروتوكول حماية خصوصية المنقبات الحاسم من قرار
+      const shouldApplyNiqabiPrivacy = cleanData.gender === 'أنثى' && isNiqabiChecked;
+
+      if (cleanData.profileImageUrl) {
+        if (shouldApplyNiqabiPrivacy) {
+          // 1️⃣ تأمين النسخة الأصلية النقية في الحقل السري فوراً (بصيغة camelCase التي يفهمها الموديل لترجمتها لـ DB)
+          cleanData.securePhotoUrl = cleanData.profileImageUrl;
+          
+          // 2️⃣ حقن أمر التشويش الصارم في الحقل العام إذا لم يكن محقوناً مسبقاً عبر Cloudinary
+          if (cleanData.profileImageUrl.includes('/upload/')) {
+            if (!cleanData.profileImageUrl.includes('e_blur')) {
+              cleanData.profileImageUrl = cleanData.profileImageUrl.replace('/upload/', '/upload/e_blur:2000/');
+            }
+          }
+        } else {
+          // الحسابات العامة (ذكور أو إناث غير منقبات): الرابط العام طبيعي والحقل السري فارغ
+          cleanData.securePhotoUrl = null;
+        }
+      }
 
       const isUpdated = await model.updateVolunteerProfile(userId, cleanData);
 

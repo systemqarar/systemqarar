@@ -5,7 +5,7 @@ export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ 
   
   let userId = localStorage.getItem('userId');
   
-  // 🕵️‍♂️ محرك البحث الذكي عن الـ userId
+  // 🕵️‍♂️ محرك البحث الذكي عن الـ userId (كما هو بدون تعديل)
   if (!userId) {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -42,20 +42,22 @@ export const submitOnboardingData = async (data: OnboardingFormData): Promise<{ 
 
   const fullAddress = `المنطقة: ${data.main_address} - تفاصيل: ${data.detailed_address}`;
   
-  // 🎯 التعديل الذهبي: صياغة الـ Payload بالأسماء اللي مستنيها الـ Model في الباك إند بالظبط
+  // 🎯 المطابقة الكاملة مع الـ PersonalDataController في السيرفر
   const payload = {
     userId,
     gender: data.gender,
-    birthDate: data.date_of_birth,         // الموديل مستني birthDate
-    bloodType: data.blood_type,           // الموديل مستني bloodType
-    maritalStatus: data.marital_status,     // الموديل مستني maritalStatus
+    birthDate: data.date_of_birth,         
+    bloodType: data.blood_type,           
+    maritalStatus: data.marital_status,     
     email: data.email,
-    education: data.education_level,       // الموديل مستني education
-    occupation: data.job_title,            // الموديل مستني occupation
-    address: fullAddress,                  // الموديل مستني address
-    preferredOffice: data.desired_department, // الموديل مستني preferredOffice
-    isNiqabi: data.is_niqabi,              // الموديل مستني isNiqabi
-    profileImageUrl: data.secure_photo_url || data.photo_url // الموديل مستني profileImageUrl
+    education: data.education_level,       
+    occupation: data.job_title,            
+    address: fullAddress,                  
+    preferredOffice: data.desired_department, 
+    isNiqabi: data.is_niqabi,              
+    
+    // نرسل رابط الصورة النقي القادم من Cloudinary والسيرفر سيتكفل بالفصل والتشويش
+    profileImageUrl: data.photo_url || data.secure_photo_url 
   };
 
   const response = await axios.post('/api/volunteer/profile/update', payload);
