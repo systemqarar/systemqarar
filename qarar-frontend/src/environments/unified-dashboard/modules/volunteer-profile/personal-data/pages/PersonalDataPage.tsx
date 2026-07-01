@@ -24,14 +24,22 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerNum
     );
   }
 
-  // 🔄 دوال مساعدة لترجمة الحقول النصية بشكل منسق في الواجهة
-  const translateGender = (g?: string) => g === 'male' ? 'ذكر' : g === 'female' ? 'أنثى' : 'غير محدد';
-  const translateMaritalStatus = (m?: string) => {
-    if (m === 'single') return 'عازب/ة';
-    if (m === 'married') return 'متزوج/ة';
-    if (m === 'other') return 'غير ذلك';
-    return '---';
+  // 🔄 🌟 تحديث دوال المابينج لتصبح مرنة وتدعم الاستهلاك المباشر للنصوص العربية والإنجليزية
+  const translateGender = (g?: string) => {
+    if (!g) return 'غير محدد';
+    if (g === 'male' || g === 'ذكر') return 'ذكر';
+    if (g === 'female' || g === 'أنثى') return 'أنثى';
+    return g;
   };
+
+  const translateMaritalStatus = (m?: string) => {
+    if (!m) return '---';
+    if (m === 'single' || m === 'أعزب') return 'أعزب';
+    if (m === 'married' || m === 'متزوج') return 'متزوج';
+    if (m === 'other' || m === 'غير ذلك') return 'غير ذلك';
+    return m; // Fallback يعيد القيمة الحالية مباشرة لو كانت (مطلق، أرمل) في سجلات قديمة
+  };
+
   const translateOffice = (o?: string) => {
     const offices: Record<string, string> = {
       emergency: 'الطوارئ والإسعافات',
@@ -179,7 +187,7 @@ export const PersonalDataPage: React.FC<PersonalDataPageProps> = ({ volunteerNum
           </div>
         </div>
 
-        {/* 3️⃣ كارت السجل التدريبي وـ TOT (المحدث بدون ملفات الشهادات) */}
+        {/* 3️⃣ كارت السجل التدريبي وـ TOT */}
         <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4 text-slate-800 border-b border-slate-50 pb-2">
             <Award className="w-4 h-4 text-amber-600" />
