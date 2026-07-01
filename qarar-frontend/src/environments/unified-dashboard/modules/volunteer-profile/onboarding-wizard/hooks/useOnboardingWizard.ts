@@ -72,21 +72,12 @@ export const useOnboardingWizard = (onComplete: () => void) => {
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
     try {
-      let finalPhotoUrl = '';
-      let finalSecurePhotoUrl = '';
+      let finalPhotoUrl = formData.photo_url;
 
-      // 1. مرحلة رفع الصورة لكلاودنري
-      if (formData.photo_url) {
+      // 1. مرحلة رفع الصورة لكلاودنري إن وجدت وكانت عبارة عن ملف خام أو Base64 ولم تُرفع بعد
+      if (formData.photo_url && !formData.photo_url.startsWith('http')) {
         try {
-          const uploadedOriginalUrl = await uploadToCloudinary(formData.photo_url);
-
-          if (formData.is_niqabi) {
-            finalSecurePhotoUrl = uploadedOriginalUrl;
-            finalPhotoUrl = uploadedOriginalUrl.replace('/upload/', '/upload/e_blur:2000,f_auto,q_auto/');
-          } else {
-            finalPhotoUrl = uploadedOriginalUrl;
-            finalSecurePhotoUrl = ''; 
-          }
+          finalPhotoUrl = await uploadToCloudinary(formData.photo_url);
         } catch (cloudinaryError: any) {
           alert(`❌ [مشكلة في كلاودنري]: ${cloudinaryError?.message || cloudinaryError}`);
           throw cloudinaryError;
@@ -94,13 +85,14 @@ export const useOnboardingWizard = (onComplete: () => void) => {
       }
 
       // تجهيز كائن البيانات النهائي النظيف والآمن
+      // نرسل الرابط الأصلي النقي فقط، ونترك مهمة التأمين والتشويش بالكامل للسيرفر لضمان الأمان الصارم
       const cleanedFormData: OnboardingFormData = {
         ...formData,
         photo_url: finalPhotoUrl,
-        secure_photo_url: finalSecurePhotoUrl,
+        secure_photo_url: '', 
       };
 
-      // 2. مرحلة الحفظ في سيرفر قاعدة البيانات (Backend) عبر الـ Rewrite الموجه لـ Render
+      // 2. مرحلة الحفظ في سيرفر قاعدة البيانات (Backend)
       try {
         const res = await submitOnboardingData(cleanedFormData);
         if (res.success) {
@@ -109,10 +101,10 @@ export const useOnboardingWizard = (onComplete: () => void) => {
           alert('❌ [رفض من السيرفر]: السيرفر استلم البيانات لكن رفض الحفظ.');
         }
       } catch (apiError: any) {
-        // استخراج كود الخطأ والرسالة الحقيقية الراجعة من سيرفر ريندر
+        // استخراج كود الخطأ والرسالة الحقيقية الراجعة من السيرفر
         const statusCode = apiError.response?.status; 
         const serverMessage = apiError.response?.data?.message || apiError.response?.data || apiError.message;
-        
+
         alert(`❌ [خطأ من سيرفر الـ Backend]:\n- رمز الخطأ (Status): ${statusCode || 'مشكلة شبكة / اتصال مقطوع'}\n- تفاصيل السيرفر: ${JSON.stringify(serverMessage)}`);
         throw apiError;
       }
@@ -134,3 +126,4 @@ export const useOnboardingWizard = (onComplete: () => void) => {
     isSubmitting,
   };
 };
+

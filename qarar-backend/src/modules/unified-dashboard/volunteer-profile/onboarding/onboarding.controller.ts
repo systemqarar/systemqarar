@@ -1,40 +1,47 @@
-// src/modules/unified-dashboard/volunteer-profile/onboarding/onboarding.controller.ts
-
 import { Request, Response } from 'express';
 import { OnboardingInputData, UpdateDbPayload } from './onboarding.types';
 import { updateVolunteerProfileDb } from './onboarding.models';
 
 export const completeOnboarding = async (req: Request, res: Response) => {
   try {
+    // التحقق من وجود معرف المستخدم من الـ Middleware الخاص بالحماية
     const userId = req.user?.id; 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'مستخدم غير مصرح له بالدخول' });
     }
 
+    // الالتزام الصارم بالنوع المعتمد في ملف OnboardingInputData من ريكويست البودي
     const input: OnboardingInputData = req.body;
 
+    // دمج العنوان بناءً على حقول المدخلات الصارمة
     const fullAddress = `المنطقة: ${input.main_address} - تفاصيل: ${input.detailed_address}`;
 
-    // 🎯 تحويل ذكي وصارم لقيمة النقاب لضمان عدم تمريرها بشكل خاطئ كـ String
+    // تحويل وضمان القيمة المنطقية للنقاب منعاً لأي تضارب حقول
     const isNiqabiChecked = String(input.is_niqabi) === 'true' || input.is_niqabi === true;
 
-    // التحقق مما إذا كان الحساب يخص متطوعة منقبة لتطبيق بروتوكول الخصوصية
+    // بروتوكول حماية خصوصية المنقبات الحاسم
     const shouldApplyNiqabiPrivacy = input.gender === 'أنثى' && isNiqabiChecked;
 
-    // تجهيز متغيرات الروابط لمعالجتها
     let finalPublicUrl = input.photo_url || '';         
-    let finalSecureUrl = input.secure_photo_url || '';  
+    let finalSecureUrl = '';  
 
-    if (shouldApplyNiqabiPrivacy && finalPublicUrl) {
-      // 1️⃣ الصورة الأصلية الحقيقية يتم نقلها فوراً وتأمينها داخل حقل الصورة السرية
-      finalSecureUrl = finalPublicUrl;
-      
-      // 2️⃣ الصورة العامة يتم حقنها بأمر التشويش الصارم من كلاودنري (تصبح مشوشة تماماً تلقائياً)
-      if (finalPublicUrl.includes('/upload/')) {
-        finalPublicUrl = finalPublicUrl.replace('/upload/', '/upload/e_blur:2000/');
+    if (finalPublicUrl) {
+      if (shouldApplyNiqabiPrivacy) {
+        // 1️⃣ تأمين النسخة الأصلية النقية في الحقل السري فوراً
+        finalSecureUrl = finalPublicUrl;
+        
+        // 2️⃣ حقن أمر التشويش الصارم في الحقل العام إذا لم يكن محقوناً مسبقاً
+        if (finalPublicUrl.includes('/upload/') && !finalPublicUrl.includes('e_blur')) {
+          finalPublicUrl = finalPublicUrl.replace('/upload/', '/upload/e_blur:2000/');
+        }
+      } else {
+        // الحسابات العامة (ذكور أو إناث غير منقبات): الرابط العام طبيعي والحقل السري فارغ
+        finalPublicUrl = input.photo_url;
+        finalSecureUrl = ''; 
       }
     }
 
+    // بناء كائن التحديث المقيد صارماً بنوع UpdateDbPayload لـ Prisma لضمان سلامة الـ Query
     const dbPayload: UpdateDbPayload = {
       gender: input.gender,
       date_of_birth: new Date(input.date_of_birth), 
@@ -45,12 +52,13 @@ export const completeOnboarding = async (req: Request, res: Response) => {
       job_title: input.job_title,
       detailed_address: fullAddress,
       desired_department: input.desired_department, 
-      is_niqabi: input.gender === 'أنثى' ? isNiqabiChecked : false, // الحماية الصارمة
+      is_niqabi: input.gender === 'أنثى' ? isNiqabiChecked : false, 
       photo_url: finalPublicUrl,
       secure_photo_url: finalSecureUrl,
       is_profile_completed: true 
     };
 
+    // تنفيذ التحديث في قاعدة البيانات عبر الموديل المعرف مسبقاً وبشكل آمن
     await updateVolunteerProfileDb(userId, dbPayload);
 
     return res.status(200).json({
