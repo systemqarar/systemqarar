@@ -6,60 +6,24 @@ import { NewProfilePayload } from './personal-data.types';
 export class PersonalDataModel {
   
   /**
-   * 🔍 دالة ذكية: تجلب البيانات كاملة (الحصر + قرار) سواءً أرسل الفرونت إند الـ UUID أو رقم الحصر (SRCS)
-   * تم فتح محبس الاستعلام ليشمل كافة حقول التدريب، الاتصال، والجاهزية الميدانية.
+   * 🔍 دالة ذكية: تجلب البيانات كاملة (الحصر + قرار)
    */
   async findVolunteerById(identifier: string) {
-    // الفحص عبر الـ Regex: هل المدخل عبارة عن UUID معقد أم رقم حصر عادي (SRCS)؟
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
-    
-    // بناء شرط الاستعلام ديناميكياً بناءً على القيمة القادمة من الواجهة (الفرونت إند)
     const condition = isUuid ? `vp.user_id = $1` : `u.volunteer_number = $1`;
 
     const query = `
       SELECT 
-        -- 1️⃣ بيانات الحساب والربط الأساسية
-        vp.id, 
-        vp.user_id, 
-        u.volunteer_number, 
-        u.national_id, 
-        vp.full_name, 
-        vp.photo_url, 
-        vp.secure_photo_url,
-        vp.admin_position, 
-        vp.is_profile_completed,
-
-        -- 2️⃣ بيانات الاتصال (المضافة حديثاً للاستعلام)
-        vp.phone,
-        vp.whatsapp,
-
-        -- 3️⃣ الحقول الخاصة بنظام قرار
-        vp.gender, 
-        vp.date_of_birth, 
-        vp.blood_type, 
-        vp.marital_status, 
-        vp.email, 
-        vp.education_level, 
-        vp.job_title, 
-        vp.detailed_address, 
-        vp.desired_department, 
-        vp.is_niqabi,
-
-        -- 4️⃣ حقول الـ TOT والدورات التدريبية (المضافة حديثاً للاستعلام)
-        vp.is_tot_trainer,
-        vp.tot_year,
-        vp.tot_certificate_url,
-        vp.other_certificate_url,
-        vp.last_first_aid_refresher,
-        vp.other_programs,
-
-        -- 5️⃣ الموقف الميداني والجاهزية (المضافة حديثاً للاستعلام)
-        vp.current_status_in_khartoum,
-        vp.expected_return_time,
-        vp.availability_level
-
+        vp.id, vp.user_id, u.volunteer_number, u.national_id, vp.full_name, 
+        vp.photo_url, vp.secure_photo_url, vp.admin_position, vp.is_profile_completed,
+        vp.phone, vp.whatsapp, vp.gender, vp.date_of_birth, vp.blood_type, 
+        vp.marital_status, vp.email, vp.education_level, vp.job_title, 
+        vp.detailed_address, vp.desired_department, vp.is_niqabi,
+        vp.is_tot_trainer, vp.tot_year, vp.tot_certificate_url, vp.other_certificate_url,
+        vp.last_first_aid_refresher, vp.other_programs,
+        vp.current_status_in_khartoum, vp.expected_return_time, vp.availability_level
       FROM volunteer_profiles vp
-      INNER JOIN users u ON vp.user_id = u.id -- الربط المتين والآمن بين الجدولين
+      INNER JOIN users u ON vp.user_id = u.id
       WHERE ${condition}
     `;
     
@@ -68,10 +32,10 @@ export class PersonalDataModel {
   }
 
   /**
-   * 📥 تحديث البيانات الشخصية في جدول البروفايل وتفعيل حقل إكمال الملف الشخصي
-   * 🛠️ (تم تنظيف الاستعلام بإزالة updated_at لعدم وجود العمود في جدول قاعدة البيانات الحالي)
+   * 📥 تحديث البيانات الشخصية في جدول البروفايل (تم إصلاح مسار الصور بالكامل)
    */
-  async updateVolunteerProfile(userId: string, data: NewProfilePayload) {
+  async updateVolunteerProfile(userId: string, data: any) {
+    // 🎯 تم إضافة الحقل السري secure_photo_url وتوجيه photo_url لاستقبال الرابط المشوه القادم من الـ Controller
     const query = `
       UPDATE volunteer_profiles 
       SET 
@@ -86,14 +50,26 @@ export class PersonalDataModel {
         desired_department = $10,
         is_niqabi = $11,
         photo_url = $12,
+        secure_photo_url = $13,
         is_profile_completed = true
       WHERE user_id = $1;
     `;
 
+    // هنا نقرأ المتغيرات المجهزة والمحقونة في الـ Controller لضمان ثبات التسمية
     const values = [
-      userId, data.gender, data.birthDate, data.bloodType, data.maritalStatus, 
-      data.email, data.education, data.occupation, data.address, data.preferredOffice, 
-      data.isNiqabi, data.profileImageUrl
+      userId, 
+      data.gender, 
+      data.date_of_birth, 
+      data.blood_type, 
+      data.marital_status, 
+      data.email, 
+      data.education_level, 
+      data.job_title, 
+      data.detailed_address, 
+      data.desired_department, 
+      data.is_niqabi, 
+      data.photo_url,          // الرابط المشوه (بكسلة + ضبابية)
+      data.secure_photo_url    // الرابط الأصلي النقي المؤمّن للمنقبات
     ];
 
     const result = await db.query(query, values);
