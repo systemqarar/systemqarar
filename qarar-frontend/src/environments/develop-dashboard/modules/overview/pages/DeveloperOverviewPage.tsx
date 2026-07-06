@@ -1,9 +1,6 @@
 import React from 'react';
-import { useAuth } from '../../../../../context/AuthContext';
 
 const DeveloperOverviewPage: React.FC = () => {
-  const { user } = useAuth();
-
   return (
     <div className="space-y-6">
       {/* بنر الترحيب */}
