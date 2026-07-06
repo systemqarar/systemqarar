@@ -3,19 +3,16 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import AuthRoutes from '../environments/public-site/modules/auth/auth.routes';
 
-// 👑 استيراد الواجهة الملكية الجديدة للوحة التحكم الموحدة
 import DashboardLayout from '../environments/unified-dashboard/modules/overview/pages/DashboardLayout';
-
-// 📦 استيراد خط المسارات المستقل الخاص بموديول البروفايل
 import { volunteerProfileRoutes } from '../environments/unified-dashboard/modules/volunteer-profile/volunteer-profile.routes';
-
-// 🆕 استيراد صفحة معالج استكمال البيانات الجديدة من مسارها الصحيح بحسب الهيكل الشجري
 import { OnboardingWizardPage } from '../environments/unified-dashboard/modules/volunteer-profile/onboarding-wizard/pages/OnboardingWizardPage';
 
-// حارس المسارات المحمية: يمنع دخول غير المسجلين للمنظومة
+// 🛠️ استيراد مكونات المطور المسبكة الجديدة بناءً على تعديلك الذكي
+import DeveloperLayout from '../environments/develop-dashboard/components/DeveloperLayout';
+import { developRoutes } from '../environments/develop-dashboard/develop.routes';
+
+// حارس مسارات المتطوعين الحالي
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  
-  // 1️⃣ [هنا الملاحظة السريعة]: أضفنا كلمة "setUser" في نفس السطر ده عشان نحدث بيها بيانات المستخدم
   const { isAuthenticated, isLoading, user, setUser } = useAuth(); 
 
   if (isLoading) {
@@ -30,17 +27,13 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <Navigate to="/login" replace />;
   }
 
-  // 🛡️ بوابة الفحص العلوية (Onboarding Gate):
   if (user?.is_profile_completed === false) {
     return (
       <OnboardingWizardPage 
         onWizardComplete={() => {
-          // 2️⃣ [التعديل التاني]: شيلنا window.location.reload() وحطينا السطرين دول
-          // بنقول للسيستم محلياً: المتطوع ده خلاص كمل بياناته وبقى true، افتح البوابة طيران!
           if (setUser) {
             setUser({ ...user, is_profile_completed: true });
           } else {
-            // كود أمان احتياطي: لو الـ Context بتاعك ما فيهو دالة setUser، حنوديه صفحة الدخول عشان يستلم التوكن الجديد
             window.location.href = '/login';
           }
         }} 
@@ -51,14 +44,34 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// 🛡️ حارس مسارات المطور (السوبر أدمن) المعتمد والمحمي تماماً
+const DeveloperGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0A1128] flex justify-center items-center text-white font-sans">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-[#C3073F]"></div>
+      </div>
+    );
+  }
+
+  // الفحص الصارم المطابق لنوع رتبتك في النظام 'super_admin'
+  if (!isAuthenticated || user?.role !== 'super_admin') {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export const AppRoutes: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 📦 موديول الأمان والتحقق */}
+        {/* موديول الأمان والتحقق */}
         <Route path="/*" element={<AuthRoutes />} />
 
-        {/* 📱 المسارات المحمية: لوحة التحكم الموحدة المخصصة للجوال (منظومة قرار) */}
+        {/* لوحة تحكم المتطوعين */}
         <Route 
           path="/dashboard" 
           element = {
@@ -67,13 +80,26 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         >
-          {/* 🌲 تصب مسارات موديول البروفايل كأبناء (تأكد أن الـ paths جواها لا تبدأ بـ / ) */}
           {volunteerProfileRoutes.map((route, index) => (
             <Route key={index} path={route.path} element={route.element} />
           ))}
         </Route>
 
-        {/* التوجيه التلقائي لأي رابط عشوائي مباشرة لصفحة الدخول */}
+        {/* لوحة تحكم المطور المخصصة والمحمية */}
+        <Route 
+          path="/developer" 
+          element = {
+            <DeveloperGuard>
+              <DeveloperLayout />
+            </DeveloperGuard>
+          } 
+        >
+          {/* هنا تنفرد وتصب كل مسارات موديولات المطور تلقائياً وبنفس أسلوب المتطوعين */}
+          {developRoutes.map((route, index) => (
+            <Route key={index} path={route.path} element={route.element} />
+          ))}
+        </Route>
+
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

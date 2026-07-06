@@ -6,6 +6,9 @@ import authRoutes from './modules/public-site/auth-profile/auth.routes'; // 🌐
 // 🪪 🛡️ استيراد الراوتر الرئيسي للموديول (الـ Gateway الجديد اللي بيجمع كل الفروع)
 import volunteerProfileRouter from './modules/unified-dashboard/volunteer-profile/volunteer-profile.routes';
 
+// 🛠️ 💻 استيراد موديول المطور وغرفة التحكم الفريدة (Super Admin Gateway)
+import developerZoneRouter from './modules/developer-zone/developer-zone.routes';
+
 import { whatsappService } from './services/whatsappService'; // 🟢 خدمة الواتساب المركزية
 
 // تفعيل قراءة الملفات البيئية السرية (.env)
@@ -34,12 +37,13 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 
 // 🪪 4. تفعيل موديول البروفايل العام (منظومة قرار) عبر الراوتر المجمع
-// 🎯 التعديل السحري هنا: غيّرنا المسار لـ '/api/volunteer' عشان لما يتجمع مع الفروع التانية يطابق الفرونت إند تماماً
-// 📝 الرابط النهائي للبيانات الشخصية حيبقى هسي: /api/volunteer/profile/:identifier
-// 📝 ولو حفظ بيانات حيبقى نظيف وممتاز: /api/volunteer/profile/update
 app.use('/api/volunteer', volunteerProfileRouter);
 
-// 5. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
+// 🛡️ 5. تفعيل موديول المطور المحمي والمشفر على مستوى السيرفر
+// 🎯 الرابط النهائي الفرعي لجلب حالة السيستم حيبقى: /api/developer-zone/overview/stats
+app.use('/api/developer-zone', developerZoneRouter);
+
+// 6. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
 app.listen(PORT, async () => {
   console.log(`===================================================`);
   console.log(`⚡ [SERVER RUNNING]: السيرفر ينبض بالحياة الآن على منفذ: ${PORT}`);

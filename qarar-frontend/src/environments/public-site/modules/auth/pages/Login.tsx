@@ -45,7 +45,13 @@ export const Login: React.FC = () => {
     try {
       const data = await authApi.login(username, password);
       loginUser(data.token, data.user); 
-      navigate('/dashboard'); 
+      
+      // 🔄 التوجيه الذكي والديناميكي بناءً على صلاحية ورتبة الحساب الممررة من الـ API
+      if (data.user?.role === 'super_admin') {
+        navigate('/developer');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'تعذر التحقق من الحساب، يرجى التأكد من المعطيات المرفقة');
     } finally {
@@ -58,7 +64,6 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      // 📡 إرسال رقم المتطوع الموحد إلى الـ API بدلاً من الـ ID العشوائي
       const data = await authApi.verifyVolunteer(volunteerNumber);
       setMaskedWhatsapp(data.masked_whatsapp);
       setSnapshot(data.snapshot);
@@ -77,7 +82,6 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      // 🔐 تمرير رقم المتطوع للتحقق من كود الـ OTP
       await authApi.verifyOTP(volunteerNumber, otpCode);
       setStep(4);
     } catch (err: any) {
@@ -91,7 +95,6 @@ export const Login: React.FC = () => {
     clearMessages();
     setLoading(true);
     try {
-      // 🚨 مسار الطوارئ المعتمد على رقم المتطوع
       const data = await authApi.emergencyRequest(volunteerNumber);
       setSuccessMessage(data.message);
       setTimeout(() => { resetStore(); }, 5000);
@@ -271,7 +274,6 @@ export const Login: React.FC = () => {
 
                     <div className="relative group">
                       <CreditCard className="absolute right-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 group-focus-within:text-[#7A1C2E] transition-colors duration-300" />
-                      {/* 🔄 تحديث الحقل والدالة ليعتمدا على الـ volunteerNumber الموحد */}
                       <input type="text" value={volunteerNumber} onChange={(e) => setVolunteerNumber(e.target.value)} required className="w-full pr-11 pl-4 py-3.5 bg-gray-50/70 border border-slate-100 rounded-2xl text-slate-900 outline-none focus:border-[#7A1C2E] focus:bg-white focus:ring-4 focus:ring-red-700/5 transition-all duration-300 text-left font-black tracking-widest placeholder-slate-400 text-xs uppercase" dir="ltr" placeholder="VOL-XXXXXX" />
                     </div>
 
@@ -340,7 +342,6 @@ export const Login: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center border-b border-white/10 pb-2">
                       <span className="text-[9px] text-red-200/70 font-bold">الرقم التنظيمي:</span>
-                      {/* 🔄 تحديث قراءة رقم المتطوع من الـ Snapshot المعدل ليطابق قاعدة البيانات بدقة */}
                       <span className="font-mono text-xs bg-black/20 px-2 py-0.5 rounded-lg text-amber-300 font-bold border border-white/5">{snapshot?.volunteer_number}</span>
                     </div>
                     <div className="flex justify-between items-center pt-0.5">
