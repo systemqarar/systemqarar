@@ -7,7 +7,7 @@ import DashboardLayout from '../environments/unified-dashboard/modules/overview/
 import { volunteerProfileRoutes } from '../environments/unified-dashboard/modules/volunteer-profile/volunteer-profile.routes';
 import { OnboardingWizardPage } from '../environments/unified-dashboard/modules/volunteer-profile/onboarding-wizard/pages/OnboardingWizardPage';
 
-// 🛠️ استيراد مكونات المطور المسبكة الجديدة بناءً على تعديلك الذكي
+// استيراد مكونات المطور المسبكة الجديدة بناءً على تعديلك الذكي
 import DeveloperLayout from '../environments/develop-dashboard/components/DeveloperLayout';
 import { developRoutes } from '../environments/develop-dashboard/develop.routes';
 
@@ -44,7 +44,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// 🛡️ حارس مسارات المطور (السوبر أدمن) المعتمد والمحمي تماماً
+// حارس مسارات المطور (السوبر أدمن) المعتمد والمحمي تماماً
 const DeveloperGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
 

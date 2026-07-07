@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import overviewRoutes from './overview/overview.routes';
+import renderRoutes from './monitoring/render/render.routes'; // 🚀 الاستيراد الجديد لموديول مراقبة ريندر
+
 // نفترض وجود الميدل وير الخاص بالتحقق من التوكن في مشروعك، قم باستيراده هنا
 // import { verifyToken } from '../../middlewares/auth.middleware'; 
 
@@ -20,7 +22,7 @@ const requireSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // حقن الحماية على كل الروابط التي تقع تحت هذا الموديول
-// (إذا كان لديك ميدل وير للتوكن كـ verifyToken ضعه قبل requireSuperAdmin)
 router.use('/overview', requireSuperAdmin, overviewRoutes);
+router.use('/monitoring/render', requireSuperAdmin, renderRoutes); // 🔒 إضافة مسارات ريندر وحمايتها بحارس المطور
 
 export default router;
