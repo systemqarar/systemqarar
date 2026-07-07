@@ -64,7 +64,7 @@ export const getRenderStatus = async (req: Request, res: Response) => {
 };
 
 /**
- * 2. سحب السجلات الحية والفعلية (Live Logs) - النسخة المصححة بدون أقواس مربعة
+ * 2. سحب السجلات الحية والفعلية (Live Logs) - النسخة الذكية لحل مشكلة ownerId تلقائياً
  */
 export const getRenderLogs = async (req: Request, res: Response) => {
   try {
@@ -84,14 +84,30 @@ export const getRenderLogs = async (req: Request, res: Response) => {
       });
     }
 
-    // استدعاء السجلات مع تعديل معامل التصفية ليصبح متوافقاً 100% مع معايير ريندر
+    // 🛠️ الخطوة الذكية 1: جلب تفاصيل الخدمة أولاً لاستخراج الـ ownerId ديناميكياً بدون تعديل الـ .env
+    const serviceResponse = await axios.get(`${RENDER_API_URL}/services/${serviceId}`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: 'application/json'
+      },
+      timeout: 5000
+    });
+
+    const ownerId = serviceResponse.data.ownerId || serviceResponse.data.owner?.id;
+
+    if (!ownerId) {
+      throw new Error('تعذر استخراج معرف المالك (ownerId) من سيرفر ريندر تلقائياً.');
+    }
+
+    // 🛠️ الخطوة الذكية 2: تمرير الـ ownerId المطلوب رسمياً إلى محرك السجلات الإجمالي
     const response = await axios.get(`${RENDER_API_URL}/logs`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         Accept: 'application/json'
       },
       params: {
-        resource: serviceId, // 🛠️ التعديل الذهبي: إرسال الاسم مجرداً بدون الأقواس المربعة لإنهاء خطأ البارس
+        resource: serviceId,
+        ownerId: ownerId, // حقن المعرف المطلوب لحل خطأ المحرك قاطعاً
         limit: 50
       },
       timeout: 6000
@@ -125,7 +141,7 @@ export const getRenderLogs = async (req: Request, res: Response) => {
       formattedLogs.push({
         timestamp: new Date().toISOString(),
         level: 'info',
-        message: '🟢 الاتصال مستقر تماماً مع ريندر. لا توجد سجلات جديدة حالياً.'
+        message: '🟢 الاتصال مستقر تماماً مع ريندر. لا توجد سجلات جديدة حالياً في هذه الفترة.'
       });
     }
 
