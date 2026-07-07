@@ -5,11 +5,10 @@ export const useRenderStatus = () => {
   const [status, setStatus] = useState<RenderStatus | null>(null);
   const [logs, setLogs] = useState<RenderLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isDeploying, setIsDeploying] = useState<boolean>(false); // 🚀 حالة مضافة لمنع الضغط المتكرر أثناء التحديث
+  const [isDeploying, setIsDeploying] = useState<boolean>(false); 
 
   const fetchMetrics = async () => {
     try {
-      // القراءة المباشرة من متغيرات البيئة المحقونة داخل سيرفر فيرسال
       const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
       if (!baseUrl) {
@@ -20,7 +19,7 @@ export const useRenderStatus = () => {
 
       const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` // تمرير التوكن للحارس المقفل في الباكيند
+        'Authorization': `Bearer ${token}` 
       };
 
       const [statusRes, logsRes] = await Promise.all([
@@ -41,8 +40,7 @@ export const useRenderStatus = () => {
   };
 
   /**
-   * 🔥 ميزة التحكم المضافة: إرسال أمر النشر والتحديث الفوري للسيرفر
-   * @param clearCache إذا كانت true سيتم مسح الكاش القديم وبناء السيرفر من الصفر
+   * 🔥 ميزة التحكم المتقدمة المحدثة لصيد الأخطاء الحقيقية
    */
   const triggerDeploy = async (clearCache: boolean) => {
     try {
@@ -62,14 +60,16 @@ export const useRenderStatus = () => {
       const result = await response.json();
 
       if (result.success) {
-        alert(result.message); // إشعار نجاح فوري للمطور
-        fetchMetrics(); // تحديث السجلات والحالة فوراً لمراقبة عملية البناء الجديدة
+        alert(result.message || '🚀 تم إطلاق التحديث بنجاح!'); 
+        fetchMetrics(); 
       } else {
-        alert(`❌ فشل إطلاق التحديث: ${result.message}`);
+        // 🛠️ هنا التعديل الذكي: يقرأ message أو error أو أي نص يرسله السيرفر لمنع ظهور undefined
+        const serverError = result.error || result.message || 'خطأ غير معروف في الصلاحيات';
+        alert(`❌ فشل إطلاق التحديث: ${serverError}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error triggering deploy:', error);
-      alert('⚠️ حدث خطأ أثناء محاولة الاتصال بالسيرفر لإطلاق التحديث.');
+      alert(`⚠️ حدث خطأ أثناء الاتصال بالسيرفر: ${error.message || error}`);
     } finally {
       setIsDeploying(false);
     }
@@ -77,7 +77,7 @@ export const useRenderStatus = () => {
 
   useEffect(() => {
     fetchMetrics();
-    const interval = setInterval(fetchMetrics, 10000); // تحديث لايف كل 10 ثوانٍ من سيرفر ريندر الحقيقي
+    const interval = setInterval(fetchMetrics, 10000); 
     return () => clearInterval(interval);
   }, []);
 
