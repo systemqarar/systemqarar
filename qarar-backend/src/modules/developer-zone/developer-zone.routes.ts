@@ -1,17 +1,17 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import overviewRoutes from './overview/overview.routes';
-import renderRoutes from './monitoring/render/render.routes'; // 🚀 الاستيراد الجديد لموديول مراقبة ريندر
+import renderRoutes from './monitoring/render/render.routes'; 
 
-// نفترض وجود الميدل وير الخاص بالتحقق من التوكن في مشروعك، قم باستيراده هنا
+// TODO: قم بإلغاء التعليق واستيراد مديول التحقق من التوكن الحقيقي الخاص بنظام قرار إذا كان متوفراً لديك
 // import { verifyToken } from '../../middlewares/auth.middleware'; 
 
 const router = Router();
 
-// 🛡️ حارس أمان صارم على مستوى الباكند للتحقق من رتبة الـ Super Admin
+// 🛡️ حارس أمان صارم للتحقق من رتبة الـ Super Admin
 const requireSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
-  // ملاحظة: الميدل وير الأساسي (مثل verifyToken) مفترض يفك التوكن ويضع بيانات المستخدم في req.user
   const user = (req as any).user; 
 
+  // تأمين إضافي: التحقق من وجود المستخدم وتطابق الرتبة
   if (!user || user.role !== 'super_admin') {
     return res.status(403).json({
       success: false,
@@ -21,8 +21,12 @@ const requireSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-// حقن الحماية على كل الروابط التي تقع تحت هذا الموديول
+/**
+ * حقن الحماية على كل الروابط
+ * ملحوظة: إذا كنت تطبق مديول التحقق من التوكن (مثل verifyToken) بشكل عام في ملف server.ts، فالوضع آمن تماماً.
+ * إذا لم تكن تطبقه بشكل عام، يفضّل تمريره هنا قبل requireSuperAdmin مثل: router.use('/monitoring/render', verifyToken, requireSuperAdmin, renderRoutes);
+ */
 router.use('/overview', requireSuperAdmin, overviewRoutes);
-router.use('/monitoring/render', requireSuperAdmin, renderRoutes); // 🔒 إضافة مسارات ريندر وحمايتها بحارس المطور
+router.use('/monitoring/render', requireSuperAdmin, renderRoutes); 
 
 export default router;
