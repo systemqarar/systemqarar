@@ -12,7 +12,6 @@ export const getRenderStatus = async (req: Request, res: Response) => {
     const apiKey = process.env.RENDER_API_KEY;
     const serviceId = process.env.RENDER_SERVICE_ID;
 
-    // حماية النظام: إذا لم تكن متغيرات البيئة مضبوطة بعد في الـ .env لا يتوقف السيرفر
     if (!apiKey || !serviceId) {
       return res.status(200).json({
         success: true,
@@ -26,7 +25,6 @@ export const getRenderStatus = async (req: Request, res: Response) => {
       });
     }
 
-    // حساب سرعة استجابة الشبكة الفعلية بين سيرفر قرار وسيرفرات ريندر
     const startTime = Date.now();
 
     const response = await axios.get(`${RENDER_API_URL}/services/${serviceId}`, {
@@ -34,13 +32,12 @@ export const getRenderStatus = async (req: Request, res: Response) => {
         Authorization: `Bearer ${apiKey}`,
         Accept: 'application/json'
       },
-      timeout: 6000 // مهلة 6 ثوانٍ كحد أقصى لمنع تعليق الطلب
+      timeout: 6000 
     });
 
     const latency = `${Date.now() - startTime}ms`;
     const serviceData = response.data;
 
-    // التحقق من حالة التشغيل الفعلية للسيرفر من ريندر
     const isSuspended = serviceData.suspended === 'suspended' || serviceData.state === 'suspended';
     const regionName = serviceData.serviceDetails?.region || 'eu-central (Frankfurt)';
     const envType = serviceData.type || 'web_service';
@@ -48,7 +45,7 @@ export const getRenderStatus = async (req: Request, res: Response) => {
     const statusReport: RenderServiceStatus = {
       status: isSuspended ? 'offline' : 'online',
       latency: latency,
-      uptime: '99.98%', // قيمة معيارية مستقرة، وسنربطها بـ UptimeRobot لاحقاً لجعلها حية 100%
+      uptime: '99.98%', 
       region: regionName,
       environment: envType
     };
@@ -81,26 +78,24 @@ export const getRenderLogs = async (req: Request, res: Response) => {
           { 
             timestamp: new Date().toISOString(), 
             level: 'info', 
-            message: '⚠️ يرجى ضبط مفاتيح RENDER_API_KEY و RENDER_SERVICE_ID في ملف الـ .env لتفعيل السجلات الحية.' 
+            message: '⚠️ يرجى ضبط مفاتيح RENDER_API_KEY و RENDER_SERVICE_ID لتفعيل السجلات الحية.' 
           }
         ]
       });
     }
 
-    // جلب السجلات الحقيقية مباشرة من محرك سجلات ريندر الرسمي
-    const response = await axios.get(`${RENDER_API_URL}/logs`, {
+    // 🛠️ التعديل الجوهري: استدعاء السجلات من المسار الصحيح والمباشر للخدمة في ريندر
+    const response = await axios.get(`${RENDER_API_URL}/services/${serviceId}/logs`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         Accept: 'application/json'
       },
       params: {
-        'resource[]': serviceId, // تصفية السجلات لجلب سجلات هذا السيرفر فقط
-        limit: 30
+        limit: 50 // جلب آخر 50 سطر تم تسجيلهم في السيرفر
       },
       timeout: 6000
     });
 
-    // معالجة مرنة للبيانات المستلمة لضمان توافقها مع أي تحديث في الـ API الخاص بريندر
     let rawLogs: any[] = [];
     if (Array.isArray(response.data)) {
       rawLogs = response.data;
@@ -110,12 +105,23 @@ export const getRenderLogs = async (req: Request, res: Response) => {
       rawLogs = response.data.results;
     }
 
-    // تحويل وتنسيق السجلات لتطابق ما تتوقعه الشاشة تماماً
-    const formattedLogs: RenderLogEntry[] = rawLogs.map((log: any) => ({
-      timestamp: log.timestamp || new Date().toISOString(),
-      level: log.level || 'info',
-      message: log.text || log.message || ''
-    }));
+    // تحويل وتنسيق السجلات مع تمييز الأخطاء والتحذيرات تلقائياً حسب النص
+    const formattedLogs: RenderLogEntry[] = rawLogs.map((log: any) => {
+      const logText = log.text || log.message || '';
+      let detectedLevel: 'info' | 'warn' | 'error' = log.level || 'info';
+      
+      if (logText.toLowerCase().includes('error') || logText.toLowerCase().includes('failed')) {
+        detectedLevel = 'error';
+      } else if (logText.toLowerCase().includes('warn')) {
+        detectedLevel = 'warn';
+      }
+
+      return {
+        timestamp: log.timestamp || new Date().toISOString(),
+        level: detectedLevel,
+        message: logText
+      };
+    });
 
     if (formattedLogs.length === 0) {
       formattedLogs.push({
@@ -145,12 +151,12 @@ export const triggerRenderDeploy = async (req: Request, res: Response) => {
   try {
     const apiKey = process.env.RENDER_API_KEY;
     const serviceId = process.env.RENDER_SERVICE_ID;
-    const { clearCache } = req.body; // نمرر خيار مسح الكاش إذا رغبت في تطهير بناء الكود القديم
+    const { clearCache } = req.body; 
 
     if (!apiKey || !serviceId) {
       return res.status(400).json({
         success: false,
-        message: 'مفاتيح الـ API غير مضبوطة في ملف الـ .env'
+        message: 'مفاتيح الـ API غير مضبوطة'
       });
     }
 
