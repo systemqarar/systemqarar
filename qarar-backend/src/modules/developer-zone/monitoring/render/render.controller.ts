@@ -64,7 +64,7 @@ export const getRenderStatus = async (req: Request, res: Response) => {
 };
 
 /**
- * 2. سحب السجلات الحية والفعلية (Live Logs) - نسخة مطورة ومؤمنة ضد الاختفاء
+ * 2. سحب السجلات الحية والفعلية (Live Logs) - النسخة المصححة بدون أقواس مربعة
  */
 export const getRenderLogs = async (req: Request, res: Response) => {
   try {
@@ -84,14 +84,14 @@ export const getRenderLogs = async (req: Request, res: Response) => {
       });
     }
 
-    // العودة للمسار الرسمي لـ Render مع تمرير المعرف في الـ Params بشكل صحيح
+    // استدعاء السجلات مع تعديل معامل التصفية ليصبح متوافقاً 100% مع معايير ريندر
     const response = await axios.get(`${RENDER_API_URL}/logs`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         Accept: 'application/json'
       },
       params: {
-        'resource[]': serviceId,
+        resource: serviceId, // 🛠️ التعديل الذهبي: إرسال الاسم مجرداً بدون الأقواس المربعة لإنهاء خطأ البارس
         limit: 50
       },
       timeout: 6000
@@ -107,7 +107,7 @@ export const getRenderLogs = async (req: Request, res: Response) => {
     const formattedLogs: RenderLogEntry[] = rawLogs.map((log: any) => {
       const logText = log.text || log.message || '';
       let detectedLevel: 'info' | 'warn' | 'error' = 'info';
-
+      
       if (logText.toLowerCase().includes('error') || logText.toLowerCase().includes('failed')) {
         detectedLevel = 'error';
       } else if (logText.toLowerCase().includes('warn')) {
@@ -121,12 +121,11 @@ export const getRenderLogs = async (req: Request, res: Response) => {
       };
     });
 
-    // إذا كانت السجلات ناجحة ولكنها فارغة تماماً لأن السيرفر مستقر ومستريح حالياً
     if (formattedLogs.length === 0) {
       formattedLogs.push({
         timestamp: new Date().toISOString(),
         level: 'info',
-        message: '🟢 الاتصال مستقر تماماً مع ريندر. السيرفر يعمل حالياً بنجاح وبدون أي أحداث أو ضغط.'
+        message: '🟢 الاتصال مستقر تماماً مع ريندر. لا توجد سجلات جديدة حالياً.'
       });
     }
 
@@ -136,10 +135,9 @@ export const getRenderLogs = async (req: Request, res: Response) => {
     });
 
   } catch (error: any) {
-    // 💡 ميزة الذكاء المضافة: بدلاً من ترك الشاشة صفر، نطبع الخطأ للمطور داخل الصندوق الأسود مباشرة
     console.error('Render logs error:', error);
     const apiError = error.response?.data?.message || error.message || 'خطأ غير معروف';
-
+    
     return res.status(200).json({
       success: true,
       data: [
@@ -147,11 +145,6 @@ export const getRenderLogs = async (req: Request, res: Response) => {
           timestamp: new Date().toISOString(),
           level: 'error',
           message: `❌ فشل محرك السجلات: ${apiError}`
-        },
-        {
-          timestamp: new Date().toISOString(),
-          level: 'warn',
-          message: '💡 نصيحة للمطور: تأكد من أن الـ RENDER_SERVICE_ID في لوحة التحكم يبدأ بـ srv- وصحيح 100%.'
         }
       ]
     });
