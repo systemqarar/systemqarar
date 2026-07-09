@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { useExecutiveBoard } from '../hooks/useExecutiveBoard';
 import { AdminPosition } from '../types/types';
 
-// 🏛️ استدعاء المكونات الهندسية الجديدة من المجلد المخصص لها في الهيكل
+// 🏛️ استدعاء المكونات الهندسية المخصصة
 import { SearchVolunteerModal } from '../components/SearchVolunteerModal';
 import { ConfirmAssignmentModal } from '../components/ConfirmAssignmentModal';
+import { ConfirmExemptionModal } from '../components/ConfirmExemptionModal'; // المكون الجديد
 
 export const ExecutiveBoardPage: React.FC = () => {
   const { 
@@ -21,9 +22,12 @@ export const ExecutiveBoardPage: React.FC = () => {
   // حالة منع النقرات المزدوجة أثناء التخاطب مع السيرفر
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // الحالات البرمجية لإدارة النوافذ المنبثقة المنفصلة
+  // الحالات البرمجية لإدارة النوافذ المنبثقة للتعيين
   const [activeDeskForAssign, setActiveDeskForAssign] = useState<{ key: AdminPosition; label: string } | null>(null);
   const [selectedVolunteerForConfirm, setSelectedVolunteerForConfirm] = useState<any | null>(null);
+
+  // 🛠️ الحالات البرمجية الجديدة لإدارة نافذة الإعفاء
+  const [activeDeskForExempt, setActiveDeskForExempt] = useState<{ key: AdminPosition; label: string; occupant: any } | null>(null);
 
   // 1. شاشة الانتظار أثناء جلب البيانات من Neon DB
   if (loading) {
@@ -43,21 +47,29 @@ export const ExecutiveBoardPage: React.FC = () => {
     );
   }
 
-  // دالة معالجة التعيين النهائي عند ضغط زر التأكيد في الـ Modal المعماري
+  // دالة معالجة التعيين النهائي عند ضغط زر التأكيد
   const handleConfirmAssignment = async () => {
     if (!selectedVolunteerForConfirm || !activeDeskForAssign) return;
     const deskKey = activeDeskForAssign.key;
     setActionLoading(deskKey);
-    
     const res = await assignMember(selectedVolunteerForConfirm.volunteer_number, deskKey);
+    setActionLoading(null);
+    setSelectedVolunteerForConfirm(null);
+    setActiveDeskForAssign(null);
+    if (res && !res.success) alert(res.message);
+  };
+
+  // 🛠️ دالة معالجة الإعفاء النهائي بعد التأكيد من المكون المخصص
+  const handleConfirmExemption = async () => {
+    if (!activeDeskForExempt) return;
+    const deskKey = activeDeskForExempt.key;
+    setActionLoading(deskKey);
+    
+    // استدعاء الدالة الأصلية في الـ باكيند للقرار باستخدام رقم المتطوع
+    await exemptMember(activeDeskForExempt.occupant.volunteer_number);
     
     setActionLoading(null);
-    setSelectedVolunteerForConfirm(null); // تصفير الاختيار
-    setActiveDeskForAssign(null);          // إغلاق النوافذ
-    
-    if (res && !res.success) {
-      alert(res.message);
-    }
+    setActiveDeskForExempt(null); // إغلاق نافذة الإعفاء بنجاح
   };
 
   // دالة فرعية موحدة لرسم كرت المنصب
@@ -101,21 +113,17 @@ export const ExecutiveBoardPage: React.FC = () => {
                 </div>
               </div>
               
+              {/* زر فتح نافذة الإعفاء المخصصة الجديدة */}
               <button
                 disabled={actionLoading !== null}
-                onClick={async () => {
-                  if (!window.confirm(`هل أنت متأكد من إعفاء [${occupant.full_name}] من منصب [${desk.label}]؟`)) return;
-                  setActionLoading(desk.key);
-                  await exemptMember(occupant.volunteer_number);
-                  setActionLoading(null);
-                }}
+                onClick={() => setActiveDeskForExempt({ key: desk.key, label: desk.label, occupant })}
                 className="text-xs bg-red-600/10 hover:bg-red-600 text-red-400 hover:text-white px-3 py-2 rounded-lg transition-all duration-200 border border-red-900/30 font-medium shrink-0"
               >
                 {actionLoading === desk.key ? 'جاري الإعفاء...' : 'إعفاء من المنصب'}
               </button>
             </div>
           ) : (
-            /* [حالة ب] المنصب شاغر -> يفتح الـ Modal المخصص بدقة */
+            /* [حالة ب] المنصب شاغر */
             <button
               disabled={actionLoading !== null}
               onClick={() => setActiveDeskForAssign(desk)}
@@ -164,10 +172,10 @@ export const ExecutiveBoardPage: React.FC = () => {
       </div>
 
       {/* ============================================================ */}
-      {/* 🖥️ حركية استدعاء النوافذ المنفصلة وتمرير البيانات عبر الـ Props */}
+      {/* 🖥️ النوافذ المنبثقة المنفصلة هندسياً */}
       {/* ============================================================ */}
       
-      {/* 1. نافذة البحث الذكي في المتطوعين */}
+      {/* 1. نافذة البحث الذكي */}
       <SearchVolunteerModal
         isOpen={activeDeskForAssign !== null}
         onClose={() => {
@@ -179,7 +187,7 @@ export const ExecutiveBoardPage: React.FC = () => {
         onSelectVolunteer={(vol) => setSelectedVolunteerForConfirm(vol)}
       />
 
-      {/* 2. نافذة التثبت وبث القرار النهائي بقاعدة البيانات */}
+      {/* 2. نافذة تأكيد التعيين */}
       <ConfirmAssignmentModal
         isOpen={selectedVolunteerForConfirm !== null && activeDeskForAssign !== null}
         onClose={() => setSelectedVolunteerForConfirm(null)}
@@ -187,6 +195,16 @@ export const ExecutiveBoardPage: React.FC = () => {
         volunteerName={selectedVolunteerForConfirm?.full_name || ''}
         deskLabel={activeDeskForAssign?.label || ''}
         isLoading={actionLoading === activeDeskForAssign?.key}
+      />
+
+      {/* 3. نافذة تأكيد الإعفاء الاحترافية الجديدة */}
+      <ConfirmExemptionModal
+        isOpen={activeDeskForExempt !== null}
+        onClose={() => setActiveDeskForExempt(null)}
+        onConfirm={handleConfirmExemption}
+        volunteerName={activeDeskForExempt?.occupant.full_name || ''}
+        deskLabel={activeDeskForExempt?.label || ''}
+        isLoading={actionLoading === activeDeskForExempt?.key}
       />
 
     </div>
