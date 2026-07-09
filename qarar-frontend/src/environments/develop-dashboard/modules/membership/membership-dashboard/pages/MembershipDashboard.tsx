@@ -1,21 +1,26 @@
 import React from 'react';
+// 1. ✨ استوردنا الـ useNavigate عشان نتحكم في حركة التنقل بين الشاشات
+import { useNavigate } from 'react-router-dom';
 
 interface CardItem {
   id: string;
   title: string;
   description: string;
   status: 'active' | 'soon';
+  path?: string; // ✨ أضفنا حقل اختياري لتحديد مسار كل كرت
 }
 
 const MembershipDashboard: React.FC = () => {
+  // 2. ✨ تفعيل دالة التوجيه جوة المكون
+  const navigate = useNavigate();
   
-  // الكروت الثلاثة التي تم الاتفاق عليها بالتعديل الهندسي
   const managementCards: CardItem[] = [
     {
       id: 'executive',
       title: 'الهيكل التنفيذي والمناصب (Executive Board)',
       description: 'عرض الهيكل الإداري الحالي، وإمكانية إعفاء الأعضاء أو تعيين متطوعين في المناصب الشاغرة بواسطة رقم المتطوع.',
       status: 'active',
+      path: 'executive-board', // ✨ المسار النسبي للشاشة الجديدة اللي ضفناها في ملف الراوتس
     },
     {
       id: 'directory',
@@ -73,11 +78,12 @@ const MembershipDashboard: React.FC = () => {
               {card.description}
             </p>
 
-            {/* زر الدخول */}
+            {/* زر الدخول الذكي */}
             {card.status === 'active' ? (
               <button
                 className="text-rose-500 hover:text-rose-400 text-xs font-bold flex items-center gap-1 transition-colors"
-                onClick={() => alert('جاهز لتصميم هذه الصفحة الداخلية في الخطوة القادمة!')}
+                // 3. ✨ هنا تم استبدال الـ alert بالتوجيه الفعلي للمسار الخاص بالكرت
+                onClick={() => card.path && navigate(card.path)}
               >
                 دخول لوحة التحكم التفصيلية &larr;
               </button>
