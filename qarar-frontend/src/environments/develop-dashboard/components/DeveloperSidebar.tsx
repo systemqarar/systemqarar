@@ -7,6 +7,8 @@ const DeveloperSidebar: React.FC = () => {
   // اختبار الصفحة الحالية لتلوين الأزرار حسب التوجيه النشط
   const isOverviewActive = location.pathname === '/developer' || location.pathname === '/developer/';
   const isMonitoringActive = location.pathname.includes('/developer/monitoring');
+  // اختبار صفحة العضوية الجديدة لتلوين الزر عند الضغط عليه
+  const isMembershipActive = location.pathname.includes('/developer/membership');
 
   return (
     <div className="w-64 h-screen bg-[#0A1128] border-e border-[#1E294B] flex flex-col p-4 select-none" dir="rtl">
@@ -54,13 +56,20 @@ const DeveloperSidebar: React.FC = () => {
             <span>Logs مراقبة السيرفر والـ</span>
           </Link>
 
-          {/* خيار تعديل المناصب - معطل لحين برمجته مستقبلاً */}
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-xs text-slate-600 cursor-not-allowed select-none">
+          {/* تفعيل زر منح وتعديل مناصب الأعضاء بنجاح وتوجيهه للمسار الجديد */}
+          <Link
+            to="/developer/membership"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-xs transition-all duration-200 ${
+              isMembershipActive
+                ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20'
+                : 'text-slate-400 hover:bg-[#111A35] hover:text-white'
+            }`}
+          >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
             </svg>
             <span>منح وتعديل مناصب الأعضاء</span>
-          </div>
+          </Link>
         </div>
       </div>
     </div>
