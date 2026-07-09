@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import { whatsappService } from '../../../services/whatsappService'; 
 
 export const authController = {
-  // 1️⃣ الشاشة 1: تسجيل الدخول الروتيني الفعلي من قاعدة البيانات
+  // 1️⃣ الشاشة 1: تسجيل الدخول الروتيني + بوابة السوبر أدمن الافتراضية
   login: async (req: Request, res: Response): Promise<void> => {
     try {
       const { username, password } = req.body;
@@ -16,6 +16,61 @@ export const authController = {
         return;
       }
 
+      // =========================================================================
+      // 🛡️ [بوابة الطوارئ الافتراضية للمطورين - الحساب الخارق الذكي]
+      // =========================================================================
+      const admin1User = process.env.ADMIN_ONE_USER;
+      const admin1Pass = process.env.ADMIN_ONE_PASS;
+      const admin1Name = process.env.ADMIN_ONE_NAME || 'لؤي جعفر'; // اسم العرض الخاص بك
+
+      const admin2User = process.env.ADMIN_TWO_USER;
+      const admin2Pass = process.env.ADMIN_TWO_PASS;
+      const admin2Name = process.env.ADMIN_TWO_NAME || 'المطور الحليف'; // اسم العرض الخاص بصديقك
+
+      // التحقق هل المدخلات تطابق أي من الحسابين السريين؟
+      const isFirstAdmin = admin1User && admin1Pass && username === admin1User && password === admin1Pass;
+      const isSecondAdmin = admin2User && admin2Pass && username === admin2User && password === admin2Pass;
+
+      if (isFirstAdmin || isSecondAdmin) {
+        // تحديد الاسم والمعرف الافتراضي بناءً على من قام بتسجيل الدخول
+        const chosenName = isFirstAdmin ? admin1Name : admin2Name;
+        const virtualId = isFirstAdmin ? 'virtual-admin-001' : 'virtual-admin-002';
+
+        const jwtSecret = process.env.JWT_SECRET || 'qarar-secret-key-2026-strict';
+        
+        // صناعة التوكن السحري وحقن الاسم جواه (تم التعديل لسمول ليتطابق مع Neon)
+        const token = jwt.sign(
+          { 
+            userId: virtualId, 
+            username: username, 
+            role: 'super_admin', 
+            is_acting: false, 
+            isProfileCompleted: true,
+            fullName: chosenName 
+          },
+          jwtSecret,
+          { expiresIn: '24h' }
+        );
+
+        // إرجاع الاستجابة للفرونتد ومحاكاة يوزر حقيقي ومكتمل الملف عشان ما يكرنك
+        res.status(200).json({
+          message: 'تم تسجيل دخول مطور المنظومة بنجاح حركي آمن',
+          token,
+          user: { 
+            id: virtualId, 
+            username: username, 
+            role: 'super_admin', 
+            volunteer_number: 'MASTER-000', 
+            is_acting: false,
+            is_profile_completed: true, // تخطي صفحة الأسئلة التفاعلية طوالي
+            full_name: chosenName // الحقن السحري للترحيب فوق في الهيدر (أهلاً لؤي / أهلاً صديقك)
+          }
+        });
+        return; // الخروج الفوري والذكي دون لمس جداول قاعدة البيانات نهائياً!
+      }
+      // =========================================================================
+
+      // في حال لم تكن البيانات مطابقة للمطورين، يستمر السيستم في الفحص الروتيني الطبيعي من قاعدة البيانات
       const userResult = await db.query('SELECT * FROM users WHERE username = $1', [username]);
       
       if (userResult.rows.length === 0) {
@@ -46,7 +101,6 @@ export const authController = {
 
       await db.query('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [user.id]);
 
-      // 🆕 جلب حالة اكتمال الملف الشخصي لتمريرها في التوكن والـ response
       const profileResult = await db.query('SELECT is_profile_completed FROM volunteer_profiles WHERE user_id = $1', [user.id]);
       const isProfileCompleted = profileResult.rows[0]?.is_profile_completed ?? false;
 
@@ -66,7 +120,7 @@ export const authController = {
           role: user.role, 
           volunteer_number: user.volunteer_number, 
           is_acting: user.is_acting,
-          is_profile_completed: isProfileCompleted // 🆕 هامة جداً لتوجيه الفرونت إند
+          is_profile_completed: isProfileCompleted 
         }
       });
     } catch (error) {
@@ -98,7 +152,6 @@ export const authController = {
         return;
       }
 
-      // 🛠️ تم التوسيع هنا لسحب كافة البيانات المطابقة من نظام الحصر دون نقصان
       const volunteerSnapshot = {
         volunteer_number: volunteerData.volunteerId, 
         national_id: volunteerData.nationalId,
@@ -109,7 +162,6 @@ export const authController = {
         is_tot_trainer: volunteerData.isTotTrainer,
         current_status_in_khartoum: volunteerData.currentStatusInKhartoum || 'داخل الولاية',
         unit_name: volunteerData.unitName,
-        // 🆕 الحقول المضافة حديثاً لحل المشكلة الأولى:
         tot_year: volunteerData.totYear ? parseInt(volunteerData.totYear) : null,
         tot_certificate_url: volunteerData.totCertificateUrl || null,
         other_certificate_url: volunteerData.otherCertificateUrl || null,
@@ -205,7 +257,6 @@ export const authController = {
       
       const newUserId = userInsertResult.rows[0].id;
 
-      // 🛠️ تم تحديث هذا الاستعلام ليشمل حفظ كل البيانات المستوردة من الحصر، ووضع علم عدم اكتمال الملف الشخصي لخطوة الأسئلة التفاعلية لاحقاً
       const profileInsertQuery = `
         INSERT INTO volunteer_profiles (
           user_id, volunteer_number, full_name, phone, whatsapp, photo_url, is_tot_trainer, 
@@ -230,7 +281,7 @@ export const authController = {
         snapshot.other_programs,
         snapshot.expected_return_time,
         snapshot.availability_level,
-        false // 🆕 يتم وضعها False إجبارياً هنا ليدخل المستخدم في نظام الترحيب والأسئلة التفاعلية فور تسجيل دخوله الأول
+        false 
       ];
       
       await db.query(profileInsertQuery, profileValues);
