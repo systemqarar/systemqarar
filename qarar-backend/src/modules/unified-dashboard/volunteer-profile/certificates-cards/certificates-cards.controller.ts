@@ -19,14 +19,16 @@ export class CertificatesCardsController {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
       const condition = isUuid ? `vp.user_id = $1` : `u.volunteer_number = $1`;
 
-      // ✅ تعديل أمن: استبدال vp.created_at بـ CURRENT_TIMESTAMP لمنع ضرب قاعدة البيانات
+      // ✅ تم الإصلاح: استبدال vp.admin_position بـ vp.admin_position_id لتجنب خطأ الـ 500
+      // 🎯 إضافة ذكية: جلب vp.unit_name ليعرض اسم الوحدة ديناميكياً في بطاقة المتطوع
       const query = `
         SELECT 
           vp.user_id,
           u.volunteer_number,
           vp.full_name,
           vp.photo_url,
-          vp.admin_position,
+          vp.admin_position_id,
+          vp.unit_name,
           vp.phone,
           CURRENT_TIMESTAMP AS approved_at, 
           vp.is_tot_trainer,
@@ -54,9 +56,9 @@ export class CertificatesCardsController {
           volunteerId: volunteer.volunteer_number, 
           fullName: volunteer.full_name,
           profileImageUrl: volunteer.photo_url,
-          adminPosition: volunteer.admin_position || 'متطوع ميداني',
+          adminPosition: volunteer.admin_position_id || 'متطوع ميداني', // 👈 الحقل الصحيح المتوافق مع الداتابيز
           phone: volunteer.phone || '-----------',
-          unitName: 'مكتب طوارئ محلية جبل أولياء', 
+          unitName: volunteer.unit_name || 'وحدة الكلاكلة شرق الإدارية', // 👈 قراءة اسم الوحدة المخزن ديناميكياً
           approvedAt: volunteer.approved_at,
           isTotTrainer: volunteer.is_tot_trainer,
           totYear: volunteer.tot_year,

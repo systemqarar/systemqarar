@@ -35,7 +35,10 @@ export class PersonalDataController {
           profileImageUrl: volunteer.photo_url,
           securePhotoUrl: volunteer.secure_photo_url,
           isProfileCompleted: volunteer.is_profile_completed,
-          adminPosition: volunteer.admin_position,
+          // 🛡️ تأمين القراءة: دعم الحقل الجديد والقديم تجنباً لأي كراش في السيرفر
+          adminPosition: volunteer.admin_position_id || volunteer.admin_position || 'متطوع ميداني',
+          // 🎯 إضافة ذكية: تمرير اسم الوحدة للفرونتد ليعرض في شاشة البيانات الشخصية برضه
+          unitName: volunteer.unit_name || 'وحدة الكلاكلة شرق الإدارية',
           phone: volunteer.phone,
           whatsapp: volunteer.whatsapp,
           gender: volunteer.gender,
@@ -82,22 +85,21 @@ export class PersonalDataController {
       const originalPhotoUrl = cleanData.profileImageUrl || cleanData.photo_url;
 
       // 🎯 فحص مرن وصارم لشرط النقاب لضمان عدم التأثر بغياب حقل الجنس أو حسابات الفحص
-      const hasNiqabiField = cleanData.isNiqabi !== undefined || cleanData.is_niqabi !== undefined;
+      const hasNiqabiField = cleanData.isNiqabi !== undefined || cleanData.is_ni_qabi !== undefined;
 
       const isNiqabiChecked = 
         String(cleanData.isNiqabi) === 'true' || 
         cleanData.isNiqabi === true || 
-        String(cleanData.is_niqabi) === 'true' || 
-        cleanData.is_niqabi === true;
+        String(cleanData.is_ni_qabi) === 'true' || 
+        cleanData.is_ni_qabi === true;
 
       // 🛑 الاعتماد المباشر على الخيار الحماسي المختار
       const shouldApplyNiqabiPrivacy = isNiqabiChecked;
 
       if (hasNiqabiField) {
         cleanData.isNiqabi = shouldApplyNiqabiPrivacy;
-        cleanData.is_niqabi = shouldApplyNiqabiPrivacy;
+        cleanData.is_ni_qabi = shouldApplyNiqabiPrivacy;
       }
-
 
       if (originalPhotoUrl) {
         if (shouldApplyNiqabiPrivacy) {
@@ -111,14 +113,14 @@ export class PersonalDataController {
             let rawUrl = originalPhotoUrl.replace(/\/upload\/e_[^/]+\//, '/upload/');
             
             // حقن الفلتر المزدوج النهائي الحاسم لطمس معالم الوجه 100%
-const blurredUrl = rawUrl.replace('/upload/', '/upload/e_pixelate:150/e_blur:2000/');
+            const blurredUrl = rawUrl.replace('/upload/', '/upload/e_pixelate:150/e_blur:2000/');
             
             cleanData.profileImageUrl = blurredUrl;
             cleanData.photo_url = blurredUrl; 
           }
         } else {
           // الحسابات العامة: لا يتم تصفير الحقل السري إلا إذا تم تأكيد إلغاء النقاب صراحةً (تجنباً للتحديث الجزئي)
-          if (cleanData.is_niqabi === false || cleanData.isNiqabi === false) {
+          if (cleanData.is_ni_qabi === false || cleanData.isNiqabi === false) {
             cleanData.securePhotoUrl = null;
             cleanData.secure_photo_url = null;
           }
@@ -135,6 +137,9 @@ const blurredUrl = rawUrl.replace('/upload/', '/upload/e_pixelate:150/e_blur:200
       if (cleanData.occupation !== undefined) cleanData.job_title = cleanData.occupation;
       if (cleanData.address !== undefined) cleanData.detailed_address = cleanData.address;
       if (cleanData.preferredOffice !== undefined) cleanData.desired_department = cleanData.preferredOffice;
+      
+      // ⚡ تدارك حاسم: ترجمة وتأمين حقل المنصب الإداري عند الحفظ والتحديث في نيون
+      if (cleanData.adminPosition !== undefined) cleanData.admin_position_id = cleanData.adminPosition;
 
       // إرسال البيانات المجهزة بالكامل للموديل
       const isUpdated = await model.updateVolunteerProfile(userId, cleanData);
