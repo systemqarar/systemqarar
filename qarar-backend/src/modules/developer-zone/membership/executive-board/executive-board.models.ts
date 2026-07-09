@@ -3,7 +3,7 @@ import { AdminPosition } from './executive-board.types';
 
 export class ExecutiveBoardModel {
   
-  // 1. جلب أعضاء الهيكل الإداري الحاليين المشغولين بمناصب (عبر الربط بجدول المناصب الجديد والـ UUID)
+  // 1. جلب أعضاء الهيكل الإداري الحاليين
   static async getCurrentBoard() {
     const query = `
       SELECT 
@@ -23,7 +23,7 @@ export class ExecutiveBoardModel {
     return result.rows;
   }
 
-  // 2. جلب المتطوعين العاديين المتاحين للتعيين (الذين ليس لديهم أي منصب حالي)
+  // 2. جلب المتطوعين العاديين المتاحين للتعيين (الذين ليس لديهم منصب حالي)
   static async getAvailableVolunteers() {
     const query = `
       SELECT 
@@ -41,13 +41,14 @@ export class ExecutiveBoardModel {
     return result.rows;
   }
 
-  // 3. التعيين الذكي والمحمي (Transaction) - يضمن إخلاء المنصب السابق تلقائياً بالـ UUID
+  // 3. التعيين الذكي والمحمي (Transaction) - الوصول للـ pool من داخل الـ db
   static async assignPosition(volunteerNumber: string, position: AdminPosition) {
-    const client = await db.connect();
+    // الحل الجذري: استدعاء الـ connect من الـ pool المعرّف داخل كائن الـ db الخاص بك
+    const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
 
-      // أولاً: جلب الـ UUID الخاص بالمنصب من جدول المناصب الجديد عبر الـ position_key القادم من الفرونتد
+      // أولاً: جلب الـ UUID الخاص بالمنصب من جدول المناصب الجديد
       const positionQuery = `SELECT id FROM admin_positions WHERE position_key = $1;`;
       const positionRes = await client.query(positionQuery, [position]);
 
@@ -58,7 +59,6 @@ export class ExecutiveBoardModel {
       const positionUuid = positionRes.rows[0].id;
 
       // ---- [خطوة الأمان الإداري]: إخلاء المنصب من الشاغل الحالي إن وُجد ----
-      // أ: إرجاع حساب المسؤول الحالي في هذا المنصب لمرتبة متطوع عادي في جدول المستخدمين
       const demoteCurrentOccupantUser = `
         UPDATE users 
         SET role = 'volunteer' 
@@ -68,7 +68,6 @@ export class ExecutiveBoardModel {
       `;
       await client.query(demoteCurrentOccupantUser, [positionUuid]);
 
-      // ب: تفريغ خانة المنصب (تصفيرها) في بروفايل المسؤول الحالي
       const demoteCurrentOccupantProfile = `
         UPDATE volunteer_profiles 
         SET admin_position_id = NULL 
@@ -78,7 +77,6 @@ export class ExecutiveBoardModel {
       // -----------------------------------------------------------------
 
       // ---- [خطوة التعيين الجديد]: تسليم الكرسي للمتطوع الجديد ----
-      // ج: تحديث رتبة المستخدم الجديد في جدول الحسابات الأمني ليطابق المنصب
       const updateUserQuery = `
         UPDATE users 
         SET role = $1 
@@ -91,7 +89,6 @@ export class ExecutiveBoardModel {
         throw new Error('المتطوع غير موجود في نظام الحسابات الرئيسي');
       }
 
-      // د: ربط البروفايل الشخصي بالـ UUID الخاص بالمنصب الجديد
       const updateProfileQuery = `
         UPDATE volunteer_profiles 
         SET admin_position_id = $1 
@@ -106,17 +103,17 @@ export class ExecutiveBoardModel {
       await client.query('ROLLBACK');
       throw error;
     } finally {
-      client.release(); // إغلاق وحفظ اتصال السيرفر بأمان
+      client.release(); // إغلاق الاتصال بأمان وإرجاعه للـ Pool
     }
   }
 
   // 4. الإعفاء النظيف من المنصب وإرجاع العضو لمرتبة متطوع عادي
   static async exemptPosition(volunteerNumber: string) {
-    const client = await db.connect();
+    // الحل الجذري: استدعاء الـ connect من الـ pool المعرّف داخل كائن الـ db الخاص بك
+    const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
 
-      // الخطوة أ: إرجاع الدور في جدول الحسابات لـ متطوع عادي
       const updateUserQuery = `
         UPDATE users 
         SET role = 'volunteer' 
@@ -129,7 +126,6 @@ export class ExecutiveBoardModel {
         throw new Error('العضو غير موجود في النظام');
       }
 
-      // الخطوة ب: تصفير وتفريغ خانة المنصب (تنزل لـ NULL) في جدول البروفايل الشخصي
       const updateProfileQuery = `
         UPDATE volunteer_profiles 
         SET admin_position_id = NULL 
@@ -143,7 +139,7 @@ export class ExecutiveBoardModel {
       await client.query('ROLLBACK');
       throw error;
     } finally {
-      client.release(); // إغلاق الاتصال بأمان
+      client.release(); // إغلاق الاتصال بأمان وإرجاعه للـ Pool
     }
   }
 }
