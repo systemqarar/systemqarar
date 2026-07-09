@@ -55,10 +55,7 @@ const DeveloperLayout: React.FC = () => {
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-[10px] text-slate-400">مرحباً يا باشمهندس</p>
-              {/* 📊 التعديل الذكي هنا: يقرأ الاسم الكامل المحقون، وإلا يرجع لليوزر نيم، وإلا لؤي الافتراضي */}
-              <p className="text-xs font-semibold text-[#38BDF8]">
-                {user?.full_name || user?.username || 'لؤي جعفر'}
-              </p>
+              <p className="text-xs font-semibold text-[#38BDF8]">{user?.username || 'لؤي جعفر'}</p>
             </div>
             
             <button 
