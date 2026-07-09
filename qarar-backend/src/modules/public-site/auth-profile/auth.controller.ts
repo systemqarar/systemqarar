@@ -21,24 +21,21 @@ export const authController = {
       // =========================================================================
       const admin1User = process.env.ADMIN_ONE_USER;
       const admin1Pass = process.env.ADMIN_ONE_PASS;
-      const admin1Name = process.env.ADMIN_ONE_NAME || 'لؤي جعفر'; // اسم العرض الخاص بك
+      const admin1Name = process.env.ADMIN_ONE_NAME || 'لؤي جعفر'; 
 
       const admin2User = process.env.ADMIN_TWO_USER;
       const admin2Pass = process.env.ADMIN_TWO_PASS;
-      const admin2Name = process.env.ADMIN_TWO_NAME || 'المطور الحليف'; // اسم العرض الخاص بصديقك
+      const admin2Name = process.env.ADMIN_TWO_NAME || 'حازم محمد'; 
 
-      // التحقق هل المدخلات تطابق أي من الحسابين السريين؟
       const isFirstAdmin = admin1User && admin1Pass && username === admin1User && password === admin1Pass;
       const isSecondAdmin = admin2User && admin2Pass && username === admin2User && password === admin2Pass;
 
       if (isFirstAdmin || isSecondAdmin) {
-        // تحديد الاسم والمعرف الافتراضي بناءً على من قام بتسجيل الدخول
         const chosenName = isFirstAdmin ? admin1Name : admin2Name;
         const virtualId = isFirstAdmin ? 'virtual-admin-001' : 'virtual-admin-002';
 
         const jwtSecret = process.env.JWT_SECRET || 'qarar-secret-key-2026-strict';
         
-        // صناعة التوكن السحري وحقن الاسم جواه (تم التعديل لسمول ليتطابق مع Neon)
         const token = jwt.sign(
           { 
             userId: virtualId, 
@@ -52,7 +49,6 @@ export const authController = {
           { expiresIn: '24h' }
         );
 
-        // إرجاع الاستجابة للفرونتد ومحاكاة يوزر حقيقي ومكتمل الملف عشان ما يكرنك
         res.status(200).json({
           message: 'تم تسجيل دخول مطور المنظومة بنجاح حركي آمن',
           token,
@@ -62,15 +58,14 @@ export const authController = {
             role: 'super_admin', 
             volunteer_number: 'MASTER-000', 
             is_acting: false,
-            is_profile_completed: true, // تخطي صفحة الأسئلة التفاعلية طوالي
-            full_name: chosenName // الحقن السحري للترحيب فوق في الهيدر (أهلاً لؤي / أهلاً صديقك)
+            is_profile_completed: true, 
+            full_name: chosenName 
           }
         });
-        return; // الخروج الفوري والذكي دون لمس جداول قاعدة البيانات نهائياً!
+        return; 
       }
       // =========================================================================
 
-      // في حال لم تكن البيانات مطابقة للمطورين، يستمر السيستم في الفحص الروتيني الطبيعي من قاعدة البيانات
       const userResult = await db.query('SELECT * FROM users WHERE username = $1', [username]);
       
       if (userResult.rows.length === 0) {
@@ -146,11 +141,15 @@ export const authController = {
         return;
       }
 
+      // =========================================================================
+      // 🔒 [إعادة التفعيل والحماية]: النظام مقفل ومحمي تماماً فقط لوحدة الوحدة (رقم 7)
+      // =========================================================================
       const currentUnitId = volunteerData.unitId || volunteerData.unit_id;
       if (Number(currentUnitId) !== 7) {
         res.status(403).json({ error: 'عذراً، النظام متاح حالياً فقط لمتطوعي وحدة الكلاكلة شرق الإدارية' });
         return;
       }
+      // =========================================================================
 
       const volunteerSnapshot = {
         volunteer_number: volunteerData.volunteerId, 
@@ -161,7 +160,7 @@ export const authController = {
         photo_url: volunteerData.photoUrl,
         is_tot_trainer: volunteerData.isTotTrainer,
         current_status_in_khartoum: volunteerData.currentStatusInKhartoum || 'داخل الولاية',
-        unit_name: volunteerData.unitName,
+        unit_name: volunteerData.unitName || volunteerData.unit_name || 'وحدة الكلاكلة شرق', // 👈 نسحب الاسم برضه عشان البطاقة
         tot_year: volunteerData.totYear ? parseInt(volunteerData.totYear) : null,
         tot_certificate_url: volunteerData.totCertificateUrl || null,
         other_certificate_url: volunteerData.otherCertificateUrl || null,
@@ -257,12 +256,14 @@ export const authController = {
       
       const newUserId = userInsertResult.rows[0].id;
 
+      // 🛠️ حفظ اسم الوحدة في الداتابيز Neon DB
       const profileInsertQuery = `
         INSERT INTO volunteer_profiles (
           user_id, volunteer_number, full_name, phone, whatsapp, photo_url, is_tot_trainer, 
           current_status_in_khartoum, tot_year, tot_certificate_url, other_certificate_url, 
-          last_first_aid_refresher, other_programs, expected_return_time, availability_level, is_profile_completed
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);
+          last_first_aid_refresher, other_programs, expected_return_time, availability_level, is_profile_completed,
+          unit_name 
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
       `;
       
       const profileValues = [
@@ -281,7 +282,8 @@ export const authController = {
         snapshot.other_programs,
         snapshot.expected_return_time,
         snapshot.availability_level,
-        false 
+        false,
+        snapshot.unit_name // 👈 ينزل اسم الوحدة هنا بأمان
       ];
       
       await db.query(profileInsertQuery, profileValues);
