@@ -1,4 +1,6 @@
-import db from '../../config/db';
+// src/modules/public-site/auth-profile/auth.models.ts
+
+import db from '../../../config/db'; // ✅ تم التصحيح لـ 3 مستويات ليتناسب مع الهيكلية الحالية وتختفي العلامة الحمراء
 import { IUser, IVolunteerProfile } from './auth.types';
 import { PoolClient } from 'pg';
 
@@ -9,7 +11,7 @@ export const AuthModel = {
     return result.rows[0] || null;
   },
 
-  // ✅ التعديل هنا: فحص هل رقم المتطوع مسجل مسبقاً لمنع التكرار (استخدام volunteer_number)
+  // ✅ فحص هل رقم المتطوع مسجل مسبقاً لمنع التكرار (استخدام volunteer_number)
   findByVolunteerNumber: async (volunteerNumber: string): Promise<IUser | null> => {
     const result = await db.query('SELECT * FROM users WHERE volunteer_number = $1', [volunteerNumber]);
     return result.rows[0] || null;
@@ -28,7 +30,7 @@ export const AuthModel = {
     await db.query('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = $1', [userId]);
   },
 
-  // ✅ التعديل هنا: حفظ رمز الـ OTP باستخدام volunteer_number
+  // ✅ حفظ رمز الـ OTP باستخدام volunteer_number
   saveOTP: async (volunteerNumber: string, codeHash: string, expiresAt: Date): Promise<void> => {
     await db.query('DELETE FROM otp_codes WHERE volunteer_number = $1', [volunteerNumber]);
     await db.query(
@@ -37,7 +39,7 @@ export const AuthModel = {
     );
   },
 
-  // ✅ التعديل هنا: جلب آخر رمز OTP صالح للمطابقة
+  // ✅ جلب آخر رمز OTP صالح للمطابقة
   getLatestOTP: async (volunteerNumber: string): Promise<{ code_hash: string; expires_at: Date } | null> => {
     const result = await db.query(
       'SELECT code_hash, expires_at FROM otp_codes WHERE volunteer_number = $1 ORDER BY expires_at DESC LIMIT 1',
@@ -46,7 +48,7 @@ export const AuthModel = {
     return result.rows[0] || null;
   },
 
-  // ✅ التعديل هنا: تسجيل طلب طوارئ يدوي باستخدام volunteer_number
+  // ✅ تسجيل طلب طوارئ يدوي باستخدام volunteer_number
   createEmergencyRequest: async (volunteerNumber: string): Promise<void> => {
     await db.query(
       'INSERT INTO verification_requests (volunteer_number, status) VALUES ($1, \'pending\') ON CONFLICT (volunteer_number) DO NOTHING',
@@ -54,7 +56,7 @@ export const AuthModel = {
     );
   },
 
-  // ✅ التعديل هنا: إنشاء الحساب الأساسي (استخدام volunteer_number)
+  // ✅ إنشاء الحساب الأساسي (يستقبل الـ role ديناميكياً من الـ Controller)
   createUser: async (client: PoolClient, volunteerNumber: string, nationalId: string, username: string, passwordHash: string, role: string): Promise<IUser> => {
     const query = `
       INSERT INTO users (volunteer_number, national_id, username, password_hash, role)
@@ -65,7 +67,7 @@ export const AuthModel = {
     return result.rows[0];
   },
 
-  // إنشاء الملف الشخصي المرتبط بالحساب الفوق
+  // إنشاء الملف الشخصي المرتبط بالحساب أعلاه
   createProfile: async (client: PoolClient, profile: IVolunteerProfile): Promise<void> => {
     const query = `
       INSERT INTO volunteer_profiles (

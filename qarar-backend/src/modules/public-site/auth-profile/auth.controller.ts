@@ -1,3 +1,5 @@
+// src/modules/public-site/auth-profile/auth.controller.ts
+
 import { Request, Response } from 'express';
 import { hasrApiClient } from '../../../services/hasrApiClient'; 
 import db from '../../../config/db'; 
@@ -160,7 +162,7 @@ export const authController = {
         photo_url: volunteerData.photoUrl,
         is_tot_trainer: volunteerData.isTotTrainer,
         current_status_in_khartoum: volunteerData.currentStatusInKhartoum || 'داخل الولاية',
-        unit_name: volunteerData.unitName || volunteerData.unit_name || 'وحدة الكلاكلة شرق', // 👈 نسحب الاسم برضه عشان البطاقة
+        unit_name: volunteerData.unitName || volunteerData.unit_name || 'وحدة الكلاكلة شرق', 
         tot_year: volunteerData.totYear ? parseInt(volunteerData.totYear) : null,
         tot_certificate_url: volunteerData.totCertificateUrl || null,
         other_certificate_url: volunteerData.otherCertificateUrl || null,
@@ -244,7 +246,9 @@ export const authController = {
 
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
-      const assignedRole = snapshot.is_tot_trainer ? 'volunteer_trainer' : 'volunteer';
+
+      // ✅ تم التعديل هنا: إلغاء الشرط القديم وتثبيت الصلاحية الافتراضية كمتطوع ميداني عادي لجميع المسجلين الجدد
+      const assignedRole = 'volunteer';
 
       const userInsertQuery = `
         INSERT INTO users (volunteer_number, national_id, username, password_hash, role)
@@ -283,7 +287,7 @@ export const authController = {
         snapshot.expected_return_time,
         snapshot.availability_level,
         false,
-        snapshot.unit_name // 👈 ينزل اسم الوحدة هنا بأمان
+        snapshot.unit_name 
       ];
       
       await db.query(profileInsertQuery, profileValues);
