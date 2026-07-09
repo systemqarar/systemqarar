@@ -3,8 +3,11 @@ import React, { useState } from 'react';
 import { useExecutiveBoard } from '../hooks/useExecutiveBoard';
 import { AdminPosition } from '../types/types';
 
+// 🏛️ استدعاء المكونات الهندسية الجديدة من المجلد المخصص لها في الهيكل
+import { SearchVolunteerModal } from '../components/SearchVolunteerModal';
+import { ConfirmAssignmentModal } from '../components/ConfirmAssignmentModal';
+
 export const ExecutiveBoardPage: React.FC = () => {
-  // جلب المجموعات المفروزة وجاهزة من الـ Hook مباشرة
   const { 
     unitDesks, 
     localityDesks, 
@@ -17,6 +20,10 @@ export const ExecutiveBoardPage: React.FC = () => {
   
   // حالة منع النقرات المزدوجة أثناء التخاطب مع السيرفر
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // الحالات البرمجية لإدارة النوافذ المنبثقة المنفصلة
+  const [activeDeskForAssign, setActiveDeskForAssign] = useState<{ key: AdminPosition; label: string } | null>(null);
+  const [selectedVolunteerForConfirm, setSelectedVolunteerForConfirm] = useState<any | null>(null);
 
   // 1. شاشة الانتظار أثناء جلب البيانات من Neon DB
   if (loading) {
@@ -36,7 +43,24 @@ export const ExecutiveBoardPage: React.FC = () => {
     );
   }
 
-  // دالة فرعية موحدة لرسم كرت المنصب (تمنع تكرار الكود وتسهل الصيانة)
+  // دالة معالجة التعيين النهائي عند ضغط زر التأكيد في الـ Modal المعماري
+  const handleConfirmAssignment = async () => {
+    if (!selectedVolunteerForConfirm || !activeDeskForAssign) return;
+    const deskKey = activeDeskForAssign.key;
+    setActionLoading(deskKey);
+    
+    const res = await assignMember(selectedVolunteerForConfirm.volunteer_number, deskKey);
+    
+    setActionLoading(null);
+    setSelectedVolunteerForConfirm(null); // تصفير الاختيار
+    setActiveDeskForAssign(null);          // إغلاق النوافذ
+    
+    if (res && !res.success) {
+      alert(res.message);
+    }
+  };
+
+  // دالة فرعية موحدة لرسم كرت المنصب
   const renderDeskCard = (desk: { key: AdminPosition; label: string; member: any }) => {
     const occupant = desk.member;
     const isDeputy = desk.key.includes('deputy');
@@ -64,7 +88,6 @@ export const ExecutiveBoardPage: React.FC = () => {
             /* [حالة أ] المنصب مشغول -> عرض بيانات العضو الحالي وزر الإعفاء */
             <div className="flex items-center justify-between bg-[#0B132B]/40 p-3 rounded-xl border border-gray-800">
               <div className="flex items-center gap-3">
-                {/* الصورة الشخصية أو الحرف البديل */}
                 <div className="w-11 h-11 rounded-full bg-gray-700 overflow-hidden border-2 border-gray-600 flex items-center justify-center shrink-0">
                   {occupant.photo_url ? (
                     <img src={occupant.photo_url} alt={occupant.full_name} className="w-full h-full object-cover" />
@@ -78,7 +101,6 @@ export const ExecutiveBoardPage: React.FC = () => {
                 </div>
               </div>
               
-              {/* زر الإعفاء من المنصب */}
               <button
                 disabled={actionLoading !== null}
                 onClick={async () => {
@@ -93,33 +115,18 @@ export const ExecutiveBoardPage: React.FC = () => {
               </button>
             </div>
           ) : (
-            /* [حالة ب] المنصب شاغر -> عرض قائمة منسدلة لاختيار متطوع وتعيينه */
-            <div className="relative">
-              <select
-                disabled={actionLoading !== null}
-                onChange={async (e) => {
-                  const val = e.target.value;
-                  if (!val) return;
-                  setActionLoading(desk.key);
-                  const res = await assignMember(val, desk.key);
-                  setActionLoading(null);
-                  if (res && !res.success) {
-                    alert(res.message);
-                  }
-                }}
-                defaultValue=""
-                className="bg-[#0B132B] text-xs text-gray-300 border border-gray-600/50 rounded-xl p-3 w-full focus:outline-none focus:border-blue-500 cursor-pointer appearance-none transition-all pr-3 pl-8"
-              >
-                <option value="" disabled>⚠️ منصب شاغر - اضغط هنا لتعيين متطوع</option>
-                {availableVolunteers.map((vol) => (
-                  <option key={vol.volunteer_number} value={vol.volunteer_number} className="bg-[#1C2541]">
-                    {vol.full_name} ({vol.volunteer_number})
-                  </option>
-                ))}
-              </select>
-              {/* سهم تجميلي منسدل */}
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 text-[10px]">▼</div>
-            </div>
+            /* [حالة ب] المنصب شاغر -> يفتح الـ Modal المخصص بدقة */
+            <button
+              disabled={actionLoading !== null}
+              onClick={() => setActiveDeskForAssign(desk)}
+              className="w-full bg-[#0B132B] hover:bg-[#152042] text-xs text-gray-300 border border-gray-600/50 rounded-xl p-3 text-right focus:outline-none focus:border-blue-500 cursor-pointer transition-all flex justify-between items-center group shadow-inner"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-amber-500 group-hover:animate-pulse">⚠️</span> 
+                منصب شاغر - اضغط هنا لتعيين متطوع
+              </span>
+              <span className="text-gray-500 text-[10px] transition-transform group-hover:translate-x-[-3px]">◀</span>
+            </button>
           )}
         </div>
       </div>
@@ -128,7 +135,7 @@ export const ExecutiveBoardPage: React.FC = () => {
 
   return (
     <div className="p-6 bg-[#0B132B] min-h-screen text-white mb-10" dir="rtl">
-      {/* هيدر الصفحة الرئيسي */}
+      {/* هيدر الصفحة */}
       <div className="mb-10 border-b border-gray-800/80 pb-5">
         <h1 className="text-2xl font-bold text-gray-100 tracking-wide">إدارة الهيكل التنفيذي والمناصب</h1>
         <p className="text-gray-400 text-xs mt-2">لوحة السوبر أدمن لإدارة وتسكين المكاتب التنفيذية بالوحدة ومكاتب الإشراف بالمحلية.</p>
@@ -155,6 +162,33 @@ export const ExecutiveBoardPage: React.FC = () => {
           {localityDesks.map(renderDeskCard)}
         </div>
       </div>
+
+      {/* ============================================================ */}
+      {/* 🖥️ حركية استدعاء النوافذ المنفصلة وتمرير البيانات عبر الـ Props */}
+      {/* ============================================================ */}
+      
+      {/* 1. نافذة البحث الذكي في المتطوعين */}
+      <SearchVolunteerModal
+        isOpen={activeDeskForAssign !== null}
+        onClose={() => {
+          setActiveDeskForAssign(null);
+          setSelectedVolunteerForConfirm(null);
+        }}
+        deskLabel={activeDeskForAssign?.label || ''}
+        availableVolunteers={availableVolunteers}
+        onSelectVolunteer={(vol) => setSelectedVolunteerForConfirm(vol)}
+      />
+
+      {/* 2. نافذة التثبت وبث القرار النهائي بقاعدة البيانات */}
+      <ConfirmAssignmentModal
+        isOpen={selectedVolunteerForConfirm !== null && activeDeskForAssign !== null}
+        onClose={() => setSelectedVolunteerForConfirm(null)}
+        onConfirm={handleConfirmAssignment}
+        volunteerName={selectedVolunteerForConfirm?.full_name || ''}
+        deskLabel={activeDeskForAssign?.label || ''}
+        isLoading={actionLoading === activeDeskForAssign?.key}
+      />
+
     </div>
   );
 };
