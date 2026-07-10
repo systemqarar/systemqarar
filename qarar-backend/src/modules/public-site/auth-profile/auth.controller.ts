@@ -144,12 +144,24 @@ export const authController = {
       }
 
       // =========================================================================
-      // 🔒 [إعادة التفعيل والحماية]: النظام مقفل ومحمي تماماً فقط لوحدة الوحدة (رقم 7)
+      // 🔒 [إعادة التفعيل والحماية المطورة]: السماح لوحدة الوحدة (رقم 7) أو الكوادر المستثناة
       // =========================================================================
       const currentUnitId = volunteerData.unitId || volunteerData.unit_id;
+      
       if (Number(currentUnitId) !== 7) {
-        res.status(403).json({ error: 'عذراً، النظام متاح حالياً فقط لمتطوعي وحدة الكلاكلة شرق الإدارية' });
-        return;
+        // فحص وجود رقم المتطوع في جدول الاستثناءات بـ Neon
+        const exceptionCheck = await db.query(
+          'SELECT id FROM registration_exceptions WHERE volunteer_number = $1',
+          [volunteer_number]
+        );
+
+        // إذا لم يكن من وحدة 7 وليس مستثنى، يتم منعه فوراً
+        if (exceptionCheck.rows.length === 0) {
+          res.status(403).json({ error: 'عذراً، النظام متاح حالياً فقط لمتطوعي وحدة الكلاكلة شرق الإدارية أو الكوادر المستثناة معتمداً' });
+          return;
+        }
+        
+        console.log(`ℹ️ تم تجاوز قفل الحماية للمتطوع رقم ${volunteer_number} بناءً على جدول الاستثناءات المعتمد برمجياً.`);
       }
       // =========================================================================
 
@@ -247,7 +259,6 @@ export const authController = {
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-      // ✅ تم التعديل هنا: إلغاء الشرط القديم وتثبيت الصلاحية الافتراضية كمتطوع ميداني عادي لجميع المسجلين الجدد
       const assignedRole = 'volunteer';
 
       const userInsertQuery = `
@@ -260,7 +271,7 @@ export const authController = {
       
       const newUserId = userInsertResult.rows[0].id;
 
-      // 🛠️ حفظ اسم الوحدة في الداتابيز Neon DB
+      // حفظ بيانات الملف الشخصي بما فيها اسم الوحدة الفعلي القادم من الـ Snapshot
       const profileInsertQuery = `
         INSERT INTO volunteer_profiles (
           user_id, volunteer_number, full_name, phone, whatsapp, photo_url, is_tot_trainer, 
