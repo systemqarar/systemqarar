@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export default function GhaithPage() {
   const [prompt, setPrompt] = useState('');
@@ -11,7 +11,6 @@ export default function GhaithPage() {
     setAnswer('');
 
     try {
-      // تعديل الرابط حسب إعدادات الباكيند والبورت عندك
       const response = await fetch('http://localhost:5000/api/public-site/ghaith/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
