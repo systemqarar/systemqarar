@@ -1,8 +1,10 @@
 import React from 'react';
 import { RouteObject } from 'react-router-dom';
 import MembershipDashboard from './membership-dashboard/pages/MembershipDashboard';
-// 1. ✨ أضفنا السطر ده عشان نستدعي شاشة الهيكل التنفيذي الجديدة
 import { ExecutiveBoardPage } from './executive-board/pages/ExecutiveBoardPage';
+
+// 1️⃣ استدعاء صفحة استثناءات التسجيل الجديدة من مكانها المخصص
+import { RegistrationExceptionsPage } from './registration-exceptions/pages/RegistrationExceptionsPage';
 
 const membershipRoutes: RouteObject[] = [
   {
@@ -10,9 +12,13 @@ const membershipRoutes: RouteObject[] = [
     element: React.createElement(MembershipDashboard)
   },
   {
-    // 2. ✨ أضفنا المسار الجديد ده عشان الأدمن لما يضغط عليه يفتح ليه الشاشة فوراً
     path: 'membership/executive-board',
     element: React.createElement(ExecutiveBoardPage)
+  },
+  {
+    // 2️⃣ إضافة المسار الجديد عشان لما تفتح رابط الاستثناءات يوجهك للصفحة فوراً
+    path: 'membership/exceptions',
+    element: React.createElement(RegistrationExceptionsPage)
   }
 ];
 

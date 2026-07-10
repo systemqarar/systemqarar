@@ -1,5 +1,4 @@
 import React from 'react';
-// 1. ✨ استوردنا الـ useNavigate عشان نتحكم في حركة التنقل بين الشاشات
 import { useNavigate } from 'react-router-dom';
 
 interface CardItem {
@@ -7,11 +6,10 @@ interface CardItem {
   title: string;
   description: string;
   status: 'active' | 'soon';
-  path?: string; // ✨ أضفنا حقل اختياري لتحديد مسار كل كرت
+  path?: string; 
 }
 
 const MembershipDashboard: React.FC = () => {
-  // 2. ✨ تفعيل دالة التوجيه جوة المكون
   const navigate = useNavigate();
   
   const managementCards: CardItem[] = [
@@ -20,7 +18,15 @@ const MembershipDashboard: React.FC = () => {
       title: 'الهيكل التنفيذي والمناصب (Executive Board)',
       description: 'عرض الهيكل الإداري الحالي، وإمكانية إعفاء الأعضاء أو تعيين متطوعين في المناصب الشاغرة بواسطة رقم المتطوع.',
       status: 'active',
-      path: 'executive-board', // ✨ المسار النسبي للشاشة الجديدة اللي ضفناها في ملف الراوتس
+      path: 'executive-board', 
+    },
+    // ✨ الكرت الجديد المخصص لنظام استثناءات التسجيل
+    {
+      id: 'exceptions',
+      title: 'استثناءات التسجيل (Registration Exceptions)',
+      description: 'إدارة قائمة المتطوعين المستثنيين للتسجيل المباشر في نظام قرار، مع فحص حركي فوري لمعرفة من قام بالتسجيل ومن لسه لم يسجل بعد.',
+      status: 'active',
+      path: 'exceptions', // المسار النسبي المربوط بملف الـ Routes
     },
     {
       id: 'directory',
@@ -81,8 +87,7 @@ const MembershipDashboard: React.FC = () => {
             {/* زر الدخول الذكي */}
             {card.status === 'active' ? (
               <button
-                className="text-rose-500 hover:text-rose-400 text-xs font-bold flex items-center gap-1 transition-colors"
-                // 3. ✨ هنا تم استبدال الـ alert بالتوجيه الفعلي للمسار الخاص بالكرت
+                className="text-rose-500 hover:text-rose-400 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                 onClick={() => card.path && navigate(card.path)}
               >
                 دخول لوحة التحكم التفصيلية &larr;
