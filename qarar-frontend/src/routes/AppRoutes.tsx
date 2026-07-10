@@ -11,6 +11,9 @@ import { OnboardingWizardPage } from '../environments/unified-dashboard/modules/
 import DeveloperLayout from '../environments/develop-dashboard/components/DeveloperLayout';
 import { developRoutes } from '../environments/develop-dashboard/develop.routes';
 
+// 🔥 استيراد مسار غيث التجريبي الجديد من موديول public-site
+import { ghaithRoutes } from '../environments/public-site/modules/ghaith/ghaith.routes';
+
 // حارس مسارات المتطوعين الحالي
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading, user, setUser } = useAuth(); 
@@ -70,6 +73,11 @@ export const AppRoutes: React.FC = () => {
       <Routes>
         {/* موديول الأمان والتحقق */}
         <Route path="/*" element={<AuthRoutes />} />
+
+        {/* 🤖 مسارات غيث التجريبية للوصول المباشر والسريع عبر الرابط */}
+        {ghaithRoutes.map((route, index) => (
+          <Route key={index} path={`/${route.path}`} element={route.element} />
+        ))}
 
         {/* لوحة تحكم المتطوعين */}
         <Route 

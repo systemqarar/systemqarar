@@ -9,6 +9,9 @@ import volunteerProfileRouter from './modules/unified-dashboard/volunteer-profil
 // 🛠️ 💻 استيراد موديول المطور وغرفة التحكم الفريدة (Super Admin Gateway)
 import developerZoneRouter from './modules/developer-zone/developer-zone.routes';
 
+// 🤖 استيراد موديول غيث الجديد من الـ public-site
+import ghaithRoutes from './modules/public-site/ghaith/ghaith.routes';
+
 import { whatsappService } from './services/whatsappService'; // 🟢 خدمة الواتساب المركزية
 
 // تفعيل قراءة الملفات البيئية السرية (.env)
@@ -40,10 +43,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/volunteer', volunteerProfileRouter);
 
 // 🛡️ 5. تفعيل موديول المطور المحمي والمشفر على مستوى السيرفر
-// 🎯 الرابط النهائي الفرعي لجلب حالة السيستم حيبقى: /api/developer-zone/overview/stats
 app.use('/api/developer-zone', developerZoneRouter);
 
-// 6. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
+// 🤖 6. تفعيل موديول المساعد الرقمي غيث واستقبال أسئلة الفحص والتجربة
+app.use('/api/public-site/ghaith', ghaithRoutes);
+
+// 7. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
 app.listen(PORT, async () => {
   console.log(`===================================================`);
   console.log(`⚡ [SERVER RUNNING]: السيرفر ينبض بالحياة الآن على منفذ: ${PORT}`);
