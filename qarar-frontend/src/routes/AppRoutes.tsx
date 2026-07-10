@@ -14,12 +14,6 @@ import { developRoutes } from '../environments/develop-dashboard/develop.routes'
 // 🔥 استيراد مسار غيث التجريبي الجديد من موديول public-site
 import { ghaithRoutes } from '../environments/public-site/modules/ghaith/ghaith.routes';
 
-// تعريف واجهة برمجية موحدة للمسارات لضمان السلامة البرمجية الصارمة
-interface AppRouteConfig {
-  path: string;
-  element: React.ReactNode;
-}
-
 // حارس مسارات المتطوعين الحالي
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading, user, setUser } = useAuth(); 
@@ -80,8 +74,8 @@ export const AppRoutes: React.FC = () => {
         {/* موديول الأمان والتحقق */}
         <Route path="/*" element={<AuthRoutes />} />
 
-        {/* 🤖 مسارات غيث التجريبية للوصول المباشر والسريع عبر الرابط - مسبكة صارماً */}
-        {ghaithRoutes.map((route: AppRouteConfig, index: number) => (
+        {/* 🤖 مسارات غيث التجريبية للوصول المباشر والسريع عبر الرابط - مسبكة صارماً وبدون any */}
+        {ghaithRoutes.map((route: { path: string; element: React.ReactNode }, index: number) => (
           <Route key={index} path={`/${route.path}`} element={route.element} />
         ))}
 
@@ -94,7 +88,7 @@ export const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           } 
         >
-          {volunteerProfileRoutes.map((route: AppRouteConfig, index: number) => (
+          {volunteerProfileRoutes.map((route, index) => (
             <Route key={index} path={route.path} element={route.element} />
           ))}
         </Route>
@@ -109,7 +103,7 @@ export const AppRoutes: React.FC = () => {
           } 
         >
           {/* هنا تنفرد وتصب كل مسارات موديولات المطور تلقائياً وبنفس أسلوب المتطوعين */}
-          {developRoutes.map((route: AppRouteConfig, index: number) => (
+          {developRoutes.map((route, index) => (
             <Route key={index} path={route.path} element={route.element} />
           ))}
         </Route>
