@@ -126,7 +126,7 @@ export const authController = {
     }
   },
 
-  // 2️⃣ الشاشة 2: فحص المعرف وصياغة رسالة الـ OTP وإرسالها وسحب البيانات كاملة
+  // 2️⃣ الشاشة 2: فحص المعرف وصياغة رسالة الـ OTP وإرسالها وسحب البيانات كاملة (محدثة بالربط الذكي)
   verifyVolunteer: async (req: Request, res: Response): Promise<void> => {
     try {
       const { volunteer_number } = req.body;
@@ -149,19 +149,19 @@ export const authController = {
       const currentUnitId = volunteerData.unitId || volunteerData.unit_id;
       
       if (Number(currentUnitId) !== 7) {
-        // فحص وجود رقم المتطوع في جدول الاستثناءات بـ Neon
+        // الفحص المحمي: تحويل الأحرف إلى صغيرة وحذف المسافات لضمان التمرير والمطابقة الدقيقة
         const exceptionCheck = await db.query(
-          'SELECT id FROM registration_exceptions WHERE volunteer_number = $1',
+          'SELECT id FROM registration_exceptions WHERE LOWER(TRIM(volunteer_number)) = LOWER(TRIM($1))',
           [volunteer_number]
         );
 
-        // إذا لم يكن من وحدة 7 وليس مستثنى، يتم منعه فوراً
+        // إذا لم يعثر عليه في جدول الاستثناءات بعد التطهير، يتم الرفض
         if (exceptionCheck.rows.length === 0) {
           res.status(403).json({ error: 'عذراً، النظام متاح حالياً فقط لمتطوعي وحدة الكلاكلة شرق الإدارية أو الكوادر المستثناة معتمداً' });
           return;
         }
         
-        console.log(`ℹ️ تم تجاوز قفل الحماية للمتطوع رقم ${volunteer_number} بناءً على جدول الاستثناءات المعتمد برمجياً.`);
+        console.log(`ℹ️ تم تمرير وتجاوز الحماية للمتطوع رقم ${volunteer_number} عبر جدول الاستثناءات بنجاح.`);
       }
       // =========================================================================
 
