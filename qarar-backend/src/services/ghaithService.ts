@@ -62,11 +62,10 @@ export async function askGhaith(prompt: string): Promise<string> {
   const selectedKey = selectedKeyObj.value;
   const selectedKeyName = selectedKeyObj.name; // هنا حفظنا الاسم (مثلاً GEMINI_KEY_3) عشان لو ضرب نعرفه
 
-  // 4. إرسال الطلب لقوقل (تحديث الموديل بناءً على لوحة تحكم حسابك لـ gemini-3.1-flash)
-    // 4. إرسال الطلب لقوقل (المسار الرسمي والمستقر المعتمد لـ gemini-2.5-flash عبر إصدار v1)
+          // 4. إرسال الطلب لقوقل (المسار الرسمي والمستقر المعتمد لـ gemini-2.0-flash عبر إصدار v1)
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${selectedKey}`,
+        `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${selectedKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -75,7 +74,6 @@ export async function askGhaith(prompt: string): Promise<string> {
           }),
         }
       );
-
 
     // 5. كشف الحساب المحظور فوراً
     if (!response.ok) {
