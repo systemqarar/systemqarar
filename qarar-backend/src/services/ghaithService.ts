@@ -1,7 +1,34 @@
 // src/services/ghaithService.ts
 
+// ==========================================
+// 🛡️ الواجهات البرمجية الصارمة لردود جيمني (Type-Safe Interfaces)
+// ==========================================
+interface GeminiPart {
+  text: string;
+}
+
+interface GeminiContent {
+  parts: GeminiPart[];
+  role?: string;
+}
+
+interface GeminiCandidate {
+  content: GeminiContent;
+  finishReason?: string;
+  index?: number;
+}
+
+interface GeminiResponse {
+  candidates?: GeminiCandidate[];
+  usageMetadata?: {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
+  };
+}
+
 /**
- * خدمة غيث المركزية الملوّرة - نظام قرار
+ * خدمة غيث المركزية المطوّرة - نظام قرار
  * وظيفته: اختيار مفتاح مرقم عشوائياً، ومعرفة اسمه بالظبط عند حدوث أي خطأ لتسهيل مراقبته
  */
 export async function askGhaith(prompt: string): Promise<string> {
@@ -15,7 +42,7 @@ export async function askGhaith(prompt: string): Promise<string> {
   const keysWithNames: { name: string; value: string }[] = [];
   
   for (const envKey in process.env) {
-    // الكود بيفتش على أي متغير يبدأ بـ _GEMINI_KEY ويأكد إنه مش فاضي
+    // الكود بيفتش على أي متغير يبدأ بـ GEMINI_KEY_ ويأكد إنه مش فاضي
     if (envKey.startsWith('GEMINI_KEY_') && process.env[envKey]) {
       keysWithNames.push({
         name: envKey, // حيشيل الاسم مثل: GEMINI_KEY_3
@@ -56,7 +83,8 @@ export async function askGhaith(prompt: string): Promise<string> {
       throw new Error(`فشل الاتصال بجيمني عبر الحساب: ${selectedKeyName}`);
     }
 
-    const data = await response.json();
+    // تعميد البيانات صراحة بالنوع المتوقع لحل مشكلة التدقيق الصارم في ريندر
+    const data = (await response.json()) as GeminiResponse;
     const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!textResponse) {
