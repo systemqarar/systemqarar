@@ -15,7 +15,6 @@ interface GeminiContent {
 interface GeminiCandidate {
   content: GeminiContent;
   finishReason?: string;
-  index?: number;
 }
 
 interface GeminiResponse {
@@ -42,11 +41,10 @@ export async function askGhaith(prompt: string): Promise<string> {
   const keysWithNames: { name: string; value: string }[] = [];
   
   for (const envKey in process.env) {
-    // الكود بيفتش على أي متغير يبدأ بـ GEMINI_KEY_ ويأكد إنه مش فاضي
     if (envKey.startsWith('GEMINI_KEY_') && process.env[envKey]) {
       keysWithNames.push({
-        name: envKey, // حيشيل الاسم مثل: GEMINI_KEY_3
-        value: process.env[envKey]!.trim() // حيشيل قيمة المفتاح نفسه
+        name: envKey, 
+        value: process.env[envKey]!.trim() 
       });
     }
   }
@@ -60,30 +58,28 @@ export async function askGhaith(prompt: string): Promise<string> {
   const selectedKeyObj = keysWithNames[randomIndex];
   
   const selectedKey = selectedKeyObj.value;
-  const selectedKeyName = selectedKeyObj.name; // هنا حفظنا الاسم (مثلاً GEMINI_KEY_3) عشان لو ضرب نعرفه
+  const selectedKeyName = selectedKeyObj.name; 
 
-          // 4. إرسال الطلب لقوقل (المسار الرسمي والمستقر المعتمد لـ gemini-2.0-flash عبر إصدار v1)
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${selectedKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-          }),
-        }
-      );
+  // 4. إرسال الطلب لقوقل (تعديل المسار إلى v1beta والنسخة المستقرة مجاناً 1.5-flash)
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${selectedKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
 
     // 5. كشف الحساب المحظور فوراً
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      // السطر ده حيطبع ليك في الـ Logs بتاعت ريندر اسم المفتاح الخربان بالظبط
       console.error(`[🚨 تنبيه حظر] المشكلة في المفتاح: ${selectedKeyName}`, errorData);
       throw new Error(`فشل الاتصال بجيمني عبر الحساب: ${selectedKeyName}`);
     }
 
-    // تعميد البيانات صراحة بالنوع المتوقع لحل مشكلة التدقيق الصارم في ريندر
     const data = (await response.json()) as GeminiResponse;
     const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     
