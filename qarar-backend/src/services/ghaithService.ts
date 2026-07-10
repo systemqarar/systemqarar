@@ -65,7 +65,7 @@ export async function askGhaith(prompt: string): Promise<string> {
   // 4. إرسال الطلب لقوقل (تحديث الموديل بناءً على لوحة تحكم حسابك لـ gemini-3.1-flash)
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash:generateContent?key=${selectedKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash:generateContent?key=${selectedKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
