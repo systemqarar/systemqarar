@@ -62,10 +62,10 @@ export async function askGhaith(prompt: string): Promise<string> {
   const selectedKey = selectedKeyObj.value;
   const selectedKeyName = selectedKeyObj.name; // هنا حفظنا الاسم (مثلاً GEMINI_KEY_3) عشان لو ضرب نعرفه
 
-  // 4. إرسال الطلب لقوقل
+  // 4. إرسال الطلب لقوقل (تحديث الموديل إلى الإصدار المعتمد المستقر)
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${selectedKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${selectedKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
