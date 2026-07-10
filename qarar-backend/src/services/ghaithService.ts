@@ -60,27 +60,33 @@ export async function askGhaith(prompt: string): Promise<string> {
   const selectedKey = selectedKeyObj.value;
   const selectedKeyName = selectedKeyObj.name; 
 
-  // 4. إرسال الطلب لقوقل (تعديل المسار إلى v1beta والنسخة المستقرة مجاناً 1.5-flash)
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${selectedKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      }
-    );
+  // 4. إرسال الطلب لقوقل (مسار v1 مع نسخة 1.5-flash)
+  const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${selectedKey}`;
+  
+  // طباعة الرابط للـ Log مع إخفاء المفتاح الحقيقي للأمان
+  console.log(`[🔍 فحص المسار] جاري الاتصال بالرابط: https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=***HIDDEN***`);
 
-    // 5. كشف الحساب المحظور فوراً
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+      }),
+    });
+
+    // 5. كشف الخطأ وطباعة التفاصيل كاملة من سيرفرات جوجل
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error(`[🚨 تنبيه حظر] المشكلة في المفتاح: ${selectedKeyName}`, errorData);
-      throw new Error(`فشل الاتصال بجيمني عبر الحساب: ${selectedKeyName}`);
+      const errorText = await response.text(); 
+      console.error(`[🚨 تفاصيل الخطأ الكاملة] المشكلة في المفتاح: ${selectedKeyName}`);
+      console.error(`[🚨 كود حالة الخطأ HTTP]: ${response.status}`);
+      console.error(`[🚨 الاستجابة الصافية من جوجل]: ${errorText}`);
+      throw new Error(`فشل الاتصال بجيمني (رمز ${response.status}) عبر الحساب: ${selectedKeyName}`);
     }
 
-    const data = (await response.json()) as GeminiResponse;
+    // محاولة قراءة البيانات في حال النجاح
+    const dataText = await response.text();
+    const data = JSON.parse(dataText) as GeminiResponse;
     const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!textResponse) {
