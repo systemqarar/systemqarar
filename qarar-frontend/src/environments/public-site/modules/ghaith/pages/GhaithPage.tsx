@@ -11,7 +11,18 @@ export default function GhaithPage() {
     setAnswer('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/public-site/ghaith/ask', {
+      // 🌐 جلب الرابط ديناميكياً من متغيرات فيرسال أو استخدام رابط ريندر كخيار احتياطي
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://systemqarar.onrender.com';
+      
+      // تنظيف الرابط من أي شرطة مائلة زائدة في الآخر لضمان سلامة المسار
+      const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      
+      // بناء المسار الذكي للتأكد من عدم تكرار كلمة /api لو كانت موجودة في المتغير
+      const apiUrl = cleanBaseUrl.includes('/api') 
+        ? `${cleanBaseUrl}/public-site/ghaith/ask` 
+        : `${cleanBaseUrl}/api/public-site/ghaith/ask`;
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
@@ -24,7 +35,7 @@ export default function GhaithPage() {
         setAnswer(`خطأ: ${data.message}`);
       }
     } catch (error) {
-      setAnswer('فشل الاتصال بالباكيند، تأكد من تشغيل السيرفر.');
+      setAnswer('فشل الاتصال بالباكيند، تأكد من تشغيل سيرفر ريندر واستقراره.');
     } finally {
       setLoading(false);
     }
