@@ -41,7 +41,7 @@ interface GhaithOptions {
 }
 
 /**
- * خدمة غيث المركزية المطوّرة - نظام قرار
+ * خدمة غيث المركزية المطوّرة والمُحصّنة - نظام قرار
  */
 export async function askGhaith(prompt: string, options?: GhaithOptions): Promise<string> {
   
@@ -77,8 +77,10 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
     try {
       attempts++;
 
-      const baseSystemInstruction = 'أنت غيث، المساعد الرقمي والمهندس والمشرف الأول الذكي لنظام قرار الإداري. وظيفتك هي مراقبة جودة البيانات، مساعدة الأعضاء المتطوعين، والتأكد من دقة وسير العمل بكل احترافية وبأعلى جودة إدارية.';
+      // 🎯 [تعديل مرن]: هنا الهوية الشخصية الثابتة فقط لغيث دون فرض وظيفة معينة
+      const baseSystemInstruction = 'أنت غيث، المساعد الرقمي الذكي لنظام قرار. تتحدث بلباقة، احترافية، وذكاء عالٍ. أسلوبك متعاون ومناسب تماماً للسياق والمهمة المطلوبة منك حالياً. إذا طُلب منك الرد بصيغة JSON، يجب أن يكون الرد صالحاً ومطابقاً للقواعد تماماً بدون أي أخطاء مصنعية في الأقواس أو الفواصل.';
       
+      // هنا بيتم دمج الهوية الثابتة مع "المهمة الخاصة بالوحدة" الممررة من الملف الخارجي
       const finalInstruction = options?.systemInstruction 
         ? `${baseSystemInstruction} ${options.systemInstruction}` 
         : baseSystemInstruction;
@@ -107,7 +109,6 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
         };
       }
 
-      // 🎯 التعديل السحري هنا: تم تغيير v1 إلى v1beta لدعم الحقول الجديدة بنجاح
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${selectedKey}`,
         {
@@ -134,7 +135,22 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
         continue;
       }
 
-      return textResponse;
+      let cleanedText = textResponse.trim();
+      if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+      }
+
+      if (options?.responseJson) {
+        try {
+          JSON.parse(cleanedText); 
+        } catch (jsonError) {
+          console.warn(`[⚠️ خطأ في قالب JSON] المفتاح [${selectedKeyName}] رجّع بيانات مكسورة. جاري التبديل تلقائياً لحماية النظام.`);
+          availableKeys.splice(randomIndex, 1);
+          continue; 
+        }
+      }
+
+      return cleanedText;
 
     } catch (error) {
       console.error(`[❌ خطأ في المحاولة] أثناء استخدام ${selectedKeyName}:`, error);
