@@ -1,3 +1,5 @@
+// src/modules/unified-dashboard/volunteer-profile/onboarding-wizard/pages/OnboardingWizardPage.tsx
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboardingWizard } from '../hooks/useOnboardingWizard';
@@ -5,6 +7,7 @@ import { WizardProgressBar } from '../components/WizardProgressBar';
 import { StepPersonalData } from '../components/StepPersonalData';
 import { StepAddressDepartment } from '../components/StepAddressDepartment';
 import { StepPhotoSecure } from '../components/StepPhotoSecure';
+import { GhaithFeedbackModal } from '../components/GhaithFeedbackModal'; // 👈 استدعاء المكون المستقل الجديد نظيفاً
 
 export const OnboardingWizardPage: React.FC<{ onWizardComplete: () => void }> = ({ onWizardComplete }) => {
   const {
@@ -14,12 +17,13 @@ export const OnboardingWizardPage: React.FC<{ onWizardComplete: () => void }> = 
     nextStep,
     prevStep,
     handleFinalSubmit,
-    isSubmitting
+    isSubmitting,
+    ghaithMessage,       // 👈 البيانات قادمة من الهوك بمعيارية ونظافة
+    setGhaithMessage     // 👈 التحكم في الإغلاق عبر الهوك
   } = useOnboardingWizard(onWizardComplete);
 
   const totalSteps = 3;
 
-  // 🌟 تعديل 1: إعدادات حركة مطاطية مرنة وممتعة (Spring Physics) مع إزاحة أفقية ناعمة
   const pageVariants = {
     initial: { opacity: 0, x: 20 },
     animate: { opacity: 1, x: 0 },
@@ -27,7 +31,6 @@ export const OnboardingWizardPage: React.FC<{ onWizardComplete: () => void }> = 
   };
 
   return (
-    // 🌟 تعديل 2: تحويل الخلفية إلى [#f8f9fa] لتطابق تماماً هوية الداشبورد
     <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center p-4" dir="rtl">
       <div className="w-full max-w-xl bg-white rounded-3xl shadow-sm p-6 md:p-8 border border-gray-100/80">
         
@@ -42,7 +45,6 @@ export const OnboardingWizardPage: React.FC<{ onWizardComplete: () => void }> = 
             initial="initial"
             animate="animate"
             exit="exit"
-            // 🌟 تعديل 3: ضبط الانتقال ليكون مطاطياً وسريع الاستجابة (Stiffness & Damping) ليعطي متعة أعلى عند التنقل
             transition={{ type: 'spring', stiffness: 320, damping: 26 }}
           >
             {currentStep === 0 && (
@@ -67,6 +69,12 @@ export const OnboardingWizardPage: React.FC<{ onWizardComplete: () => void }> = 
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* 🤖 مكوّن غيث المستقل والنظيف تماماً طبقاً للمعيارية الفائقة لـ قرار */}
+      <GhaithFeedbackModal 
+        message={ghaithMessage} 
+        onClose={() => setGhaithMessage(null)} 
+      />
     </div>
   );
 };

@@ -1,3 +1,5 @@
+// src/modules/unified-dashboard/volunteer-profile/onboarding-wizard/hooks/useOnboardingWizard.ts
+
 import { useState } from 'react';
 import { OnboardingFormData } from '../types/onboarding.types';
 import { submitOnboardingData } from '../api/onboardingApi';
@@ -18,13 +20,12 @@ const initialData: OnboardingFormData = {
   secure_photo_url: '',
 };
 
-// دالة مساعدة لرفع الصور مباشرة إلى كلاودنري من الفرونت إند
+// دالة مساعدة لرفع الصور مباشرة إلى كلاودنري من الفرونت إند (بدون أي تغيير)
 const uploadToCloudinary = async (base64String: string): Promise<string> => {
   if (!base64String || base64String.startsWith('http')) {
     return base64String;
   }
 
-  // تجاوز ذكي لأي قيود في الـ TypeScript للتعرف على متغيرات البيئة في Vercel
   const env = (import.meta as any).env || {};
   const CLOUD_NAME = env.VITE_CLOUDINARY_CLOUD_NAME; 
   const UPLOAD_PRESET = env.VITE_CLOUDINARY_UPLOAD_PRESET; 
@@ -55,6 +56,9 @@ export const useOnboardingWizard = (onComplete: () => void) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<OnboardingFormData>(initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // 🤖 1. الـ State المعيارية الجديدة للتحكم في رسائل غيث المنبثقة
+  const [ghaithMessage, setGhaithMessage] = useState<string | null>(null);
 
   const updateFields = (fields: Partial<OnboardingFormData>) => {
     setFormData((prev) => {
@@ -71,6 +75,8 @@ export const useOnboardingWizard = (onComplete: () => void) => {
 
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
+    setGhaithMessage(null); // تصفير أي رسالة سابقة عند بدء المحاولة الجديدة
+    
     try {
       let finalPhotoUrl = formData.photo_url;
 
@@ -85,14 +91,13 @@ export const useOnboardingWizard = (onComplete: () => void) => {
       }
 
       // تجهيز كائن البيانات النهائي النظيف والآمن
-      // نرسل الرابط الأصلي النقي فقط، ونترك مهمة التأمين والتشويش بالكامل للسيرفر لضمان الأمان الصارم
       const cleanedFormData: OnboardingFormData = {
         ...formData,
         photo_url: finalPhotoUrl,
         secure_photo_url: '', 
       };
 
-      // 2. مرحلة الحفظ في سيرفر قاعدة البيانات (Backend)
+      // 2. مرحلة الحفظ في سيرفر قاعدة البيانات (Backend) وفحص مخرجات غيث
       try {
         const res = await submitOnboardingData(cleanedFormData);
         if (res.success) {
@@ -105,7 +110,15 @@ export const useOnboardingWizard = (onComplete: () => void) => {
         const statusCode = apiError.response?.status; 
         const serverMessage = apiError.response?.data?.message || apiError.response?.data || apiError.message;
 
-        alert(`❌ [خطأ من سيرفر الـ Backend]:\n- رمز الخطأ (Status): ${statusCode || 'مشكلة شبكة / اتصال مقطوع'}\n- تفاصيل السيرفر: ${JSON.stringify(serverMessage)}`);
+        // 🎯 2. الحتة السحرية المعيارية: لو الخطأ كود 400 (وهو الكود المخصص لرفض غيث للصورة الشخصية)
+        // نقوم بحقن الرسالة المنسكبة في الـ State ليتم عرضها في المودال المنبثق فوراً بدل الأليرت
+        if (statusCode === 400 && apiError.response?.data?.message) {
+          setGhaithMessage(serverMessage);
+        } else {
+          // باقي الأخطاء التقنية (أخطاء السيرفر 500 أو انقطاع الشبكة) تظهر كـ Alert طبيعي كما كانت
+          alert(`❌ [خطأ من سيرفر الـ Backend]:\n- رمز الخطأ (Status): ${statusCode || 'مشكلة شبكة / اتصال مقطوع'}\n- تفاصيل السيرفر: ${JSON.stringify(serverMessage)}`);
+        }
+        
         throw apiError;
       }
 
@@ -116,6 +129,7 @@ export const useOnboardingWizard = (onComplete: () => void) => {
     }
   };
 
+  // 3. تمرير الـ State ودالة التحكم للخارج لتستفيد منها صفحة الـ Page
   return {
     currentStep,
     formData,
@@ -124,6 +138,7 @@ export const useOnboardingWizard = (onComplete: () => void) => {
     prevStep,
     handleFinalSubmit,
     isSubmitting,
+    ghaithMessage,
+    setGhaithMessage,
   };
 };
-
