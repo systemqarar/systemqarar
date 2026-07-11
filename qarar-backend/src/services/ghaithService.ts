@@ -38,6 +38,7 @@ interface GhaithOptions {
     mimeType: string;
     data: string;
   };
+  responseSchema?: any; // 🎯 خيار المخطط الهيكلي (قالب السيليكون) - أضفناه كخيار اختياري للمستقبل
 }
 
 /**
@@ -77,10 +78,8 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
     try {
       attempts++;
 
-      // 🎯 [تعديل مرن]: هنا الهوية الشخصية الثابتة فقط لغيث دون فرض وظيفة معينة
       const baseSystemInstruction = 'أنت غيث، المساعد الرقمي الذكي لنظام قرار. تتحدث بلباقة، احترافية، وذكاء عالٍ. أسلوبك متعاون ومناسب تماماً للسياق والمهمة المطلوبة منك حالياً. إذا طُلب منك الرد بصيغة JSON، يجب أن يكون الرد صالحاً ومطابقاً للقواعد تماماً بدون أي أخطاء مصنعية في الأقواس أو الفواصل.';
       
-      // هنا بيتم دمج الهوية الثابتة مع "المهمة الخاصة بالوحدة" الممررة من الملف الخارجي
       const finalInstruction = options?.systemInstruction 
         ? `${baseSystemInstruction} ${options.systemInstruction}` 
         : baseSystemInstruction;
@@ -105,7 +104,8 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
 
       if (options?.responseJson) {
         requestBody.generationConfig = {
-          responseMimeType: 'application/json'
+          responseMimeType: 'application/json',
+          ...(options.responseSchema && { responseSchema: options.responseSchema }) // 🎯 تمرير قالب السيليكون لجيمني لو تم تحديده في الخيارات
         };
       }
 
@@ -140,11 +140,20 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
         cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
       }
 
+      // 🛡️ [مستخرج الـ JSON العبقري]: تنظيف النص واقتصاص ما بين الأقواس فقط قبل الفحص والتحليل
       if (options?.responseJson) {
+        const firstBracket = cleanedText.indexOf('{');
+        const lastBracket = cleanedText.lastIndexOf('}');
+        
+        if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+          cleanedText = cleanedText.substring(firstBracket, lastBracket + 1);
+        }
+        
+        // الآن نقوم بعمل الفحص الصارم للـ JSON النظيف
         try {
           JSON.parse(cleanedText); 
         } catch (jsonError) {
-          console.warn(`[⚠️ خطأ في قالب JSON] المفتاح [${selectedKeyName}] رجّع بيانات مكسورة. جاري التبديل تلقائياً لحماية النظام.`);
+          console.warn(`[⚠️ خطأ في قالب JSON] المفتاح [${selectedKeyName}] رجّع بيانات مكسورة حتى بعد التنظيف. جاري التبديل تلقائياً لحماية النظام.`);
           availableKeys.splice(randomIndex, 1);
           continue; 
         }

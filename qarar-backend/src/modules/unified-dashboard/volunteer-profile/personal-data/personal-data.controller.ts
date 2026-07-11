@@ -49,7 +49,7 @@ export class PersonalDataController {
           occupation: volunteer.job_title,
           address: volunteer.detailed_address,
           preferredOffice: volunteer.desired_department,
-          isNiqabi: volunteer.is_niqabi,
+          isNiqabi: volunteer.is_niqabi || volunteer.is_niqabi,
           isTotTrainer: volunteer.is_tot_trainer,
           totYear: volunteer.tot_year,
           totCertificateUrl: volunteer.tot_certificate_url,
@@ -67,7 +67,7 @@ export class PersonalDataController {
     }
   }
 
-  // 📥 حفظ وتحديث بيانات الملف الشخصي مع فحص غيث الصارم
+  // 📥 حفظ وتحديث بيانات الملف الشخصي (Onboarding) مع فحص غيث الصارم ومطابقة الجنس
   async saveProfileData(req: Request, res: Response): Promise<void> {
     try {
       const { userId, ...updateData } = req.body;
@@ -79,22 +79,25 @@ export class PersonalDataController {
 
       const cleanData = { ...updateData };
       const originalPhotoUrl = cleanData.profileImageUrl || cleanData.photo_url;
+      
+      // 👥 سحب حقل الجنس المرفوع من الاستمارة للمطابقة والمخاطبة
+      const userGender = cleanData.gender || 'لم يحدد'; 
 
       const isNiqabiChecked = 
         String(cleanData.isNiqabi) === 'true' || 
         cleanData.isNiqabi === true || 
-        String(cleanData.is_ni_qabi) === 'true' || 
+        String(cleanData.is_niqabi) === 'true' || 
         cleanData.is_ni_qabi === true;
 
       const shouldApplyNiqabiPrivacy = isNiqabiChecked;
 
-      if (cleanData.isNiqabi !== undefined || cleanData.is_ni_qabi !== undefined) {
+      if (cleanData.isNiqabi !== undefined || cleanData.is_niqabi !== undefined) {
         cleanData.isNiqabi = shouldApplyNiqabiPrivacy;
-        cleanData.is_ni_qabi = shouldApplyNiqabiPrivacy;
+        cleanData.is_niqabi = shouldApplyNiqabiPrivacy;
       }
 
       // ==========================================================
-      // 🤖 عيون غيث الذكية والمحسنة (فحص صارم ومقاوم لأخطاء القراءة)
+      // 🤖 عيون غيث الذكية والمحسنة (فحص جودة الصورة + مطابقة الجنس)
       // ==========================================================
       if (originalPhotoUrl) {
         try {
@@ -109,50 +112,66 @@ export class PersonalDataController {
           const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
 
           const ghaithInstruction = `
-            مهمتك الحالية هي فحص جودة وصلاحية الصورة الشخصية المرفوعة من قبل العضو في نظام قرار الإداري.
-            المعايير الصارمة: يجب أن تكون الصورة قريبة من الوجه، متمركزة في المنتصف، وبخلفية لائقة ورسمية تليق بالبطاقات التعريفية والشهادات الرسمية. يمنع منعاً باتاً قبول صور الرحلات، البحار، الصور العائلية الجماعية، أو الصور غير اللائقة إدارياً.
+            مهمتك الحالية هي فحص جودة وصلاحية الصورة الشخصية المرفوعة من قبل العضو في نظام قرار الإداري لتستخدم في البطاقات والشهادات الرسمية.
+            المعايير الصارمة: يجب أن تكون الصورة قريبة من الوجه، متمركزة في المنتصف، وبخلفية لائقة ورسمية. يمنع قبول صور الرحلات، البحار، السلفي، اللقطات الجماعية أو اللقطات العشوائية.
             
-            ⚠️ تنبيه أمان فائق بخصوص النقاب: حالة النقاب لهذا الحساب حالياً هي (${shouldApplyNiqabiPrivacy ? 'منقبة واختارت حماية الخصوصية' : 'غير منقبة'}). إذا كانت الحالة منقبة، فمن الطبيعي والمحترم جداً أن يكون الوجه مغطى بالنقاب! لا ترفض الصورة بحجة عدم وضوح الوجه، بل تأكد فقط أن الصورة رسمية، متمركزة، رصينة، وليست لقطة عشوائية مكركبة في مكان عام.
+            👥 فحص مطابقة الجنس (Gender Matching):
+            بناءً على إدخال العضو في الاستمارة، فإن جنسه المحدد هو: (${userGender}).
+            يجب عليك التأكد بصرياً من أن ملامح الشخص في الصورة تطابق هذا الجنس تماماً! 
+            - إذا كان الجنس المحدد هو "ذكر" والصورة المرفوعة واضحة أنها لـ (أنثى/بت)، ارفض الصورة فوراً.
+            - إذا كان الجنس المحدد هو "أنثى" والصورة المرفوعة واضحة أنها لـ (ذكر/ولد)، ارفض الصورة فوراً.
             
-            شروط الرد: يجب أن ترد بصيغة JSON حصراً كالتالي دون أي نص خارجي أو تحيات إضافية:
-            { "isValid": true أو false, "reason": "اكتب النص هنا في حال الرفض" }
+            🚨 شرط حاسم وقاطع بخصوص النقاب والوجه:
+            حتى لو كانت الأخت منقبة، يجب أن ترفع صورتها بملامح وجهها المكشوفة والكاملة والواضحة تماماً لغرض الفحص والشهادات الرسمية! إذا رفعت صورة ووجهها مغطى بالنقاب أو القماش، يجب أن ترفض الصورة طوالاً (isValid: false).
+            في سبب الرفض للمنقبة، وضح لها بلطف شديد وأخوي تالي: (يا أستاذة، نحتاج صورتك بملامح مكشوفة وواضحة عشان تطلع ظابطة وقيافة في الشهادات والبطاقات الرسمية، وما تقلقي نهائياً السيستم ح يغبش ويحجب ملامح الصورة تلقائياً في حسابك عشان خصوصيتك محمية 100%).
             
-            طريقة صياغة سبب الرفض (عندما تكون isValid هي false): اكتب السبب باللهجة السودانية الخالصة، بأسلوب مهذب ومحترم ولطيف جداً وأخوي، يحسس العضو بمكانته الكبيرة وأهميته في نظام قرار، ويوضح له بلطف أننا نحتاج صورة ضابطة ومسطرة عشان تطلع قيافة وممتازة في البطاقات أو الشهادات الرسمية الخاصة به.
+            🗣️ المخاطبة الموجهة حسب الجنس (Dynamic Phrasing):
+            عند صياغة سبب الرفض (reason) في الـ JSON، يجب أن تخاطب العضو لغوياً بناءً على جنسه الممرر (${userGender}):
+            - إذا كان ذكراً: خاطبه بصيغة المذكر وبلهجة سودانية محترمة وأخوية ولطيفة (مثال: يا غالي، يا أستاذ، صورتك محتاجة تعديل...).
+            - إذا كانت أنثى: خاطبها بصيغة المؤنث وبلهجة سودانية لطيفة ومحترمة وأخوية (مثال: يا غالية، يا أستاذة، صورتكِ محتاجة تعديل...).
           `;
 
+          // 📊 قالب السيليكون الصارم لضبط مخرجات الـ JSON
+          const imageValidationSchema = {
+            type: "object",
+            properties: {
+              isValid: { 
+                type: "boolean", 
+                description: "true للقبول، false للرفض عند عدم المطابقة أو رداءة الصورة" 
+              },
+              reason: { 
+                type: "string", 
+                description: "سبب الرفض الموجه جنسياً باللهجة السودانية اللطيفة، أو نص فارغ عند القبول." 
+              }
+            },
+            required: ["isValid", "reason"]
+          };
+
           const ghaithResponseText = await askGhaith(
-            "يرجى مراجعة هذه الصورة الشخصية وإعطائي القرار النهائي بملف JSON حسب التعليمات السيادية المعطاة لك.",
+            "يرجى مراجعة هذه الصورة الشخصية ومطابقتها مع الجنس المحدد وإعطائي القرار النهائي حسب التعليمات السيادية المعطاة لك.",
             {
               responseJson: true,
+              responseSchema: imageValidationSchema,
               systemInstruction: ghaithInstruction,
               inlineData: { mimeType, data: base64Image }
             }
           );
 
-          // 🧼 خطوة الحماية المضافة: تنظيف الرد تماماً من أي علامات ماركداون قد يضعها موديول الذكاء الاصطناعي
-          let cleanedJsonText = ghaithResponseText.trim();
-          if (cleanedJsonText.includes('```')) {
-            cleanedJsonText = cleanedJsonText.replace(/```json/g, '').replace(/```/g, '').trim();
-          }
-
-          const ghaithResult = JSON.parse(cleanedJsonText);
+          const ghaithResult = JSON.parse(ghaithResponseText);
           
-          // تطبيق القرار النهائي الصارم
           if (ghaithResult.isValid === false || String(ghaithResult.isValid) === 'false') {
             res.status(400).json({ 
               success: false, 
               message: ghaithResult.reason || 'عذراً، يرجى رفع صورة شخصية رسمية ومطابقة للمواصفات.' 
             });
-            return; // إيقاف فوري وحاسم للحفظ
+            return; 
           }
 
         } catch (ghaithError: any) {
           console.error('🚨 [خطأ فحص غيث]:', ghaithError);
-          
-          // 🛑 التعديل الصارم لفترة الفحص والتجريب: نوقف العملية ونظهر الخطأ في المودال بدلاً من التخطي الصامت
           res.status(400).json({
             success: false,
-            message: `🤖 غيث واجه مشكلة أثناء التدقيق: (${ghaithError.message || 'مشكلة في معالجة جيسون الرد'}). يرجى إعادة المحاولة أو التأكد من سلامة مفاتيح الـ API الخاص بجيمني.`
+            message: `🤖 غيث واجه مشكلة أثناء تدقيق الصورة: (${ghaithError.message || 'مشكلة في معالجة الرد'}). يرجى إعادة المحاولة.`
           });
           return;
         }
@@ -173,7 +192,7 @@ export class PersonalDataController {
             cleanData.photo_url = blurredUrl; 
           }
         } else {
-          if (cleanData.is_ni_qabi === false || cleanData.isNiqabi === false) {
+          if (cleanData.is_niqabi === false || cleanData.isNiqabi === false) {
             cleanData.securePhotoUrl = null;
             cleanData.secure_photo_url = null;
           }
@@ -202,11 +221,9 @@ export class PersonalDataController {
       res.status(200).json({ success: true, message: 'تم تحديث البيانات الشخصية بنجاح وضمان الخصوصية الفائقة' });
     } catch (error: any) {
       console.error('Error in saveProfileData:', error);
-      const dbErrorDetail = error.message || JSON.stringify(error);
       res.status(500).json({ 
         success: false, 
-        message: `❌ خطأ في السيرفر أو الـ DB: (${dbErrorDetail})`, 
-        error: error.message 
+        message: `❌ خطأ في السيرفر أو الـ DB: (${error.message || error})`
       });
     }
   }
