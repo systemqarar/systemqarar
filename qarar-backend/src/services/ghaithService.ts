@@ -38,7 +38,7 @@ interface GhaithOptions {
     mimeType: string;
     data: string;
   };
-  responseSchema?: any; // 🎯 خيار المخطط الهيكلي (قالب السيليكون) - أضفناه كخيار اختياري للمستقبل
+  responseSchema?: any; 
 }
 
 /**
@@ -105,7 +105,7 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
       if (options?.responseJson) {
         requestBody.generationConfig = {
           responseMimeType: 'application/json',
-          ...(options.responseSchema && { responseSchema: options.responseSchema }) // 🎯 تمرير قالب السيليكون لجيمني لو تم تحديده في الخيارات
+          ...(options.responseSchema && { responseSchema: options.responseSchema })
         };
       }
 
@@ -118,10 +118,26 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
         }
       );
 
+      // 🔍 [التعديل الجوهري]: فحص وتصنيف الأخطاء بدقة مع إدخال آلية التقاط الأنفاس
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error(`[🚨 تنبيه حظر أو نفاد حصة] المشكلة في: ${selectedKeyName}. سيتم التبديل تلقائياً.`, errorData);
+        const status = response.status;
+
+        // 1. تصنيف اللوقس المتقدم بناءً على رمز الحالة المرتجع
+        if (status === 503) {
+          console.error(`[🔥 ضغط عالي وعشوائي (503)] المشكلة في: ${selectedKeyName}. سيرفر قوقل يعاني من ازدحام مؤقت عالمياً.`, errorData);
+        } else if (status === 429) {
+          console.error(`[⏳ نفاد حصة مؤقت (429)] المشكلة في: ${selectedKeyName}. المفتاح تجاوز حد الطلبات المسموح به للدقيقة.`, errorData);
+        } else {
+          console.error(`[❌ خطأ سيرفر غير متوقع (${status})] في المفتاح: ${selectedKeyName}.`, errorData);
+        }
         
+        // 2. آلية التقاط الأنفاس الذكية لحماية المفاتيح البديلة من الاحتراق السريع
+        if (status === 503 || status === 429) {
+          console.log(`⏱️ [آلية التقاط الأنفاس]: سيتم الانتظار لمدة 1500 ملي ثانية قبل سحب المفتاح البديل لتفادي الاختناق التتابعي...`);
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+
         availableKeys.splice(randomIndex, 1); 
         continue; 
       }
@@ -140,7 +156,6 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
         cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
       }
 
-      // 🛡️ [مستخرج الـ JSON العبقري]: تنظيف النص واقتصاص ما بين الأقواس فقط قبل الفحص والتحليل
       if (options?.responseJson) {
         const firstBracket = cleanedText.indexOf('{');
         const lastBracket = cleanedText.lastIndexOf('}');
@@ -149,7 +164,6 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
           cleanedText = cleanedText.substring(firstBracket, lastBracket + 1);
         }
         
-        // الآن نقوم بعمل الفحص الصارم للـ JSON النظيف
         try {
           JSON.parse(cleanedText); 
         } catch (jsonError) {
@@ -162,10 +176,10 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
       return cleanedText;
 
     } catch (error) {
-      console.error(`[❌ خطأ في المحاولة] أثناء استخدام ${selectedKeyName}:`, error);
+      console.error(`[❌ خطأ شبكة/اتصال] أثناء استخدام ${selectedKeyName}:`, error);
       availableKeys.splice(randomIndex, 1);
     }
   }
 
-  throw new Error('عذراً، فشل غيث في إتمام العملية حالياً بسبب قيود مؤقتة في سيرفرات الخدمة. يرجى المحاولة مرة أخرى.');
+  throw new Error('عذراً، فشل غيث في إتمام العملية حالياً بسبب قيود مؤقتة وضغط عالي في سيرفرات الخدمة الخارجية. يرجى المحاولة مرة أخرى خلال ثوانٍ.');
 }
