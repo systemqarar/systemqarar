@@ -1,7 +1,7 @@
 // src/modules/unified-dashboard/volunteer-profile/onboarding-wizard/hooks/usePhotoVerification.ts
 
 import { useState } from 'react';
-import imageCompression from 'browser-image-compression'; // 🚀 استدعاء مكتبة الضغط الاحترافية العالمية
+import imageCompression from 'browser-image-compression'; 
 
 interface UsePhotoVerificationProps {
   initialPhotoUrl: string | null;
@@ -19,27 +19,26 @@ export const usePhotoVerification = ({ initialPhotoUrl, updateFields }: UsePhoto
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // التأكد من أن الملف المختار هو صورة فعلاً لحماية النظام
     if (!file.type.startsWith('image/')) {
       setErrorMessage('عذراً، يرجى اختيار ملف صورة صالح.');
       return;
     }
 
-    // إعدادات الضغط الاحترافية والموزونة بدقة لـ قرار
+    // إعدادات الضغط فائقة التوافقية لتناسب متصفحات التواصل الاجتماعي وسيرفر Vercel
     const options = {
-      maxSizeMB: 0.3,          // الحجم الأقصى الناتج يكون في حدود 300 كيلوبايت فقط (خفيف وسريع جداً في الرفع)
-      maxWidthOrHeight: 1200,  // أبعاد ممتازة وحادة جداً للبطاقات والشهادات الرسمية
-      useWebWorker: true,      // تشغيل الضغط في الخلفية لحماية ذاكرة الموبايل ومنع الانهيار
+      maxSizeMB: 0.4,          // حجم مثالي جداً (في حدود 400 كيلوبايت)
+      maxWidthOrHeight: 1200,  // أبعاد حادة وممتازة للبطاقات والشهادات
+      useWebWorker: false,     // ❌ تعطيله هنا هو السر ليشتغل الكود جوة (واتساب/فيسبوك/سافاري) بدون قيود أمان
     };
 
     try {
       setIsValidating(true); 
       setErrorMessage(null);
 
-      // ⚡ تشغيل المعالجة الاحترافية (تتعامل مع أي حجم صورة كاميرا بسلاسة تامة)
+      // ⚡ تشغيل المكبس الاحترافي المضمون
       const compressedFile = await imageCompression(file, options);
       
-      // تحويل الملف المضغوط الخفيف إلى نص لمعاينته وحفظه
+      // تحويل الملف المضغوط إلى رابط معاينة نصي
       const base64Image = await imageCompression.getDataUrlFromFile(compressedFile);
       
       setPreview(base64Image);
