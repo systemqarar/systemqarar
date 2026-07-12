@@ -102,11 +102,9 @@ export const usePhotoVerification = ({ initialPhotoUrl, updateFields }: UsePhoto
       let finalBase64 = '';
 
       try {
-        // 🔥 جرب الطريقة الأولى السريعة أولاً
         finalBase64 = await tryBitmapCompression(file);
       } catch (bitmapError) {
         console.warn('⚠️ فشل نظام البيتماب، التحول التلقائي للخطة البديلة...', bitmapError);
-        // 🔄 الخطة البديلة: إذا فشل العتاد، جرب فك التدفق البرمجي المباشر
         finalBase64 = await tryDOMCompression(file);
       }
       
@@ -115,9 +113,9 @@ export const usePhotoVerification = ({ initialPhotoUrl, updateFields }: UsePhoto
     } catch (error: any) {
       console.error('🚨 [نظام قرار - عجز المتصفح عن فك التشفير]:', error);
       
-      // 💡 توجيه ذكي للمتصفح يحل المشكلة للمستخدم في ثانية واحدة ويحافظ على احترافية النظام
+      // 📝 النص الجديد: بسيط، واضح، ويوجه المستخدم بالبلدي وبدون مصطلحات تخوفه
       setErrorMessage(
-        'عذراً، ملف الصورة الحالي مشفر بصيغة فائقة الدقة أو عالية الكفاءة (HEIF) لا يدعمها متصفح هاتفكم مباشرة. لحل المشكلة فوراً: يرجى تصوير الشاشة (Screenshot) للصورة الشخصية ورفعها، أو اختيار صورة أخرى.'
+        'عذراً، الصورة التي ارفقتها جودتها عالية جدا وتعذر معالجتها .. يمكنك اختيار صورة اخرى من المعرض، وفي حال كنت تفضل هذه الصورة فيمكنك الدخول للمعرض وقتح الصورة وعمل لقطة الشاشة ومن ثم اعادة ارفاق الصورة الجديدة'
       );
     } finally {
       setIsValidating(false); 
