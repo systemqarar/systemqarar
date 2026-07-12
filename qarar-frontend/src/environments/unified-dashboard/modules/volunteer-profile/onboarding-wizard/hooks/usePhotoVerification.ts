@@ -24,28 +24,31 @@ export const usePhotoVerification = ({ initialPhotoUrl, updateFields }: UsePhoto
       return;
     }
 
-    // إعدادات الضغط فائقة التوافقية لتناسب متصفحات التواصل الاجتماعي وسيرفر Vercel
     const options = {
-      maxSizeMB: 0.4,          // حجم مثالي جداً (في حدود 400 كيلوبايت)
-      maxWidthOrHeight: 1200,  // أبعاد حادة وممتازة للبطاقات والشهادات
-      useWebWorker: false,     // ❌ تعطيله هنا هو السر ليشتغل الكود جوة (واتساب/فيسبوك/سافاري) بدون قيود أمان
+      maxSizeMB: 0.4,          
+      maxWidthOrHeight: 1200,  
+      useWebWorker: false,     // مغلق لضمان التوافقية مع كل المتصفحات الداخلية
     };
 
     try {
       setIsValidating(true); 
       setErrorMessage(null);
 
-      // ⚡ تشغيل المكبس الاحترافي المضمون
+      // تشغيل مكتبة الضغط
       const compressedFile = await imageCompression(file, options);
       
-      // تحويل الملف المضغوط إلى رابط معاينة نصي
+      // تحويل الملف المضغوط إلى رابط معاينة
       const base64Image = await imageCompression.getDataUrlFromFile(compressedFile);
       
       setPreview(base64Image);
       updateFields({ profileImageUrl: base64Image, photo_url: base64Image });
-    } catch (error) {
+    } catch (error: any) {
       console.error('🚨 [خطأ نظام الضغط الاحترافي]:', error);
-      setErrorMessage('تعذر معالجة الصورة الشخصية. يرجى إعادة المحاولة أو اختيار صورة أخرى.');
+      
+      // 🛠️ استخراج نص الخطأ الحقيقي القادم من نظام التشغيل أو المكتبة وعرضه للمعاينة
+      const realReason = error?.message || (typeof error === 'string' ? error : JSON.stringify(error)) || 'خطأ غير معروف';
+      
+      setErrorMessage(`❌ [خطأ المحرك الحقيقي]: ${realReason}`);
     } finally {
       setIsValidating(false); 
     }
