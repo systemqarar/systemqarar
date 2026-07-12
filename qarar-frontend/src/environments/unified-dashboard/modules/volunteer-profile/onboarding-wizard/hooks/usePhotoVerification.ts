@@ -7,20 +7,25 @@ interface UsePhotoVerificationProps {
   updateFields: (fields: Partial<any>) => void;
 }
 
-// 🛠️ المكبس الرقمي: دالة قياسية لضغط وتقليص حجم الصورة برمجياً في جهاز المستخدم
-const compressImage = (file: File, maxWidth = 1000, maxHeight = 1000, quality = 0.75): Promise<string> => {
+// 🛡️ المكبس الرقمي المدرع: مصمم للتعامل مع صور الكاميرا فائقة الدقة بأمان تام وبدون استهلاك للـ RAM
+const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.70): Promise<string> => {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = objectUrl;
+
+    img.onload = async () => {
+      try {
+        // ⚡ ميزة هندسية: فك تشفير الصورة في الخلفية تمنع تهنيج أو توقف متصفح الموبايل
+        if ('decode' in img) {
+          await img.decode();
+        }
+
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
 
-        // الحفاظ على أبعاد ونسب الصورة الأصلية بدون تشويه الملامح
+        // حساب الأبعاد الجديدة بدقة مع الحفاظ على النسب الأصلية
         if (width > height) {
           if (width > maxWidth) {
             height = Math.round((height * maxWidth) / width);
@@ -36,15 +41,33 @@ const compressImage = (file: File, maxWidth = 1000, maxHeight = 1000, quality = 
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
+        
+        if (!ctx) {
+          throw new Error('تعذر تشغيل سياق الرسم الثنائي (Canvas Context)');
+        }
 
-        // تحويل الصورة الناتجة إلى نص Base64 مضغوط وخفيف الوزن جداً
+        // الرسم بأعلى جودة تنعيم ممكنة
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // تحويل خفيف الوزن لصيغة JPEG وضغط ذكي
         const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        
+        // 🧹 تنظيف فوري للذاكرة
+        URL.revokeObjectURL(objectUrl);
         resolve(compressedBase64);
-      };
-      img.onerror = (err) => reject(err);
+      } catch (err) {
+        URL.revokeObjectURL(objectUrl);
+        reject(err);
+      }
     };
-    reader.onerror = (err) => reject(err);
+
+    img.onerror = (err) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(err);
+    };
   });
 };
 
@@ -53,39 +76,35 @@ export const usePhotoVerification = ({ initialPhotoUrl, updateFields }: UsePhoto
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
-  // حافظنا على الحقل ده عشان ما نضرب كود صفحة StepPhotoSecure القديم
   const isModelLoading = false; 
 
-  // دالة قراءة الصورة الفورية (تم تفعيل الضغط الذكي جواها)
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // التأكد من أن الملف المختار هو صورة فعلاً لحماية النظام
     if (!file.type.startsWith('image/')) {
       setErrorMessage('عذراً، يرجى اختيار ملف صورة صالح.');
       return;
     }
 
     try {
-      setIsValidating(true); // تشغيل مؤشر الانتظار اللطيف أثناء الضغط
+      setIsValidating(true); 
       setErrorMessage(null);
 
-      // ⚡ ضغط الصورة فوراً في جهاز المستخدم (تستغرق أجزاء من الثانية)
+      // تشغيل المكبس المدرع
       const compressedBase64 = await compressImage(file);
       
-      // تحديث المعاينة والبيانات بالنص الخفيف الجديد
       setPreview(compressedBase64);
       updateFields({ profileImageUrl: compressedBase64, photo_url: compressedBase64 });
-    } catch (error) {
-      console.error('Image compression failed:', error);
-      setErrorMessage('حدث خطأ أثناء معالجة وحفظ الصورة، يرجى المحاولة مرة أخرى.');
+    } catch (error: any) {
+      // طباعة تفاصيل الخطأ في الكونسول للمهندس والمشرف لمتابعة الأداء
+      console.error('🚨 [خطأ معالجة الصورة]:', error);
+      setErrorMessage(`تعذر تجهيز الصورة بسبب قيود الذاكرة في الهاتف. يرجى محاولة التقاطها بدقة أقل أو اختيار صورة أخرى.`);
     } finally {
-      setIsValidating(false); // إيقاف مؤشر الانتظار
+      setIsValidating(false); 
     }
   };
 
-  // دالة مسح الصورة وتصفيرها
   const clearPhoto = () => {
     setPreview(null);
     setErrorMessage(null);
