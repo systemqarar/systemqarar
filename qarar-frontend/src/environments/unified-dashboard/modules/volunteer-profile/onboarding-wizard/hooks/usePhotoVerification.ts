@@ -7,16 +7,13 @@ interface UsePhotoVerificationProps {
   updateFields: (fields: Partial<any>) => void;
 }
 
-// 🚀 المكبس الرقمي المعتمد على المعالج: يفك الصورة على مستوى العتاد لمنع أخطاء الذاكرة نهائياً
-const compressImageHardware = async (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<string> => {
-  // ⚡ فك التشفير المباشر والسريع عبر كرت الشاشة بدون استخدام عناصر الـ DOM
+// الإستراتيجية الأولى: الضغط السريع عبر الـ Bitmap
+const tryBitmapCompression = async (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<string> => {
   const bitmap = await createImageBitmap(file);
-  
   const canvas = document.createElement('canvas');
   let width = bitmap.width;
   let height = bitmap.height;
 
-  // الحفاظ على أبعاد ونسب الصورة الأصلية بدقة تامة
   if (width > height) {
     if (width > maxWidth) {
       height = Math.round((height * maxWidth) / width);
@@ -32,22 +29,54 @@ const compressImageHardware = async (file: File, maxWidth = 1200, maxHeight = 12
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  
   if (!ctx) {
     bitmap.close();
-    throw new Error('تعذر تشغيل سياق الرسم في المتصفح');
+    throw new Error('Canvas Context Unavailable');
   }
 
-  // رسم البيتماب على الكانفاس بسرعة فائقة
   ctx.drawImage(bitmap, 0, 0, width, height);
-  
-  // تحويل النتيجة المكبوسة بنجاح إلى Base64 خفيف
-  const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-  
-  // 🧹 إغلاق البيتماب فوراً لتحرير ذاكرة الجهاز كلياً
+  const base64 = canvas.toDataURL('image/jpeg', quality);
   bitmap.close();
-  
-  return compressedBase64;
+  return base64;
+};
+
+// الإستراتيجية الثانية (الخطة البديلة): الضغط التقليدي الآمن عبر تدفق البيانات
+const tryDOMCompression = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas Context Unavailable'));
+
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('DOM Image Decode Failed'));
+    };
+    reader.onerror = () => reject(new Error('File Reader Failed'));
+    reader.readAsDataURL(file);
+  });
 };
 
 export const usePhotoVerification = ({ initialPhotoUrl, updateFields }: UsePhotoVerificationProps) => {
@@ -70,15 +99,26 @@ export const usePhotoVerification = ({ initialPhotoUrl, updateFields }: UsePhoto
       setIsValidating(true); 
       setErrorMessage(null);
 
-      // تشغيل معالجة العتاد القوية
-      const compressedBase64 = await compressImageHardware(file);
+      let finalBase64 = '';
+
+      try {
+        // 🔥 جرب الطريقة الأولى السريعة أولاً
+        finalBase64 = await tryBitmapCompression(file);
+      } catch (bitmapError) {
+        console.warn('⚠️ فشل نظام البيتماب، التحول التلقائي للخطة البديلة...', bitmapError);
+        // 🔄 الخطة البديلة: إذا فشل العتاد، جرب فك التدفق البرمجي المباشر
+        finalBase64 = await tryDOMCompression(file);
+      }
       
-      setPreview(compressedBase64);
-      updateFields({ profileImageUrl: compressedBase64, photo_url: compressedBase64 });
+      setPreview(finalBase64);
+      updateFields({ profileImageUrl: finalBase64, photo_url: finalBase64 });
     } catch (error: any) {
-      console.error('🚨 [Hardware Compression Error]:', error);
-      const errorText = error?.message || 'المتصفح رفض معالجة حجم الصورة الحالي.';
-      setErrorMessage(`❌ [مشكلة في محرك الموبايل]: ${errorText} .. يرجى تجربة التقاط الصورة مجدداً أو اختيار صورة أخرى.`);
+      console.error('🚨 [نظام قرار - عجز المتصفح عن فك التشفير]:', error);
+      
+      // 💡 توجيه ذكي للمتصفح يحل المشكلة للمستخدم في ثانية واحدة ويحافظ على احترافية النظام
+      setErrorMessage(
+        'عذراً، ملف الصورة الحالي مشفر بصيغة فائقة الدقة أو عالية الكفاءة (HEIF) لا يدعمها متصفح هاتفكم مباشرة. لحل المشكلة فوراً: يرجى تصوير الشاشة (Screenshot) للصورة الشخصية ورفعها، أو اختيار صورة أخرى.'
+      );
     } finally {
       setIsValidating(false); 
     }
