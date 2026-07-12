@@ -71,7 +71,9 @@ export class PersonalDataController {
   async saveProfileData(req: Request, res: Response): Promise<void> {
     try {
       const { userId, ...updateData } = req.body;
+console.log(`📥 [فحص قرار الحركي]: تم استقبال طلب حفظ جديد للمستخدم: ${userId} - الساعة: ${new Date().toISOString()}`);
 
+      
       if (!userId) {
         res.status(400).json({ success: false, message: 'معرف المستخدم مطلوب للتحديث' });
         return;
