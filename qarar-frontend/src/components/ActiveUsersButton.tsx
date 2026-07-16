@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, X } from 'lucide-react';
-import { useSocket } from '../hooks/useSocket'; // 🔌 التعديل الجذري: استيراد الهوك من مساره الصحيح في الـ hooks
-import { ActiveUser } from '../context/SocketContext'; // 🔑 استيراد الواجهة الصارمة للنوع لتأمين التقييم التلقائي في TS
+import { useSocket } from '../hooks/useSocket'; 
+import { ActiveUser } from '../context/SocketContext'; 
 
 // دالة ذكية لتحويل فارق الوقت لعبارات عربية مريحة ومفهومة
 const formatLastSeen = (dateString: string): string => {
@@ -31,7 +31,6 @@ export const ActiveUsersButton = () => {
   const { activeUsers } = useSocket();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 🛡️ تحديد نوع الـ user بشكل صريح لمنع خطأ الـ TS7006 (implicit any)
   const onlineCount = activeUsers.filter((user: ActiveUser) => user.is_online).length;
 
   // إغلاق النافذة تلقائياً عند الضغط خارجها
@@ -48,7 +47,7 @@ export const ActiveUsersButton = () => {
   return (
     <div ref={containerRef} className="relative select-none" dir="rtl">
       
-      {/* 🔘 الزر الرئيسي للتفعيل (مساحة الـ 40% بجانب غيث) */}
+      {/* 🔘 الزر الرئيسي للتفعيل */}
       <div className="relative group cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         
         {onlineCount > 0 && (
@@ -59,11 +58,9 @@ export const ActiveUsersButton = () => {
           whileTap={{ scale: 0.98 }}
           className="relative bg-[#0B1528] text-white rounded-full p-2 flex items-center justify-between shadow-2xl border border-white/10 backdrop-blur-md h-[58px] pr-3 pl-3"
         >
-          {/* محتوى الزر */}
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white border border-white/10 shrink-0 relative">
               <Users className="w-5 h-5 text-slate-300" />
-              {/* نقطة خضراء تشع بالنبض إذا كان هناك أعضاء متصلين حالياً */}
               {onlineCount > 0 && (
                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0B1528] animate-pulse" />
               )}
@@ -87,7 +84,8 @@ export const ActiveUsersButton = () => {
             animate={{ opacity: 1, y: -10, scale: 1 }}
             exit={{ opacity: 0, y: 15, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="absolute bottom-full left-0 right-0 z-40 bg-[#0B1528]/95 border border-white/10 rounded-3xl p-4 shadow-2xl backdrop-blur-lg w-[280px] sm:w-[320px] max-h-[380px] overflow-hidden flex flex-col"
+            // 🛠️ تم التعديل هنا: استخدام left-0 فقط لتبدأ المحاذاة من اليسار وتتمدد لليمين بشكل ممتاز ومريح للعين
+            className="absolute bottom-full left-0 z-40 bg-[#0B1528]/95 border border-white/10 rounded-3xl p-4 shadow-2xl backdrop-blur-lg w-[280px] sm:w-[320px] max-h-[380px] overflow-hidden flex flex-col mb-2"
           >
             {/* رأس النافذة المنبثقة */}
             <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
@@ -110,14 +108,12 @@ export const ActiveUsersButton = () => {
                   لا يوجد أعضاء نشطون حالياً.
                 </div>
               ) : (
-                // 🛡️ تحديد نوع الـ user بشكل صريح هنا أيضاً لمنع أخطاء الـ TS7006 أثناء عمل map
                 activeUsers.map((user: ActiveUser) => (
                   <div 
                     key={user.user_id}
                     className="flex items-center justify-between p-2 rounded-2xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5"
                   >
                     <div className="flex items-center gap-2.5">
-                      {/* الصورة الشخصية أو الاسم الرمزي */}
                       <div className="relative w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden shrink-0">
                         {user.secure_photo_url || user.photo_url ? (
                           <img 
@@ -130,11 +126,9 @@ export const ActiveUsersButton = () => {
                             {user.full_name?.charAt(0) || 'ع'}
                           </span>
                         )}
-                        {/* حالة الاتصال اللحظي */}
                         <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#0B1528] ${user.is_online ? 'bg-green-500' : 'bg-slate-500'}`} />
                       </div>
 
-                      {/* اسم العضو وحالته */}
                       <div className="flex flex-col text-right">
                         <span className="text-xs font-bold text-slate-100">{user.full_name || 'عضو غير معروف'}</span>
                         <span className={`text-[9px] font-medium mt-0.5 ${user.is_online ? 'text-green-400' : 'text-slate-400'}`}>

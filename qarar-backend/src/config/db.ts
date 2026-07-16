@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, QueryResult, QueryResultRow } from 'pg'; // 🔑 استيراد الأنواع الرسمية من مكتبة pg
 import dotenv from 'dotenv';
 
 // تفعيل قراءة متغيرات البيئة السرية
@@ -26,7 +26,18 @@ pool.query('SELECT NOW()', (err, res) => {
   }
 });
 
+/**
+ * 🛡️ ترقية دالة الاستعلام الوسيطة هندسياً لتصبح Generic 
+ * تضمن نقل وتمرير هياكل الجداول والصفوف تلقائياً وبأعلى حماية للمستقبل دون كسر أي كود قديم في الباكيند
+ */
+export const query = <T extends QueryResultRow = any>(
+  text: string,
+  params?: any[]
+): Promise<QueryResult<T>> => {
+  return pool.query<T>(text, params);
+};
+
 export default {
   pool,
-  query: (text: string, params?: any[]) => pool.query(text, params),
+  query,
 };
