@@ -1,6 +1,7 @@
 import React from 'react'; 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { SocketProvider } from '../context/SocketContext'; // 🔌 استيراد مزود الويب سوكت الجديد
 import AuthRoutes from '../environments/public-site/modules/auth/auth.routes';
 
 import DashboardLayout from '../environments/unified-dashboard/modules/overview/pages/DashboardLayout';
@@ -69,48 +70,50 @@ const DeveloperGuard: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 export const AppRoutes: React.FC = () => {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* موديول الأمان والتحقق */}
-        <Route path="/*" element={<AuthRoutes />} />
+    <SocketProvider> {/* 🔌 تفعيل الـ Socket.io على مستوى النظام بالكامل */}
+      <BrowserRouter>
+        <Routes>
+          {/* موديول الأمان والتحقق */}
+          <Route path="/*" element={<AuthRoutes />} />
 
-        {/* 🤖 مسارات غيث التجريبية للوصول المباشر والسريع عبر الرابط - مسبكة صارماً وبدون any */}
-        {ghaithRoutes.map((route: { path: string; element: React.ReactNode }, index: number) => (
-          <Route key={index} path={`/${route.path}`} element={route.element} />
-        ))}
-
-        {/* لوحة تحكم المتطوعين */}
-        <Route 
-          path="/dashboard" 
-          element = {
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          } 
-        >
-          {volunteerProfileRoutes.map((route, index) => (
-            <Route key={index} path={route.path} element={route.element} />
+          {/* 🤖 مسارات غيث التجريبية للوصول المباشر والسريع عبر الرابط - مسبكة صارماً وبدون any */}
+          {ghaithRoutes.map((route: { path: string; element: React.ReactNode }, index: number) => (
+            <Route key={index} path={`/${route.path}`} element={route.element} />
           ))}
-        </Route>
 
-        {/* لوحة تحكم المطور المخصصة والمحمية */}
-        <Route 
-          path="/developer" 
-          element = {
-            <DeveloperGuard>
-              <DeveloperLayout />
-            </DeveloperGuard>
-          } 
-        >
-          {/* هنا تنفرد وتصب كل مسارات موديولات المطور تلقائياً وبنفس أسلوب المتطوعين */}
-          {developRoutes.map((route, index) => (
-            <Route key={index} path={route.path} element={route.element} />
-          ))}
-        </Route>
+          {/* لوحة تحكم المتطوعين */}
+          <Route 
+            path="/dashboard" 
+            element = {
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            } 
+          >
+            {volunteerProfileRoutes.map((route, index) => (
+              <Route key={index} path={route.path} element={route.element} />
+            ))}
+          </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* لوحة تحكم المطور المخصصة والمحمية */}
+          <Route 
+            path="/developer" 
+            element = {
+              <DeveloperGuard>
+                <DeveloperLayout />
+              </DeveloperGuard>
+            } 
+          >
+            {/* هنا تنفرد وتصب كل مسارات موديولات المطور تلقائياً وبنفس أسلوب المتطوعين */}
+            {developRoutes.map((route, index) => (
+              <Route key={index} path={route.path} element={route.element} />
+            ))}
+          </Route>
+
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </SocketProvider>
   );
 };
 

@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import http from 'http'; // 🌐 مطلوب لتشغيل Socket.io مع Express بشكل متزامن
+import { socketService } from './services/socketService'; // 🔌 خدمة الويب سوكت المركزية الجديدة
 import authRoutes from './modules/public-site/auth-profile/auth.routes'; // 🌐 موديول الحسابات والأمان القديم
 
 // 🪪 🛡️ استيراد الراوتر الرئيسي للموديول (الـ Gateway الجديد اللي بيجمع كل الفروع)
@@ -19,6 +21,9 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// إنشاء سيرفر HTTP مركزي ليعمل كـ wrapper لـ Express و Socket.io
+const server = http.createServer(app);
 
 // 1. برمجيات الوسيطة الأساسية (Middleware)
 app.use(cors({
@@ -48,8 +53,11 @@ app.use('/api/developer-zone', developerZoneRouter);
 // 🤖 6. تفعيل موديول المساعد الرقمي غيث واستقبال أسئلة الفحص والتجربة
 app.use('/api/public-site/ghaith', ghaithRoutes);
 
-// 7. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
-app.listen(PORT, async () => {
+// 🔌 7. تهيئة وتشغيل خدمة الـ Socket.io وإقرانها بسيرفر الـ HTTP
+socketService.initialize(server);
+
+// 8. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً (تعديل الاستماع ليكون عبر server)
+server.listen(PORT, async () => {
   console.log(`===================================================`);
   console.log(`⚡ [SERVER RUNNING]: السيرفر ينبض بالحياة الآن على منفذ: ${PORT}`);
   console.log(`🔒 [ENVIRONMENT]: وضع المحاكاة الذكي = ${process.env.DEVELOPMENT_MODE}`);

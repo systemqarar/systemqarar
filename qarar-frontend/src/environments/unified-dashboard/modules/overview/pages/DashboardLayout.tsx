@@ -6,6 +6,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDashboard } from '../../../../../hooks/useDashboard';
 import { SidebarDrawer } from '../../../../../components/SidebarDrawer';
 import { GhaithButton } from '../../../../../components/GhaithButton';
+import { ActiveUsersButton } from '../../../../../components/ActiveUsersButton'; // 🔌 استيراد زر النشطين الجديد
 import { Header } from '../../../../../components/Header'; 
 
 import { EmergencyCards } from '../components/EmergencyCards';
@@ -89,7 +90,21 @@ export const DashboardLayout = () => {
           </AnimatePresence>
         </main>
 
-        <GhaithButton onClick={() => handleTabChange('communication')} />
+        {/* 🌟 3️⃣ عرض الأزرار بطريقة مرنة وشرطية بالكامل لمنع التداخل */}
+        {isOverviewRoute ? (
+          /* في صفحة الداشبورد الرئيسية: نقسم المساحة لـ 60% غيث و 40% النشطين */
+          <div className="fixed bottom-5 left-5 right-5 z-30 flex items-center gap-3" dir="rtl">
+            <div className="flex-[3]">
+              <GhaithButton onClick={() => handleTabChange('communication')} isDashboard={true} />
+            </div>
+            <div className="flex-[2]">
+              <ActiveUsersButton />
+            </div>
+          </div>
+        ) : (
+          /* في باقي الصفحات الفرعية: يظهر زر غيث منفرداً في وضعه الثابت الطبيعي بكامل العرض */
+          <GhaithButton onClick={() => handleTabChange('communication')} isDashboard={false} />
+        )}
 
       </div>
 

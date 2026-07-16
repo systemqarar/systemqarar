@@ -3,11 +3,13 @@ import { Sparkles, ChevronLeft } from 'lucide-react';
 
 interface GhaithButtonProps {
   onClick: () => void;
+  isDashboard?: boolean; // 👈 خاصية ذكية جديدة لتحديد طريقة العرض
 }
 
-export const GhaithButton = ({ onClick }: GhaithButtonProps) => {
+export const GhaithButton = ({ onClick, isDashboard = false }: GhaithButtonProps) => {
   return (
-    <div className="fixed bottom-5 left-5 right-5 z-30 select-none" dir="rtl">
+    // 💡 إذا كنا في الداشبورد حياخد الحجم المتاح له (60%)، وإذا بره الداشبورد حيفضل ثابت في الأسفل (100%)
+    <div className={`${isDashboard ? 'w-full' : 'fixed bottom-5 left-5 right-5 z-30'} select-none`} dir="rtl">
       
       {/* الحاوية التفاعلية بالكامل قابلة للضغط لتسهيل التجربة على الموبايل */}
       <div className="relative group cursor-pointer" onClick={onClick}>
