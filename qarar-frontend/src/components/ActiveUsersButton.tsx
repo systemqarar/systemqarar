@@ -31,7 +31,10 @@ export const ActiveUsersButton = () => {
   const { activeUsers } = useSocket();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const onlineCount = activeUsers.filter((user: ActiveUser) => user.is_online).length;
+  // تصفية المستخدمين إلى متصلين وغير متصلين
+  const onlineUsers = activeUsers.filter((user: ActiveUser) => user.is_online);
+  const offlineUsers = activeUsers.filter((user: ActiveUser) => !user.is_online);
+  const onlineCount = onlineUsers.length;
 
   // إغلاق النافذة تلقائياً عند الضغط خارجها
   useEffect(() => {
@@ -47,6 +50,23 @@ export const ActiveUsersButton = () => {
   return (
     <div ref={containerRef} className="relative select-none" dir="rtl">
       
+      {/* حقن ستايل مخصص ومخفي للشريط الممرر ليكون غاية في الأناقة */}
+      <style>{`
+        .custom-popup-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-popup-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-popup-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-popup-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.25);
+        }
+      `}</style>
+
       {/* 🔘 الزر الرئيسي للتفعيل */}
       <div className="relative group cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         
@@ -84,14 +104,13 @@ export const ActiveUsersButton = () => {
             animate={{ opacity: 1, y: -10, scale: 1 }}
             exit={{ opacity: 0, y: 15, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            // 🛠️ تم التعديل هنا: استخدام left-0 فقط لتبدأ المحاذاة من اليسار وتتمدد لليمين بشكل ممتاز ومريح للعين
             className="absolute bottom-full left-0 z-40 bg-[#0B1528]/95 border border-white/10 rounded-3xl p-4 shadow-2xl backdrop-blur-lg w-[280px] sm:w-[320px] max-h-[380px] overflow-hidden flex flex-col mb-2"
           >
-            {/* رأس النافذة المنبثقة */}
+            {/* رأس النافذة المنبثقة المعدل برمجياً */}
             <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-amber-400" />
-                <span className="text-xs font-black text-white">قائمة المتواجدين (خلال 12 ساعة)</span>
+                <Users className="w-4 h-4 text-green-400" />
+                <span className="text-xs font-black text-white">المتصلون الآن</span>
               </div>
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
@@ -101,43 +120,84 @@ export const ActiveUsersButton = () => {
               </button>
             </div>
 
-            {/* جسد القائمة وقائمة الأسماء */}
-            <div className="overflow-y-auto space-y-2 flex-1 pr-1 custom-scrollbar max-h-[280px]">
+            {/* جسد القائمة وقائمة الأسماء مع تفعيل التمرير السلس */}
+            <div className="overflow-y-auto space-y-2 flex-1 pr-1 custom-popup-scrollbar max-h-[280px] scroll-smooth">
               {activeUsers.length === 0 ? (
                 <div className="text-center py-8 text-xs text-slate-400">
                   لا يوجد أعضاء نشطون حالياً.
                 </div>
               ) : (
-                activeUsers.map((user: ActiveUser) => (
-                  <div 
-                    key={user.user_id}
-                    className="flex items-center justify-between p-2 rounded-2xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="relative w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden shrink-0">
-                        {user.secure_photo_url || user.photo_url ? (
-                          <img 
-                            src={user.secure_photo_url || user.photo_url || ''} 
-                            alt={user.full_name} 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-xs font-black text-slate-300">
-                            {user.full_name?.charAt(0) || 'ع'}
-                          </span>
-                        )}
-                        <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#0B1528] ${user.is_online ? 'bg-green-500' : 'bg-slate-500'}`} />
-                      </div>
+                <>
+                  {/* 🟢 القسم الأول: الأعضاء المتصلون حالياً */}
+                  {onlineUsers.map((user: ActiveUser) => (
+                    <div 
+                      key={user.user_id}
+                      className="flex items-center justify-between p-2 rounded-2xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden shrink-0">
+                          {user.secure_photo_url || user.photo_url ? (
+                            <img 
+                              src={user.secure_photo_url || user.photo_url || ''} 
+                              alt={user.full_name} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-xs font-black text-slate-300">
+                              {user.full_name?.charAt(0) || 'ع'}
+                            </span>
+                          )}
+                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#0B1528] bg-green-500 animate-pulse" />
+                        </div>
 
-                      <div className="flex flex-col text-right">
-                        <span className="text-xs font-bold text-slate-100">{user.full_name || 'عضو غير معروف'}</span>
-                        <span className={`text-[9px] font-medium mt-0.5 ${user.is_online ? 'text-green-400' : 'text-slate-400'}`}>
-                          {user.is_online ? 'متصل الآن' : formatLastSeen(user.last_seen)}
-                        </span>
+                        <div className="flex flex-col text-right">
+                          <span className="text-xs font-bold text-slate-100">{user.full_name || 'عضو غير معروف'}</span>
+                          <span className="text-[9px] font-medium mt-0.5 text-green-400">
+                            متصل الآن
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+
+                  {/* ⏳ القسم الثاني: كانوا متصلين مؤخراً (يظهر فقط في حال وجود أعضاء غير نشطين) */}
+                  {offlineUsers.length > 0 && (
+                    <div className="sticky top-0 z-10 bg-[#0B1528]/95 py-1.5 text-[10px] font-black text-slate-400 border-b border-white/5 mt-4 mb-2 pr-1 backdrop-blur-sm">
+                      كانوا متصلين مؤخراً
+                    </div>
+                  )}
+
+                  {offlineUsers.map((user: ActiveUser) => (
+                    <div 
+                      key={user.user_id}
+                      className="flex items-center justify-between p-2 rounded-2xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5 opacity-70 hover:opacity-100"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 overflow-hidden shrink-0">
+                          {user.secure_photo_url || user.photo_url ? (
+                            <img 
+                              src={user.secure_photo_url || user.photo_url || ''} 
+                              alt={user.full_name} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-xs font-black text-slate-300">
+                              {user.full_name?.charAt(0) || 'ع'}
+                            </span>
+                          )}
+                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#0B1528] bg-slate-500" />
+                        </div>
+
+                        <div className="flex flex-col text-right">
+                          <span className="text-xs font-bold text-slate-100">{user.full_name || 'عضو غير معروف'}</span>
+                          <span className="text-[9px] font-medium mt-0.5 text-slate-400">
+                            {formatLastSeen(user.last_seen)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
           </motion.div>
