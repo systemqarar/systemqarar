@@ -55,12 +55,24 @@ export class SocketService {
           return next(new Error('Authentication error: Token missing'));
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as { id: string };
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as any;
         
+        // 💡 طباعة محتويات التوكن الحقيقية في سجلات السيرفر لمراقبة الأمان وتسهيل المتابعة
+        console.log('🗝️ [SOCKET JWT DECODED]:', decoded);
+
+        // جلب المعرّف بشكل مرن ومقاوم للتغيرات المستقبلية في نظام تسجيل الدخول
+        const userId = decoded.id || decoded.user_id || decoded.userId || decoded.sub;
+
+        if (!userId) {
+          console.warn('⚠️ [SOCKET]: تم التحقق من صلاحية التوكن بنجاح، لكن لم يتم العثور على أي معرف مستخدم (id/user_id) بداخله.');
+          return next(new Error('Authentication error: User ID missing in token'));
+        }
+
         // 💡 حفظ الـ UUID داخل كائن data المخصص رسمياً في مكتبة Socket.io
-        socket.data.userId = decoded.id; 
+        socket.data.userId = userId; 
         next();
       } catch (err) {
+        console.error('❌ [SOCKET AUTH ERROR]: خطأ أثناء التحقق من التوكن:', err);
         return next(new Error('Authentication error: Invalid token'));
       }
     });
