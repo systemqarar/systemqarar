@@ -1,27 +1,53 @@
 import { Server, Socket } from 'socket.io';
 import http from 'http';
 import jwt from 'jsonwebtoken';
-import pool from '../config/db'; // جلب اتصال قاعدة البيانات المركزي عندك
+import pool from '../config/db'; 
 
-interface AuthenticatedSocket extends Socket {
-  userId?: string;
+// 🌐 1. تعريف واجهات الأحداث (Strongly Typed Events) للتطوير المستقبلي الآمن
+// تضمن عدم كتابة أسماء أحداث خاطئة في الفرونتد أو الباكيند
+interface ServerToClientEvents {
+  active_users_update: (users: ActiveUserRow[]) => void;
+}
+
+interface ClientToServerEvents {
+  // هنا تضع أي أحداث يرسلها العميل مستقبلاً (مثل: send_message أو start_quiz)
+}
+
+interface InterServerEvents {
+  // مفيدة جداً مستقبلاً في حال احتجت لربط السيرفر بـ Redis لموازنة الأحمال (Scaling)
+}
+
+// 🔑 2. واجهة بيانات جلسة الاتصال (Socket Metadata)
+// الطريقة الرسمية في Socket.io لحفظ بيانات الجلسة دون تدمير كائنات النظام بـ Casting
+interface SocketData {
+  userId: string;
+}
+
+// واجهة تطابق تماماً بنية الصفوف الراجعة من قاعدة البيانات
+export interface ActiveUserRow {
+  user_id: string;
+  is_online: boolean;
+  last_seen: string;
+  full_name: string;
+  secure_photo_url: string | null;
+  photo_url: string | null;
 }
 
 export class SocketService {
-  private io: Server | null = null;
+  // تهيئة سيرفر السوكت بالأنواع الصارمة المحددة بالأعلى
+  private io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData> | null = null;
 
   public initialize(server: http.Server): void {
-    // تهيئة سيرفر الـ Socket.io مع إعدادات الـ CORS الآمنة
     this.io = new Server(server, {
       cors: {
-        origin: '*', // يفضل حصرها برابط Vercel لاحقاً في الإنتاج
+        origin: '*', // يمكن حصرها في بيئة الإنتاج بروابط محددة لمزيد من الأمان
         methods: ['GET', 'POST'],
         credentials: true
       }
     });
 
-    // 🛡️ Middleware للتحقق من هوية المستخدم باستخدام الـ JWT قبل السماح بالاتصال
-    this.io.use((socket: AuthenticatedSocket, next) => {
+    // 🛡️ برمجية وسيطة آمنة (Strict Middleware) للتحقق من الهوية وحفظ الـ UUID
+    this.io.use((socket, next) => {
       try {
         const token = socket.handshake.auth?.token || socket.handshake.headers['authorization']?.split(' ')[1];
 
@@ -30,33 +56,30 @@ export class SocketService {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as { id: string };
-        socket.userId = decoded.id; // ربط الـ User UUID بالـ Socket الحالي
+        
+        // 💡 حفظ الـ UUID داخل كائن data المخصص رسمياً في مكتبة Socket.io
+        socket.data.userId = decoded.id; 
         next();
       } catch (err) {
         return next(new Error('Authentication error: Invalid token'));
       }
     });
 
-    // الاستماع عند إنشاء اتصال جديد ناجح
-    this.io.on('connection', async (socket: AuthenticatedSocket) => {
-      const userId = socket.userId;
+    // الاستماع للاتصالات المستقرة والناجحة
+    this.io.on('connection', async (socket) => {
+      const userId = socket.data.userId;
       const socketId = socket.id;
 
       if (userId) {
         console.log(`🟢 [SOCKET CONNECTED]: مستخدم متصل UUID: ${userId} | Socket ID: ${socketId}`);
         await this.setUserOnline(userId, socketId);
-        
-        // إبلاغ جميع المتصلين بوجود تحديث في قائمة النشطين تلقائياً
-        this.broadcastActiveUsers();
+        await this.broadcastActiveUsers();
       }
 
-      // الاستماع عند قطع الاتصال (إغلاق الصفحة، انقطاع شبكة، إلخ)
       socket.on('disconnect', async () => {
         console.log(`🔴 [SOCKET DISCONNECTED]: انقطع اتصال Socket ID: ${socketId}`);
         await this.setUserOffline(socketId);
-        
-        // إبلاغ الجميع بالتحديث الجديد بعد خروج المستخدم
-        this.broadcastActiveUsers();
+        await this.broadcastActiveUsers();
       });
     });
   }
@@ -72,7 +95,7 @@ export class SocketService {
     try {
       await pool.query(query, [userId, socketId]);
     } catch (err) {
-      console.error('❌ [قاعدة البيانات]: فشل تحديث حالة المتصل أونلاين:', err);
+      console.error('❌ [SOCKET DB ERROR]: فشل تحديث حالة المتصل أونلاين:', err);
     }
   }
 
@@ -86,11 +109,11 @@ export class SocketService {
     try {
       await pool.query(query, [socketId]);
     } catch (err) {
-      console.error('❌ [قاعدة البيانات]: فشل تحديث حالة المتصل أوفلاين:', err);
+      console.error('❌ [SOCKET DB ERROR]: فشل تحديث حالة المتصل أوفلاين:', err);
     }
   }
 
-  // 📊 جلب وبث قائمة المستخدمين النشطين الآن والنشطين خلال الـ 12 ساعة الماضية
+  // 📊 جلب وبث قائمة المستخدمين النشطين لحظياً لجميع الأطراف المتصلة
   public async broadcastActiveUsers(): Promise<void> {
     if (!this.io) return;
 
@@ -110,12 +133,11 @@ export class SocketService {
     `;
 
     try {
-      const result = await pool.query(query);
-      
-      // بث القائمة اللحظية لجميع المستخدمين المتصلين بالسوكت حالياً
+      // تمرير النوع ActiveUserRow ليكون الناتج نموذجياً وصارماً
+      const result = await pool.query<ActiveUserRow>(query);
       this.io.emit('active_users_update', result.rows);
     } catch (err) {
-      console.error('❌ [قاعدة البيانات]: فشل جلب وبث الأعضاء النشطين:', err);
+      console.error('❌ [SOCKET DB ERROR]: فشل جلب وبث الأعضاء النشطين:', err);
     }
   }
 }

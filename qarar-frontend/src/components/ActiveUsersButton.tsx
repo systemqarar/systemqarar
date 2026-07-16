@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, X } from 'lucide-react';
-import { useSocket } from '../context/SocketContext';
+import { useSocket } from '../hooks/useSocket'; // 🔌 التعديل الجذري: استيراد الهوك من مساره الصحيح في الـ hooks
+import { ActiveUser } from '../context/SocketContext'; // 🔑 استيراد الواجهة الصارمة للنوع لتأمين التقييم التلقائي في TS
 
 // دالة ذكية لتحويل فارق الوقت لعبارات عربية مريحة ومفهومة
 const formatLastSeen = (dateString: string): string => {
@@ -30,8 +31,8 @@ export const ActiveUsersButton = () => {
   const { activeUsers } = useSocket();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // حساب عدد المتصلين حياً الآن فقط
-  const onlineCount = activeUsers.filter(user => user.is_online).length;
+  // 🛡️ تحديد نوع الـ user بشكل صريح لمنع خطأ الـ TS7006 (implicit any)
+  const onlineCount = activeUsers.filter((user: ActiveUser) => user.is_online).length;
 
   // إغلاق النافذة تلقائياً عند الضغط خارجها
   useEffect(() => {
@@ -109,7 +110,8 @@ export const ActiveUsersButton = () => {
                   لا يوجد أعضاء نشطون حالياً.
                 </div>
               ) : (
-                activeUsers.map((user) => (
+                // 🛡️ تحديد نوع الـ user بشكل صريح هنا أيضاً لمنع أخطاء الـ TS7006 أثناء عمل map
+                activeUsers.map((user: ActiveUser) => (
                   <div 
                     key={user.user_id}
                     className="flex items-center justify-between p-2 rounded-2xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5"
