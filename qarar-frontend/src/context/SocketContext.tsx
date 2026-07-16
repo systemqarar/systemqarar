@@ -36,7 +36,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // رابط الباكيند (سيقرأ من ملف البيئة في فيرسل، أو يعمل محلياً)
     const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    const socketInstance = io(BACKEND_URL, {
+    // 🛠️ التعديل السحري: إزالة /api من نهاية الرابط إن وُجد لضمان الاتصال بـ Namespace الافتراضي (/)
+    const socketUrl = BACKEND_URL.replace(/\/api$/, '');
+
+    const socketInstance = io(socketUrl, {
       auth: { token },
       transports: ['websocket']
     });
@@ -70,4 +73,3 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     </SocketContext.Provider>
   );
 };
- 
