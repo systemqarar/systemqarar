@@ -28,7 +28,7 @@ export class LettersDocumentModel {
       const serialNumber = await this.generateSerialNumber(input.letter_type);
       const attachmentsData = input.attachments || []; 
 
-      // إدخال الخطاب في جدول letters الرئيسي مع تمرير الـ status صراحة
+      // إدخال الخطاب في جدول letters الرئيسي
       const letterQuery = `
         INSERT INTO letters (serial_number, sender_id, letter_type, title, content, attachments, status, priority, expires_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -41,7 +41,7 @@ export class LettersDocumentModel {
         input.title,
         input.content,
         JSON.stringify(attachmentsData), 
-        'approved', // إعطاء حالة معتمدة مباشرة لتظهر في صندوق الوارد فوراً
+        'approved', 
         input.priority || 'normal',
         input.expires_at || null
       ];
@@ -49,45 +49,62 @@ export class LettersDocumentModel {
       const letterResult = await client.query(letterQuery, letterValues);
       const newLetter = letterResult.rows[0];
 
-      // تحويل أرقام المتطوعين (recipient_volunteer_numbers) إلى معرفات النظام وحفظ المستلمين
-      if (input.recipient_volunteer_numbers && input.recipient_volunteer_numbers.length > 0) {
+      // 🧠 الفلتر الذكي: تجميع كل المصفوفات المحتملة اللي ممكن يرسلها الفرونتد بالخطأ
+      const mixedRecipients = [
+        ...(input.recipient_ids || []),
+        ...(input.recipient_volunteer_numbers || [])
+      ];
+
+      const directIds: string[] = [];
+      const volunteerNumbers: string[] = [];
+
+      // صيغة التحقق من الـ UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      
+      // تصنيف المدخلات بشكل تلقائي وآمن
+      mixedRecipients.forEach((item: any) => {
+        if (typeof item === 'string') {
+          if (uuidRegex.test(item)) {
+            directIds.push(item); // إذا كان ID حقيقي نضيفه مباشرة
+          } else if (item.trim() !== '') {
+            volunteerNumbers.push(item.trim()); // إذا كان رقم متطوع زي SRCS نقوم بعزله للبحث عنه
+          }
+        }
+      });
+
+      // إذا وجدنا أرقام متطوعين، نقوم بتحويلها فوراً داخل قاعدة البيانات إلى IDs حقيقية
+      if (volunteerNumbers.length > 0) {
         const userQuery = `
           SELECT user_id FROM volunteer_profiles WHERE volunteer_number = ANY($1)
         `;
-        const userResult = await client.query(userQuery, [input.recipient_volunteer_numbers]);
-        const recipientIds = userResult.rows.map(row => row.user_id);
+        const userResult = await client.query(userQuery, [volunteerNumbers]);
+        userResult.rows.forEach((row: any) => directIds.push(row.user_id));
+      }
 
-        if (recipientIds.length > 0) {
-          const recipientQuery = `
-            INSERT INTO letter_recipients (letter_id, recipient_id, is_read)
-            VALUES ($1, $2, $3)
-          `;
-          for (const recipientId of recipientIds) {
-            await client.query(recipientQuery, [newLetter.id, recipientId, false]);
-          }
-        } else {
-          throw new Error('لم يتم العثور على أي متطوعين صالحين بالأرقام الممررة.');
-        }
-      } 
-      // كخيار احتياطي في حال تم تمرير معرفات مباشرة جاهزة مستقبلاً
-      else if (input.recipient_ids && input.recipient_ids.length > 0) {
+      // تنظيف المصفوفة النهائية من أي تكرار ناتج عن الدمج
+      const finalRecipientIds = Array.from(new Set(directIds));
+
+      // إدخال المستلمين النهائيين بمعرفاتهم الصحيحة مية بالمية
+      if (finalRecipientIds.length > 0) {
         const recipientQuery = `
           INSERT INTO letter_recipients (letter_id, recipient_id, is_read)
           VALUES ($1, $2, $3)
         `;
-        for (const recipientId of input.recipient_ids) {
+        for (const recipientId of finalRecipientIds) {
           await client.query(recipientQuery, [newLetter.id, recipientId, false]);
         }
+      } else {
+        throw new Error('لم يتم العثور على أي مستخدمين أو متطوعين صالحين بالأرقام الممررة من الفرونتد.');
       }
 
       await client.query('COMMIT'); // اعتماد الحفظ النهائي في Neon
       return newLetter;
     } catch (error) {
       await client.query('ROLLBACK'); // التراجع الفوري عند حدوث خطأ
-      console.error("🚨 [خطأ حرج في دالة create يمنع الحفظ في قاعدة البيانات]:", error);
+      console.error("🚨 [خطأ حرج في دالة create]:", error);
       throw error;
     } finally {
-      client.release(); // تحرير الكلاينت وإعادته للـ pool
+      client.release(); // تحرير الكلاينت
     }
   }
 
