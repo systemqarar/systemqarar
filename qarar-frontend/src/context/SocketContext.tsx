@@ -18,7 +18,7 @@ interface SocketContextType {
 
 export const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
-// 💡 متغيّر عالمي خارج المكون: يضمن إن التطبيق كلو ما يفتحش غير خط واحد مهما React أعادت بناء المكون
+// 💡 متغيّر عالمي خارج المكون
 let globalSocket: Socket | null = null;
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -27,11 +27,13 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    // 📸 كاميرا مراقبة 1: لمعرفة هل المكون يعاد بناؤه بالكامل أم لا
+    console.log('🎬 [SOCKET PROVIDER]: >>> تم تشغيل الـ useEffect (Mount) <<<');
+
     const token = localStorage.getItem('qarar_token');
     
     if (!token) {
-      console.warn('⚠️ [SOCKET]: لم يتم العثور على توكن (qarar_token)، تعذر الاتصال بالويب سوكت.');
-      // إذا سجل المستخدم خروجه، اقطع الاتصال فوراً ونظف المتغير العالمي
+      console.warn('⚠️ [SOCKET]: لم يتم العثور على توكن (qarar_token).');
       if (globalSocket) {
         globalSocket.disconnect();
         globalSocket = null;
@@ -41,19 +43,20 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
 
-    // 💡 إذا لم يكن هناك اتصال منشأ مسبقاً، أنشئه الآن
     if (!globalSocket) {
+      console.log('🚀 [SOCKET]: يتم الآن إنشاء خط اتصال جديد لأول مرة...');
       const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const socketUrl = BACKEND_URL.replace(/\/api$/, '');
 
       globalSocket = io(socketUrl, {
         auth: { token },
         transports: ['websocket'],
-        autoConnect: false // نتحكم في الاتصال برمجياً لمنع العشوائية
+        autoConnect: false
       });
+    } else {
+      console.log('♻️ [SOCKET]: تم العثور على خط اتصال قديم في الذاكرة، سيتم إعادة استخدامه.');
     }
 
-    // 💡 تأكيد الاتصال إذا كان مغلقاً
     if (!globalSocket.connected) {
       globalSocket.connect();
     }
@@ -61,33 +64,31 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setSocket(globalSocket);
     setIsConnected(globalSocket.connected);
 
-    // 🔘 تعريف وظائف الاستماع للأحداث بشكل منفصل لنتمكن من تنظيفها بدقة
     const onConnect = () => {
       setIsConnected(true);
-      console.log('🟢 [SOCKET]: تم الاتصال بنجاح مع سيرفر الويب سوكت.');
+      console.log(`🟢 [SOCKET]: تم الاتصال بنجاح. الـ ID الحالي هو: ${globalSocket?.id}`);
     };
 
-    const onDisconnect = () => {
+    const onDisconnect = (reason: string) => {
       setIsConnected(false);
-      console.log('🔴 [SOCKET]: انقطع الاتصال بسيرفر الويب سوكت.');
+      // 📸 كاميرا مراقبة 2: لمعرفة سبب الفصل بالظبط (هل المتصفح اللي قفل أم السيرفر؟)
+      console.log(`🔴 [SOCKET]: انقطع الاتصال! السبب القادم من السيرفر هو: ${reason}`);
     };
 
     const onUsersUpdate = (users: ActiveUser[]) => {
       setActiveUsers(users);
     };
 
-    // ربط الأحداث
     globalSocket.on('connect', onConnect);
     globalSocket.on('disconnect', onDisconnect);
     globalSocket.on('active_users_update', onUsersUpdate);
 
-    // إذا عاد المكون للظهور وكان السوكت متصلاً بالفعل، حدّث الحالة فوراً
     if (globalSocket.connected) {
       setIsConnected(true);
     }
 
-    // 🧹 التنظيف السحري: عند الـ Unmount بنشيل الـ Listeners بس عشان ما تتكرر، وبنسيب الخط مفتوح ونظيف
     return () => {
+      console.log('🧹 [SOCKET PROVIDER]: <<< تنظيف الـ Listeners (Unmount) >>>');
       if (globalSocket) {
         globalSocket.off('connect', onConnect);
         globalSocket.off('disconnect', onDisconnect);
