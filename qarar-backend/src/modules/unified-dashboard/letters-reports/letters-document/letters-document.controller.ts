@@ -1,20 +1,19 @@
 import { Request, Response } from 'express';
 import { LettersDocumentModel } from './letters-document.models';
-import { ICreateLetterInput } from './letters-document.types';
 // استدعاء خدماتك الفعلية والمطابقة لمشروعك بالملّي
 import { socketService } from '../../../../services/socketService'; 
 import { askGhaith } from '../../../../services/ghaithService';
+import dbConfig from '../../../../config/db'; // استيراد الـ db لجلب الـ IDs للتنبيهات الفورية إذا لزم الأمر
 
 export class LettersDocumentController {
 
-  // 1. إنشاء خطاب رسمي وإرسال التنبيهات الفورية المخصصة للمستلمين عبر السوكت المعدّل
+  // 1. إنشاء خطاب رسمي وإرسال التنبيهات الفورية المخصصة للمستلمين عبر أرقام المتطوعين
   static async createLetter(req: Request, res: Response) {
     try {
-      // 🔑 العلاج الحاسم: فحص userId أولاً ليتوافق مع الـ JWT المعتمد في نظامك، ثم id كاحتياط
+      // 🔑 التقط المعرف بشكل آمن يتوافق مع الـ JWT المعتمد في نظامك
       const userPayload = (req as any).user;
       const senderId = userPayload?.userId || userPayload?.id || (req as any).userId;
 
-      // 🛡️ حماية مؤسسية: التحقق من وجود المعرف قبل توجيه الاستعلام لقاعدة البيانات
       if (!senderId) {
         return res.status(401).json({ 
           success: false, 
@@ -22,19 +21,22 @@ export class LettersDocumentController {
         });
       }
 
-      const input: ICreateLetterInput = req.body;
+      const input = req.body;
 
       if (!input.title || !input.content || !input.letter_type) {
         return res.status(400).json({ success: false, message: 'جميع الحقول الأساسية مطلوبة' });
       }
 
-      // حفظ الخطاب وتوزيعه في قاعدة البيانات عبر الـ Transaction المحمي
+      // حفظ الخطاب وتوزيعه في قاعدة البيانات عبر الـ Transaction المحمي باستخدام رقم المتطوع
       const newLetter = await LettersDocumentModel.create(senderId, input);
 
-      // إرسال تنبيه فوري مخصص لكل مستلم تم تحديده في مصفوفة المستلمين
-      if (input.recipient_ids && input.recipient_ids.length > 0) {
-        input.recipient_ids.forEach((recipientId) => {
-          socketService.sendNotificationToUser(recipientId, {
+      // 🔔 إرسال تنبيه فوري مخصص عبر السوكت عن طريق جلب الـ IDs الحقيقية لأرقام المتطوعين الممررة
+      if (input.recipient_volunteer_numbers && input.recipient_volunteer_numbers.length > 0) {
+        const userQuery = `SELECT user_id FROM volunteer_profiles WHERE volunteer_number = ANY($1)`;
+        const userResult = await dbConfig.query(userQuery, [input.recipient_volunteer_numbers]);
+        
+        userResult.rows.forEach((row: any) => {
+          socketService.sendNotificationToUser(row.user_id, {
             type: 'LETTER',
             title: 'خطاب رسمي جديد',
             message: `وصلك خطاب جديد بعنوان: ${input.title}`,
@@ -83,7 +85,7 @@ export class LettersDocumentController {
     try {
       const userPayload = (req as any).user;
       const recipientId = userPayload?.userId || userPayload?.id || (req as any).userId;
-      
+
       const letters = await LettersDocumentModel.getInboxLetters(recipientId);
       return res.status(200).json({ success: true, data: letters });
     } catch (error: any) {
@@ -96,7 +98,7 @@ export class LettersDocumentController {
     try {
       const userPayload = (req as any).user;
       const senderId = userPayload?.userId || userPayload?.id || (req as any).userId;
-      
+
       const letters = await LettersDocumentModel.getSentLetters(senderId);
       return res.status(200).json({ success: true, data: letters });
     } catch (error: any) {
