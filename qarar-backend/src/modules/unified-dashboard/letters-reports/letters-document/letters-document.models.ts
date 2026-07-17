@@ -22,8 +22,10 @@ export class LettersDocumentModel {
 
   // 2. دالة إنشاء خطاب جديد وتوزيعه للمستلمين (Database Transaction)
   static async create(senderId: string, input: ICreateLetterInput) {
-    // 🏛️ التعديل المؤسسي: سحب الكلاينت مباشرة من الـ pool المعتمد في نظام قرار
-    const client = await db.pool.connect(); 
+    // 🏛️ التعديل المؤسسي المضمون: سحب الكلاينت عبر دالة الـ connect المباشرة المتاحة في كائن الـ db أو الـ pool الخاص بك
+    // إذا واجهتك مشكلة هنا، فالحل هو استدعاء db.connect() مباشرة دون استخدام كلمة pool
+    const client = await (db.connect ? db.connect() : (db as any).pool.connect()); 
+    
     try {
       await client.query('BEGIN'); // بدء العملية المحمية
 
