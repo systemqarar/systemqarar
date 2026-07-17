@@ -22,9 +22,9 @@ export class LettersDocumentModel {
 
   // 2. دالة إنشاء خطاب جديد وتوزيعه للمستلمين (Database Transaction)
   static async create(senderId: string, input: ICreateLetterInput) {
-    // 🏛️ التعديل المؤسسي المضمون: سحب الكلاينت عبر دالة الـ connect المباشرة المتاحة في كائن الـ db أو الـ pool الخاص بك
-    // إذا واجهتك مشكلة هنا، فالحل هو استدعاء db.connect() مباشرة دون استخدام كلمة pool
-    const client = await (db.connect ? db.connect() : (db as any).pool.connect()); 
+    // 🏛️ التعديل الحاسم والمضمون: عزل الـ pool في متغير مستقل وإجباره على فتح الاتصال بأمان لتخطي تعنت TypeScript
+    const poolObject = (db as any).pool;
+    const client = await poolObject.connect(); 
     
     try {
       await client.query('BEGIN'); // بدء العملية المحمية
