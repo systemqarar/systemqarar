@@ -3,27 +3,17 @@ import http from 'http';
 import jwt from 'jsonwebtoken';
 import pool from '../config/db'; 
 
-// 🌐 1. تعريف واجهات الأحداث (Strongly Typed Events) للتطوير المستقبلي الآمن
 interface ServerToClientEvents {
   active_users_update: (users: ActiveUserRow[]) => void;
-  // 🔔 حدث إرسال الإشعارات الفورية والموجهة للخطابات الإدارية والقرارات الحية
   new_notification: (data: { type: string; title: string; message: string; letter_id: string; priority: string }) => void;
 }
 
-interface ClientToServerEvents {
-  // هنا تضع أي أحداث يرسلها العميل مستقبلاً (مثل: send_message أو start_quiz)
-}
-
-interface InterServerEvents {
-  // مفيدة جداً مستقبلاً في حال احتجت لربط السيرفر بـ Redis لموازنة الأحمال (Scaling)
-}
-
-// 🔑 2. واجهة بيانات جلسة الاتصال (Socket Metadata)
+interface ClientToServerEvents {}
+interface InterServerEvents {}
 interface SocketData {
   userId: string;
 }
 
-// واجهة تطابق تماماً بنية الصفوف الراجعة من قاعدة البيانات
 export interface ActiveUserRow {
   user_id: string;
   is_online: boolean;
@@ -34,19 +24,23 @@ export interface ActiveUserRow {
 }
 
 export class SocketService {
-  // تهيئة سيرفر السوكت بالأنواع الصارمة المحددة بالأعلى
   private io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData> | null = null;
+
+  // 📝 دالة مساعدة للتحقق هل المعرف عبارة عن UUID صحيح ومطابق لمعايير قاعدة البيانات أم معرف افتراضي
+  private isValidUUID(id: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
+  }
 
   public initialize(server: http.Server): void {
     this.io = new Server(server, {
       cors: {
-        origin: '*', // يمكن حصرها في بيئة الإنتاج بروابط محددة لمزيد من الأمان
+        origin: '*', 
         methods: ['GET', 'POST'],
         credentials: true
       }
     });
 
-    // 🛡️ برمجية وسيطة آمنة (Strict Middleware) للتحقق من الهوية وحفظ الـ UUID
     this.io.use((socket, next) => {
       try {
         const token = socket.handshake.auth?.token || socket.handshake.headers['authorization']?.split(' ')[1];
@@ -56,19 +50,15 @@ export class SocketService {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret') as any;
-        
-        // 💡 طباعة محتويات التوكن الحقيقية في سجلات السيرفر لمراقبة الأمان وتسهيل المتابعة
         console.log('🗝️ [SOCKET JWT DECODED]:', decoded);
 
-        // جلب المعرّف بشكل مرن ومقاوم للتغيرات المستقبلية في نظام تسجيل الدخول
         const userId = decoded.id || decoded.user_id || decoded.userId || decoded.sub;
 
         if (!userId) {
-          console.warn('⚠️ [SOCKET]: تم التحقق من صلاحية التوكن بنجاح، لكن لم يتم العثور على أي معرف مستخدم (id/user_id) بداخله.');
+          console.warn('⚠️ [SOCKET]: لم يتم العثور على أي معرف مستخدم داخل التوكن.');
           return next(new Error('Authentication error: User ID missing in token'));
         }
 
-        // 💡 حفظ الـ UUID داخل كائن data المخصص رسمياً في مكتبة Socket.io
         socket.data.userId = userId; 
         next();
       } catch (err) {
@@ -77,7 +67,6 @@ export class SocketService {
       }
     });
 
-    // الاستماع للاتصالات المستقرة والناجحة
     this.io.on('connection', async (socket) => {
       const userId = socket.data.userId;
       const socketId = socket.id;
@@ -85,7 +74,7 @@ export class SocketService {
       if (userId) {
         console.log(`🟢 [SOCKET CONNECTED]: مستخدم متصل UUID: ${userId} | Socket ID: ${socketId}`);
         
-        // 🚪 [ربط فوري للمستخدم بغرفته الخاصة] تمكن السيرفر من استهدافه بالإشعارات الفردية لاحقاً بالـ UUID
+        // 👍 الإبقاء على الغرفة لتوصيل الإشعارات الفورية لحسابك بشكل طبيعي جداً
         socket.join(userId); 
         
         await this.setUserOnline(userId, socketId);
@@ -100,8 +89,14 @@ export class SocketService {
     });
   }
 
-  // 🟢 تحديث حالة المستخدم في قاعدة البيانات إلى "متصل الآن"
+  // 🟢 تحديث حالة المستخدم في قاعدة البيانات إلى "متصل الآن" (محمية الآن)
   private async setUserOnline(userId: string, socketId: string): Promise<void> {
+    // 🛡️ حارس أمان: لو المعرف ليس UUID (مثل حسابات الـ virtual admin)، تخطى استعلام قاعدة البيانات لمنع الكراش
+    if (!this.isValidUUID(userId)) {
+      console.info(`ℹ️ [SOCKET]: تم تخطي تحديث جدول المتواجدين للمعرف الإداري المخصص: ${userId}`);
+      return;
+    }
+
     const query = `
       INSERT INTO user_presence (user_id, is_online, socket_id, last_seen)
       VALUES ($1, true, $2, NOW())
@@ -129,7 +124,7 @@ export class SocketService {
     }
   }
 
-  // 📊 جلب وبث قائمة المستخدمين النشطين لحظياً لجميع الأطراف المتصلة
+  // 📊 جلب وبث قائمة المستخدمين النشطين لحظياً
   public async broadcastActiveUsers(): Promise<void> {
     if (!this.io) return;
 
@@ -156,7 +151,6 @@ export class SocketService {
     }
   }
 
-  // 🎯 [دالة البث المستهدف] إرسال تنبيه مخصص وفوري لعضو معين بناءً على الـ UUID الخاص به
   public sendNotificationToUser(userId: string, data: { type: string; title: string; message: string; letter_id: string; priority: string }): void {
     if (this.io) {
       this.io.to(userId).emit('new_notification', data);
