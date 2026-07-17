@@ -10,7 +10,18 @@ export class LettersDocumentController {
   // 1. إنشاء خطاب رسمي وإرسال التنبيهات الفورية المخصصة للمستلمين عبر السوكت المعدّل
   static async createLetter(req: Request, res: Response) {
     try {
-      const senderId = (req as any).user.id; // معرّف المرسل من الـ Auth Middleware
+      // 🔑 العلاج الحاسم: فحص userId أولاً ليتوافق مع الـ JWT المعتمد في نظامك، ثم id كاحتياط
+      const userPayload = (req as any).user;
+      const senderId = userPayload?.userId || userPayload?.id || (req as any).userId;
+
+      // 🛡️ حماية مؤسسية: التحقق من وجود المعرف قبل توجيه الاستعلام لقاعدة البيانات
+      if (!senderId) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'عذراً، لم يتم التعرف على هوية المستخدم الصادر. تأكد من إرسال توكن صلاحية صالح.' 
+        });
+      }
+
       const input: ICreateLetterInput = req.body;
 
       if (!input.title || !input.content || !input.letter_type) {
@@ -35,6 +46,7 @@ export class LettersDocumentController {
 
       return res.status(201).json({ success: true, data: newLetter });
     } catch (error: any) {
+      console.error("🚨 [خطأ في كونترولر الخطابات]:", error.message);
       return res.status(500).json({ success: false, error: error.message });
     }
   }
@@ -69,7 +81,9 @@ export class LettersDocumentController {
   // 3. جلب الخطابات الواردة للمستخدم الحالي (صندوق الوارد)
   static async getInbox(req: Request, res: Response) {
     try {
-      const recipientId = (req as any).user.id;
+      const userPayload = (req as any).user;
+      const recipientId = userPayload?.userId || userPayload?.id || (req as any).userId;
+      
       const letters = await LettersDocumentModel.getInboxLetters(recipientId);
       return res.status(200).json({ success: true, data: letters });
     } catch (error: any) {
@@ -80,7 +94,9 @@ export class LettersDocumentController {
   // 4. جلب الخطابات الصادرة من المستخدم الحالي (صندوق الصادر)
   static async getSent(req: Request, res: Response) {
     try {
-      const senderId = (req as any).user.id;
+      const userPayload = (req as any).user;
+      const senderId = userPayload?.userId || userPayload?.id || (req as any).userId;
+      
       const letters = await LettersDocumentModel.getSentLetters(senderId);
       return res.status(200).json({ success: true, data: letters });
     } catch (error: any) {
