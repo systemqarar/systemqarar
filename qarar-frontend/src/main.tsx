@@ -6,18 +6,16 @@ import { SocketProvider } from './context/SocketContext' // 🔌 مسار مطا
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    {/* 1. طبقة الأمان والتوكن في الأعلى */}
+    /* 1. طبقة الأمان والتوكن في الأعلى */
     <AuthProvider>
       
-      {/* 2. طبقة السوكت تحتها مباشرة لتقرأ التوكن فوراً */}
+      /* 2. طبقة السوكت تحتها مباشرة لتقرأ التوكن فوراً */
       <SocketProvider>
         
-        {/* 3. مسارات وصفحات نظام قرار بالكامل */}
+        /* 3. مسارات وصفحات نظام قرار بالكامل */
         <AppRoutes />
         
       </SocketProvider>
       
     </AuthProvider>
-  </React.StrictMode>,
 )
