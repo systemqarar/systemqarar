@@ -22,7 +22,8 @@ export class LettersDocumentModel {
 
   // 2. دالة إنشاء خطاب جديد وتوزيعه للمستلمين (Database Transaction)
   static async create(senderId: string, input: ICreateLetterInput) {
-    const client = await db.connect(); // استخدام الكلاينت لإدارة الـ Transaction بدقة
+    // 🏛️ التعديل المؤسسي: سحب الكلاينت مباشرة من الـ pool المعتمد في نظام قرار
+    const client = await db.pool.connect(); 
     try {
       await client.query('BEGIN'); // بدء العملية المحمية
 
@@ -66,7 +67,7 @@ export class LettersDocumentModel {
       await client.query('ROLLBACK'); // إلغاء كل شيء في حال حدوث أي خطأ لمنع العشوائية
       throw error;
     } finally {
-      client.release(); // تحرير الكلاينت وإعادته للـ Pool
+      client.release(); // تحرير الكلاينت وإعادته للـ Pool بأمان
     }
   }
 

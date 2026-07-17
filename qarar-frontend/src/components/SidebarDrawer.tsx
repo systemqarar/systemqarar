@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'; // 🏛️ تأمين الاستيراد لضمان عمل الواجهة في بيئة التشغيل
+import { useEffect } from 'react'; // 🔄 استيراد الدالة مباشرة دون استيراد كائن React كاملاً
 import { useNavigate, useLocation } from 'react-router-dom'; 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Home, User, ClipboardList, MessageSquare, FileText, LogOut, Sparkles } from 'lucide-react';
@@ -31,11 +31,10 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
       badge: { text: 'جاري إدارة الاجتماع', type: 'ai' },
       path: '/dashboard/communication'
     },
-    // 👈 التعديل المضمون والمتطابق بالملي مع موديول الخطابات والتقارير الجديد
     { id: 'letters', name: 'الخطابات الرسمية والتقارير', icon: FileText, path: '/dashboard/letters' },
   ];
 
-  // 🔄 مزامنة التبويب النشط تلقائياً بناءً على الرابط الحالي في المتصفح دون تعارض
+  // 🔄 المزامنة التلقائية للمسارات بنظام سليم ومستقبلي
   useEffect(() => {
     const currentPath = location.pathname;
     const matchedItem = menuItems.find(item => item.path === currentPath);
@@ -44,7 +43,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
     } else if (currentPath === '/dashboard') {
       setActiveTab('overview');
     }
-  }, [location.pathname]); // تم ضبط مصفوفة الاعتماديات بدقة لمنع التجمد
+  }, [location.pathname]);
 
   const containerVariants = {
     open: {
@@ -119,7 +118,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                         whileTap={{ scale: 0.97 }}
                         onClick={() => {
                           setActiveTab(item.id);
-                          navigate(item.path); // توجيه آمن للمسار
+                          navigate(item.path);
                           setTimeout(onClose, 120);
                         }}
                         className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl font-black text-[11px] relative select-none cursor-pointer transition-all duration-200 ${
