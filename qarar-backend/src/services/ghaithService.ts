@@ -41,6 +41,35 @@ interface GhaithOptions {
   responseSchema?: any; 
 }
 
+// 🌐 [إضافة هندسية]: واجهة لإدارة حالة المفاتيح عالمياً في السيرفر
+interface GlobalKeyStatus {
+  name: string;
+  value: string;
+  cooldownUntil: number; // التوقيت الزمني بالملي ثانية الذي ينتهي فيه حظر المفتاح
+}
+
+// الذاكرة العالمية للمفاتيح (تمنع احتراق المفاتيح بالتزامن)
+let globalKeysPool: GlobalKeyStatus[] = [];
+
+/**
+ * دالة داخلية لتجهيز المفاتيح وتحديثها من الـ env مرة واحدة فقط أو عند الحاجة
+ */
+function initializeGlobalKeysPool() {
+  if (globalKeysPool.length > 0) return;
+  
+  const keys: GlobalKeyStatus[] = [];
+  for (const envKey in process.env) {
+    if (envKey.startsWith('GEMINI_KEY_') && process.env[envKey]) {
+      keys.push({
+        name: envKey,
+        value: process.env[envKey]!.trim(),
+        cooldownUntil: 0 // متاح فوراً عند تشغيل السيرفر
+      });
+    }
+  }
+  globalKeysPool = keys;
+}
+
 /**
  * خدمة غيث المركزية المطوّرة والمُحصّنة - نظام قرار
  */
@@ -50,27 +79,31 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
     throw new Error('المساعد الرقمي غيث غير مفعّل حالياً في النظام.');
   }
 
-  const keysWithNames: { name: string; value: string }[] = [];
-  for (const envKey in process.env) {
-    if (envKey.startsWith('GEMINI_KEY_') && process.env[envKey]) {
-      keysWithNames.push({
-        name: envKey,
-        value: process.env[envKey]!.trim()
-      });
-    }
-  }
+  // 1. تجهيز الكاش العالمي للمفاتيح
+  initializeGlobalKeysPool();
 
-  if (keysWithNames.length === 0) {
+  if (globalKeysPool.length === 0) {
     throw new Error('خطأ: لم يتم العثور على أي مفاتيح (GEMINI_KEY_X) في إعدادات النظام.');
   }
 
-  const availableKeys = [...keysWithNames];
   const maxRetries = 3; 
   let attempts = 0;
 
-  while (attempts < maxRetries && availableKeys.length > 0) {
-    const randomIndex = Math.floor(Math.random() * availableKeys.length);
-    const selectedKeyObj = availableKeys[randomIndex];
+  // حلقة التكرار تستمر طالما لم نتجاوز الحد الأقصى للمحاولات للطلب الحالي
+  while (attempts < maxRetries) {
+    const now = Date.now();
+    
+    // تصفية المفاتيح الجاهزة للعمل حالياً (ليست في فترة خمول)
+    let activeKeys = globalKeysPool.filter(k => k.cooldownUntil <= now);
+
+    // [صمام أمان]: إذا كانت كل المفاتيح "محظورة مؤقتاً" في الذاكرة العالمية، نفتح الحظر تكتيكياً لتجنب الرفض الفوري للطلب
+    if (activeKeys.length === 0) {
+      activeKeys = [...globalKeysPool];
+    }
+
+    // اختيار مفتاح عشوائي من المفاتيح المتاحة حالياً
+    const randomIndex = Math.floor(Math.random() * activeKeys.length);
+    const selectedKeyObj = activeKeys[randomIndex];
     
     const selectedKey = selectedKeyObj.value;
     const selectedKeyName = selectedKeyObj.name;
@@ -118,27 +151,35 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
         }
       );
 
-      // 🔍 [التعديل الجوهري]: فحص وتصنيف الأخطاء بدقة مع إدخال آلية التقاط الأنفاس
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const status = response.status;
 
-        // 1. تصنيف اللوقس المتقدم بناءً على رمز الحالة المرتجع
+        // تحديد مدة الخمول بناءً على نوع الخطأ (429 تحتاج وقت أطول لتصفير الدقيقة، 503 فواق مؤقت)
+        let cooldownMs = 10000; // 10 ثوانٍ كحد أدنى لأي خطأ سيرفر غير متوقع
+        
         if (status === 503) {
           console.error(`[🔥 ضغط عالي وعشوائي (503)] المشكلة في: ${selectedKeyName}. سيرفر قوقل يعاني من ازدحام مؤقت عالمياً.`, errorData);
+          cooldownMs = 15000; // وضع المفتاح في الخمول لمدة 15 ثانية
         } else if (status === 429) {
           console.error(`[⏳ نفاد حصة مؤقت (429)] المشكلة في: ${selectedKeyName}. المفتاح تجاوز حد الطلبات المسموح به للدقيقة.`, errorData);
+          cooldownMs = 45000; // وضع المفتاح في الخمول لمدة 45 ثانية (حتى تنتهي الدقيقة الحالية لجوجل)
         } else {
           console.error(`[❌ خطأ سيرفر غير متوقع (${status})] في المفتاح: ${selectedKeyName}.`, errorData);
         }
         
-        // 2. آلية التقاط الأنفاس الذكية لحماية المفاتيح البديلة من الاحتراق السريع
+        // 🛡️ [التعديل الجوهري]: وسم المفتاح بفترة الخمول في الذاكرة العالمية ليتخطاه أي طلب متزامن آخر فوراً
+        const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
+        if (targetGlobalKey) {
+          targetGlobalKey.cooldownUntil = Date.now() + cooldownMs;
+        }
+
+        // آلية التقاط الأنفاس للطلب الحالي قبل الانتقال للمفتاح البديل المتاح في المصفوفة العالمية
         if (status === 503 || status === 429) {
           console.log(`⏱️ [آلية التقاط الأنفاس]: سيتم الانتظار لمدة 1500 ملي ثانية قبل سحب المفتاح البديل لتفادي الاختناق التتابعي...`);
           await new Promise(resolve => setTimeout(resolve, 1500));
         }
 
-        availableKeys.splice(randomIndex, 1); 
         continue; 
       }
 
@@ -147,7 +188,9 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
       
       if (!textResponse) {
         console.warn(`[⚠️ استجابة فارغة] من الحساب: ${selectedKeyName}. محاولة مفتاح آخر.`);
-        availableKeys.splice(randomIndex, 1);
+        // وسم المفتاح بخمول قصير جداً لأنه قد يكون عيب سياق مؤقت
+        const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
+        if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 5000;
         continue;
       }
 
@@ -168,7 +211,8 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
           JSON.parse(cleanedText); 
         } catch (jsonError) {
           console.warn(`[⚠️ خطأ في قالب JSON] المفتاح [${selectedKeyName}] رجّع بيانات مكسورة حتى بعد التنظيف. جاري التبديل تلقائياً لحماية النظام.`);
-          availableKeys.splice(randomIndex, 1);
+          const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
+          if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 5000;
           continue; 
         }
       }
@@ -177,7 +221,8 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
 
     } catch (error) {
       console.error(`[❌ خطأ شبكة/اتصال] أثناء استخدام ${selectedKeyName}:`, error);
-      availableKeys.splice(randomIndex, 1);
+      const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
+      if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 10000;
     }
   }
 
