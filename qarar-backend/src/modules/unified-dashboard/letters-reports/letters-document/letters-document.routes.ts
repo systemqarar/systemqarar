@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { LettersDocumentController } from './letters-document.controller';
 // حماية المسار والتحقق من صلاحية الجلسة والمشرف
-import { requireAuth } from '../../../../middlewares/authMiddleware'; 
+import { requireAuth } from '../../../../middlewares/authMiddleware';
 
 const router = Router();
 

@@ -1,5 +1,5 @@
-import { useEffect } from 'react'; // 🏛️ التصحيح الجذري: استيراد useEffect فقط لإنهاء خطأ TS6133
-import { useNavigate, useLocation } from 'react-router-dom'; // استيراد أدوات التوجيه لربط المسارات حقيقياً
+import React, { useEffect } from 'react'; // 🏛️ تأمين الاستيراد لضمان عمل الواجهة في بيئة التشغيل
+import { useNavigate, useLocation } from 'react-router-dom'; 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Home, User, ClipboardList, MessageSquare, FileText, LogOut, Sparkles } from 'lucide-react';
 
@@ -31,11 +31,11 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
       badge: { text: 'جاري إدارة الاجتماع', type: 'ai' },
       path: '/dashboard/communication'
     },
-    // تعديل المعرف والاسم ليتطابق بالملي مع موديول الخطابات والتقارير الجديد
+    // 👈 التعديل المضمون والمتطابق بالملي مع موديول الخطابات والتقارير الجديد
     { id: 'letters', name: 'الخطابات الرسمية والتقارير', icon: FileText, path: '/dashboard/letters' },
   ];
 
-  // 🔄 مزامنة التبويب النشط تلقائياً بناءً على الرابط الحالي في المتصفح
+  // 🔄 مزامنة التبويب النشط تلقائياً بناءً على الرابط الحالي في المتصفح دون تعارض
   useEffect(() => {
     const currentPath = location.pathname;
     const matchedItem = menuItems.find(item => item.path === currentPath);
@@ -44,9 +44,8 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
     } else if (currentPath === '/dashboard') {
       setActiveTab('overview');
     }
-  }, [location.pathname, setActiveTab]);
+  }, [location.pathname]); // تم ضبط مصفوفة الاعتماديات بدقة لمنع التجمد
 
-  // إعدادات الشلال الحركي للأزرار الداخلية
   const containerVariants = {
     open: {
       transition: { staggerChildren: 0.05, delayChildren: 0.1 }
@@ -64,7 +63,6 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-start p-4" dir="rtl">
           
-          {/* الخلفية المظلمة الشفافة */}
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -73,7 +71,6 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
             className="absolute inset-0 bg-black/60 backdrop-blur-[5px]"
           />
 
-          {/* جسم اللوحة العائمة المعالج للقص ذو الحركة السحرية */}
           <motion.div 
             initial={{ x: '120%', opacity: 0.5, scale: 0.96 }}
             animate={{ x: 0, opacity: 1, scale: 1 }}
@@ -83,12 +80,10 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
             className="absolute top-4 bottom-4 right-4 w-[85vw] max-w-[290px] text-white p-5 flex flex-col justify-between shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] bg-gradient-to-b from-[#560E1A] via-[#7A1C2E] to-[#380710] rounded-[2.5rem] border border-white/10 overflow-hidden z-10"
           >
             
-            {/* الخلفية الهندسية الفخمة */}
             <div className="absolute inset-0 z-0 opacity-10 pointer-events-none bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_16px]" />
 
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
-                {/* الهيدر الموحد باللوقو الرسمي */}
                 <div className="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center shadow-md select-none">
@@ -109,7 +104,6 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                   </button>
                 </div>
 
-                {/* الأزرار التفاعلية بنظام الشلال الحركي والاتصال بالـ Router */}
                 <motion.nav 
                   variants={containerVariants}
                   animate="open"
@@ -125,7 +119,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                         whileTap={{ scale: 0.97 }}
                         onClick={() => {
                           setActiveTab(item.id);
-                          navigate(item.path); // توجيه المستخدم للمسار الفعلي للمتصفح
+                          navigate(item.path); // توجيه آمن للمسار
                           setTimeout(onClose, 120);
                         }}
                         className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl font-black text-[11px] relative select-none cursor-pointer transition-all duration-200 ${
@@ -165,7 +159,6 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                 </motion.nav>
               </div>
 
-              {/* زر تسجيل الخروج المستقر تماماً */}
               <div className="border-t border-white/10 pt-4">
                 <button 
                   onClick={() => {
