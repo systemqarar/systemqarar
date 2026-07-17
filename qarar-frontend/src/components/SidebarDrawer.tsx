@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom'; // 👈 استيراد أدوات التوجيه لربط المسارات حقيقياً
+import { useEffect } from 'react'; // 🏛️ التصحيح الجذري: استيراد useEffect فقط لإنهاء خطأ TS6133
+import { useNavigate, useLocation } from 'react-router-dom'; // استيراد أدوات التوجيه لربط المسارات حقيقياً
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Home, User, ClipboardList, MessageSquare, FileText, LogOut, Sparkles } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
       badge: { text: 'جاري إدارة الاجتماع', type: 'ai' },
       path: '/dashboard/communication'
     },
-    // 👈 تم تعديل المعرف والاسم هنا ليتطابق مع موديول الخطابات والتقارير الجديد
+    // تعديل المعرف والاسم ليتطابق بالملي مع موديول الخطابات والتقارير الجديد
     { id: 'letters', name: 'الخطابات الرسمية والتقارير', icon: FileText, path: '/dashboard/letters' },
   ];
 
@@ -125,7 +125,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                         whileTap={{ scale: 0.97 }}
                         onClick={() => {
                           setActiveTab(item.id);
-                          navigate(item.path); // 👈 توجيه المستخدم للمسار الفعلي للمتصفح
+                          navigate(item.path); // توجيه المستخدم للمسار الفعلي للمتصفح
                           setTimeout(onClose, 120);
                         }}
                         className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl font-black text-[11px] relative select-none cursor-pointer transition-all duration-200 ${

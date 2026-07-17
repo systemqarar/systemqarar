@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import lettersDocumentRoutes from './letters-reports/letters-document/letters-document.routes';
+// 🏛️ التصحيح الهندسي: الاستيراد مباشرة من المجلد الشقيق دون تكرار اسم المجلد الأب
+import lettersDocumentRoutes from './letters-document/letters-document.routes';
 
 const router = Router();
 

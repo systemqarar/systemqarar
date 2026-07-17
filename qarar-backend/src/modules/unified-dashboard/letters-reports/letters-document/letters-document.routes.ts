@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { LettersDocumentController } from './letters-document.controller';
-// فرضاً أن اسم ملف حماية المسارات عندك هو authMiddleware، قم بتغيير المسار حسب ملفك الفعلي
+// حماية المسار والتحقق من صلاحية الجلسة والمشرف
 import { requireAuth } from '../../../../middlewares/authMiddleware'; 
 
 const router = Router();

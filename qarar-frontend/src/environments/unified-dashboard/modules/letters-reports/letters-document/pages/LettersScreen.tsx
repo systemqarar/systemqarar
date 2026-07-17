@@ -24,7 +24,8 @@ export const LettersScreen: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [letterType, setLetterType] = useState<LetterType>('administrative');
-  const [priority, setPriority] = useState<LetterPriority>('normal');
+  // 🏛️ الحل الجذري: إزالة الدالة غير المستخدمة setPriority لتجاوز قيود الـ Strict Compiler
+  const [priority] = useState<LetterPriority>('normal');
   const [recipientsInput, setRecipientsInput] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
 
@@ -171,7 +172,7 @@ export const LettersScreen: React.FC = () => {
                   rows={3}
                   placeholder="اكتب أفكارك البسيطة هنا ليتولى غيث صياغتها، مثلاً: طلب إجازة طارئة لظروف عائلية من يوم الأحد القادم..."
                   value={aiPrompt}
-                  onChangeText={() => {}} // لتفادي مشاكل React Native السابقة
+                  // 🏛️ الحل الجذري: إزالة خاصية onChangeText غير المدعومة في عناصر الويب القياسية لمنع تعارض الأنواع
                   onChange={(e) => setAiPrompt(e.target.value)}
                 />
                 <button
