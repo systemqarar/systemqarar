@@ -14,6 +14,9 @@ import developerZoneRouter from './modules/developer-zone/developer-zone.routes'
 // 🤖 استيراد موديول غيث الجديد من الـ public-site
 import ghaithRoutes from './modules/public-site/ghaith/ghaith.routes';
 
+// ✉️ 📄 استيراد راوتر موديول الخطابات والوثائق الرسمية الجديد (التنظيم ألف)
+import lettersReportsRouter from './modules/unified-dashboard/letters-reports/letters-reports.routes';
+
 import { whatsappService } from './services/whatsappService'; // 🟢 خدمة الواتساب المركزية
 
 // تفعيل قراءة الملفات البيئية السرية (.env)
@@ -53,10 +56,13 @@ app.use('/api/developer-zone', developerZoneRouter);
 // 🤖 6. تفعيل موديول المساعد الرقمي غيث واستقبال أسئلة الفحص والتجربة
 app.use('/api/public-site/ghaith', ghaithRoutes);
 
-// 🔌 7. تهيئة وتشغيل خدمة الـ Socket.io وإقرانها بسيرفر الـ HTTP
+// ✉️ 7. تفعيل موديول الخطابات والوثائق الإدارية لربطه بالـ Controller وغيث وسوكت
+app.use('/api/letters-reports', lettersReportsRouter);
+
+// 🔌 8. تهيئة وتشغيل خدمة الـ Socket.io وإقرانها بسيرفر الـ HTTP
 socketService.initialize(server);
 
-// 8. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً (تعديل الاستماع ليكون عبر server)
+// 9. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً (تعديل الاستماع ليكون عبر server)
 server.listen(PORT, async () => {
   console.log(`===================================================`);
   console.log(`⚡ [SERVER RUNNING]: السيرفر ينبض بالحياة الآن على منفذ: ${PORT}`);

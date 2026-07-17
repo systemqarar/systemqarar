@@ -8,6 +8,9 @@ import DashboardLayout from '../environments/unified-dashboard/modules/overview/
 import { volunteerProfileRoutes } from '../environments/unified-dashboard/modules/volunteer-profile/volunteer-profile.routes';
 import { OnboardingWizardPage } from '../environments/unified-dashboard/modules/volunteer-profile/onboarding-wizard/pages/OnboardingWizardPage';
 
+// 🔥 استيراد مسارات الخطابات والتقارير الجديدة المسبكة هندسياً
+import { lettersReportsRoutes } from '../environments/unified-dashboard/modules/letters-reports/letters-reports.routes';
+
 // استيراد مكونات المطور المسبكة الجديدة بناءً على تعديلك الذكي
 import DeveloperLayout from '../environments/develop-dashboard/components/DeveloperLayout';
 import { developRoutes } from '../environments/develop-dashboard/develop.routes';
@@ -90,7 +93,13 @@ export const AppRoutes: React.FC = () => {
               </ProtectedRoute>
             } 
           >
+            {/* مسارات بروفايل المتطوع الأساسية */}
             {volunteerProfileRoutes.map((route, index) => (
+              <Route key={index} path={route.path} element={route.element} />
+            ))}
+
+            {/* ✉️ ضخ مسارات الخطابات والتقارير الذكية ديناميكياً داخل لوحة التحكم */}
+            {lettersReportsRoutes.map((route, index) => (
               <Route key={index} path={route.path} element={route.element} />
             ))}
           </Route>

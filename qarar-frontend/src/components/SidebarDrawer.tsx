@@ -1,3 +1,5 @@
+import React, { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom'; // 👈 استيراد أدوات التوجيه لربط المسارات حقيقياً
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Home, User, ClipboardList, MessageSquare, FileText, LogOut, Sparkles } from 'lucide-react';
 
@@ -9,24 +11,40 @@ interface SidebarDrawerProps {
 }
 
 export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: SidebarDrawerProps) => {
-  
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const menuItems = [
-    { id: 'overview', name: 'الرئيسية (Overview)', icon: Home },
-    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User },
+    { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
+    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
     { 
       id: 'tasks', 
       name: 'المهام والأنشطة', 
       icon: ClipboardList, 
-      badge: { text: '٣ نشطة', type: 'info' } 
+      badge: { text: '٣ نشطة', type: 'info' },
+      path: '/dashboard/tasks'
     },
     { 
       id: 'communication', 
       name: 'مركز التواصل الذكي', 
       icon: MessageSquare, 
-      badge: { text: 'جاري إدارة الاجتماع', type: 'ai' }
+      badge: { text: 'جاري إدارة الاجتماع', type: 'ai' },
+      path: '/dashboard/communication'
     },
-    { id: 'documents', name: 'الخطابات والوثائق', icon: FileText },
+    // 👈 تم تعديل المعرف والاسم هنا ليتطابق مع موديول الخطابات والتقارير الجديد
+    { id: 'letters', name: 'الخطابات الرسمية والتقارير', icon: FileText, path: '/dashboard/letters' },
   ];
+
+  // 🔄 مزامنة التبويب النشط تلقائياً بناءً على الرابط الحالي في المتصفح
+  useEffect(() => {
+    const currentPath = location.pathname;
+    const matchedItem = menuItems.find(item => item.path === currentPath);
+    if (matchedItem) {
+      setActiveTab(matchedItem.id);
+    } else if (currentPath === '/dashboard') {
+      setActiveTab('overview');
+    }
+  }, [location.pathname, setActiveTab]);
 
   // إعدادات الشلال الحركي للأزرار الداخلية
   const containerVariants = {
@@ -91,7 +109,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                   </button>
                 </div>
 
-                {/* الأزرار التفاعلية بنظام الشلال الحركي */}
+                {/* الأزرار التفاعلية بنظام الشلال الحركي والاتصال بالـ Router */}
                 <motion.nav 
                   variants={containerVariants}
                   animate="open"
@@ -99,7 +117,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                   className="space-y-1"
                 >
                   {menuItems.map((item) => {
-                    const IsActive = activeTab === item.id || (item.id === 'communication' && activeTab === 'communication');
+                    const IsActive = activeTab === item.id;
                     return (
                       <motion.button
                         key={item.id}
@@ -107,6 +125,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                         whileTap={{ scale: 0.97 }}
                         onClick={() => {
                           setActiveTab(item.id);
+                          navigate(item.path); // 👈 توجيه المستخدم للمسار الفعلي للمتصفح
                           setTimeout(onClose, 120);
                         }}
                         className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl font-black text-[11px] relative select-none cursor-pointer transition-all duration-200 ${
@@ -149,6 +168,10 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
               {/* زر تسجيل الخروج المستقر تماماً */}
               <div className="border-t border-white/10 pt-4">
                 <button 
+                  onClick={() => {
+                    localStorage.removeItem('qarar_token');
+                    window.location.href = '/login';
+                  }}
                   className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl font-black text-[11px] bg-white/5 text-red-200 hover:bg-white/10 active:scale-95 transition-all border border-white/5 shadow-inner"
                 >
                   <LogOut className="w-4 h-4 text-red-300" />

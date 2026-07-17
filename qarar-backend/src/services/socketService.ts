@@ -4,9 +4,10 @@ import jwt from 'jsonwebtoken';
 import pool from '../config/db'; 
 
 // 🌐 1. تعريف واجهات الأحداث (Strongly Typed Events) للتطوير المستقبلي الآمن
-// تضمن عدم كتابة أسماء أحداث خاطئة في الفرونتد أو الباكيند
 interface ServerToClientEvents {
   active_users_update: (users: ActiveUserRow[]) => void;
+  // 🔔 حدث إرسال الإشعارات الفورية والموجهة للخطابات الإدارية والقرارات الحية
+  new_notification: (data: { type: string; title: string; message: string; letter_id: string; priority: string }) => void;
 }
 
 interface ClientToServerEvents {
@@ -18,7 +19,6 @@ interface InterServerEvents {
 }
 
 // 🔑 2. واجهة بيانات جلسة الاتصال (Socket Metadata)
-// الطريقة الرسمية في Socket.io لحفظ بيانات الجلسة دون تدمير كائنات النظام بـ Casting
 interface SocketData {
   userId: string;
 }
@@ -84,6 +84,10 @@ export class SocketService {
 
       if (userId) {
         console.log(`🟢 [SOCKET CONNECTED]: مستخدم متصل UUID: ${userId} | Socket ID: ${socketId}`);
+        
+        // 🚪 [ربط فوري للمستخدم بغرفته الخاصة] تمكن السيرفر من استهدافه بالإشعارات الفردية لاحقاً بالـ UUID
+        socket.join(userId); 
+        
         await this.setUserOnline(userId, socketId);
         await this.broadcastActiveUsers();
       }
@@ -145,11 +149,17 @@ export class SocketService {
     `;
 
     try {
-      // تمرير النوع ActiveUserRow ليكون الناتج نموذجياً وصارماً
       const result = await pool.query<ActiveUserRow>(query);
       this.io.emit('active_users_update', result.rows);
     } catch (err) {
       console.error('❌ [SOCKET DB ERROR]: فشل جلب وبث الأعضاء النشطين:', err);
+    }
+  }
+
+  // 🎯 [دالة البث المستهدف] إرسال تنبيه مخصص وفوري لعضو معين بناءً على الـ UUID الخاص به
+  public sendNotificationToUser(userId: string, data: { type: string; title: string; message: string; letter_id: string; priority: string }): void {
+    if (this.io) {
+      this.io.to(userId).emit('new_notification', data);
     }
   }
 }
