@@ -41,7 +41,7 @@ interface GhaithOptions {
   responseSchema?: any; 
 }
 
-// 🌐 إدارة حالة المفاتيح عالمياً في السيرفر
+// 🌐 [إضافة هندسية]: واجهة لإدارة حالة المفاتيح عالمياً في السيرفر
 interface GlobalKeyStatus {
   name: string;
   value: string;
@@ -52,7 +52,7 @@ interface GlobalKeyStatus {
 let globalKeysPool: GlobalKeyStatus[] = [];
 
 /**
- * دالة داخلية لتجهيز المفاتيح وتحديثها من الـ env مرة واحدة فقط
+ * دالة داخلية لتجهيز المفاتيح وتحديثها من الـ env مرة واحدة فقط أو عند الحاجة
  */
 function initializeGlobalKeysPool() {
   if (globalKeysPool.length > 0) return;
@@ -70,17 +70,8 @@ function initializeGlobalKeysPool() {
   globalKeysPool = keys;
 }
 
-// 🔄 قائمة الموديلات للتدوير (تضم الموديلات الذكية السريعة + النماذج عالية الذكاء)
-const AVAILABLE_MODELS = [
-  'gemini-3.5-flash',
-  'gemini-1.5-pro',
-  'gemini-2.0-flash-exp',
-  'gemini-1.5-flash-latest'
-];
-
 /**
  * خدمة غيث المركزية المطوّرة والمُحصّنة - نظام قرار
- * تدعم التدوير التلقائي للمفاتيح والموديلات لمنع التوقف عند ضغط السيرفرات
  */
 export async function askGhaith(prompt: string, options?: GhaithOptions): Promise<string> {
   
@@ -95,16 +86,17 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
     throw new Error('خطأ: لم يتم العثور على أي مفاتيح (GEMINI_KEY_X) في إعدادات النظام.');
   }
 
-  const maxRetries = 4; // عدد المحاولات لتغطية التبديل بين الموديلات الأربعة
+  const maxRetries = 3; 
   let attempts = 0;
 
+  // حلقة التكرار تستمر طالما لم نتجاوز الحد الأقصى للمحاولات للطلب الحالي
   while (attempts < maxRetries) {
     const now = Date.now();
     
     // تصفية المفاتيح الجاهزة للعمل حالياً (ليست في فترة خمول)
     let activeKeys = globalKeysPool.filter(k => k.cooldownUntil <= now);
 
-    // [صمام أمان]: إذا كانت كل المفاتيح "محظورة مؤقتاً"، نفتح الحظر تكتيكياً
+    // [صمام أمان]: إذا كانت كل المفاتيح "محظورة مؤقتاً" في الذاكرة العالمية، نفتح الحظر تكتيكياً لتجنب الرفض الفوري للطلب
     if (activeKeys.length === 0) {
       activeKeys = [...globalKeysPool];
     }
@@ -116,13 +108,8 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
     const selectedKey = selectedKeyObj.value;
     const selectedKeyName = selectedKeyObj.name;
 
-    // 🎯 اختيار الموديل ديناميكياً من القائمة بناءً على رقم المحاولة
-    const currentModel = AVAILABLE_MODELS[attempts % AVAILABLE_MODELS.length];
-
     try {
       attempts++;
-
-      console.log(`🚀 [محاولة ${attempts}/${maxRetries}]: تجربة الموديل [${currentModel}] بمفتاح [${selectedKeyName}]...`);
 
       const baseSystemInstruction = 'أنت غيث، المساعد الرقمي الذكي لنظام قرار. تتحدث بلباقة، احترافية، وذكاء عالٍ. أسلوبك متعاون ومناسب تماماً للسياق والمهمة المطلوبة منك حالياً. إذا طُلب منك الرد بصيغة JSON، يجب أن يكون الرد صالحاً ومطابقاً للقواعد تماماً بدون أي أخطاء مصنعية في الأقواس أو الفواصل.';
       
@@ -155,9 +142,8 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
         };
       }
 
-      // إرسال الطلب مع تدوير الموديل والمفتاح
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${selectedKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${selectedKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -169,31 +155,28 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
         const errorData = await response.json().catch(() => ({}));
         const status = response.status;
 
-        let cooldownMs = 10000;
+        // تحديد مدة الخمول بناءً على نوع الخطأ (429 تحتاج وقت أطول لتصفير الدقيقة، 503 فواق مؤقت)
+        let cooldownMs = 10000; // 10 ثوانٍ كحد أدنى لأي خطأ سيرفر غير متوقع
         
         if (status === 503) {
-          console.error(`[🔥 ضغط عالي (503)] الموديل [${currentModel}] بالمفتاح [${selectedKeyName}] مضغوط. التبديل للموديل القادم...`, errorData);
-          cooldownMs = 15000;
+          console.error(`[🔥 ضغط عالي وعشوائي (503)] المشكلة في: ${selectedKeyName}. سيرفر قوقل يعاني من ازدحام مؤقت عالمياً.`, errorData);
+          cooldownMs = 15000; // وضع المفتاح في الخمول لمدة 15 ثانية
         } else if (status === 429) {
-          console.error(`[⏳ نفاد حصة (429)] المفتاح [${selectedKeyName}] تجاوز حد الطلبات.`, errorData);
-          cooldownMs = 45000;
-        } else if (status === 404) {
-          console.error(`[⚠️ موديل غير مدعوم (404)] الموديل [${currentModel}] غير متاح. التبديل الفوري للموديل التالي...`);
-          cooldownMs = 0; // عدم وضع المفتاح في الخمول إذا كانت المشكلة في اسم الموديل نفسه
+          console.error(`[⏳ نفاد حصة مؤقت (429)] المشكلة في: ${selectedKeyName}. المفتاح تجاوز حد الطلبات المسموح به للدقيقة.`, errorData);
+          cooldownMs = 45000; // وضع المفتاح في الخمول لمدة 45 ثانية (حتى تنتهي الدقيقة الحالية لجوجل)
         } else {
-          console.error(`[❌ خطأ (${status})] في الموديل [${currentModel}] والمفتاح [${selectedKeyName}].`, errorData);
+          console.error(`[❌ خطأ سيرفر غير متوقع (${status})] في المفتاح: ${selectedKeyName}.`, errorData);
         }
         
-        // وسم المفتاح بفترة خمول إذا كان الخطأ متعلقاً بالحصة أو الضغط
-        if (status !== 404) {
-          const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
-          if (targetGlobalKey) {
-            targetGlobalKey.cooldownUntil = Date.now() + cooldownMs;
-          }
+        // 🛡️ [التعديل الجوهري]: وسم المفتاح بفترة الخمول في الذاكرة العالمية ليتخطاه أي طلب متزامن آخر فوراً
+        const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
+        if (targetGlobalKey) {
+          targetGlobalKey.cooldownUntil = Date.now() + cooldownMs;
         }
 
-        // الانتظار القصير فقط عند أخطاء الضغط، أما عند 404 فيتم الانتقال فوراً
+        // آلية التقاط الأنفاس للطلب الحالي قبل الانتقال للمفتاح البديل المتاح في المصفوفة العالمية
         if (status === 503 || status === 429) {
+          console.log(`⏱️ [آلية التقاط الأنفاس]: سيتم الانتظار لمدة 1500 ملي ثانية قبل سحب المفتاح البديل لتفادي الاختناق التتابعي...`);
           await new Promise(resolve => setTimeout(resolve, 1500));
         }
 
@@ -204,7 +187,8 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
       const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!textResponse) {
-        console.warn(`[⚠️ استجابة فارغة] من الموديل [${currentModel}] بالمفتاح [${selectedKeyName}]. المحاولة بموديل آخر.`);
+        console.warn(`[⚠️ استجابة فارغة] من الحساب: ${selectedKeyName}. محاولة مفتاح آخر.`);
+        // وسم المفتاح بخمول قصير جداً لأنه قد يكون عيب سياق مؤقت
         const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
         if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 5000;
         continue;
@@ -226,7 +210,7 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
         try {
           JSON.parse(cleanedText); 
         } catch (jsonError) {
-          console.warn(`[⚠️ خطأ JSON] الموديل [${currentModel}] رجّع بيانات مكسورة. التبديل تلقائياً للموديل التالي.`);
+          console.warn(`[⚠️ خطأ في قالب JSON] المفتاح [${selectedKeyName}] رجّع بيانات مكسورة حتى بعد التنظيف. جاري التبديل تلقائياً لحماية النظام.`);
           const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
           if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 5000;
           continue; 
@@ -236,7 +220,7 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
       return cleanedText;
 
     } catch (error) {
-      console.error(`[❌ خطأ شبكة] عند تجربة الموديل [${currentModel}] والمفتاح [${selectedKeyName}]:`, error);
+      console.error(`[❌ خطأ شبكة/اتصال] أثناء استخدام ${selectedKeyName}:`, error);
       const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
       if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 10000;
     }
