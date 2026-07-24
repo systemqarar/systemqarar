@@ -17,6 +17,9 @@ import ghaithRoutes from './modules/public-site/ghaith/ghaith.routes';
 // ✉️ 📄 استيراد راوتر موديول الخطابات والوثائق الرسمية الجديد (التنظيم ألف)
 import lettersReportsRouter from './modules/unified-dashboard/letters-reports/letters-reports.routes';
 
+// 📋 🎯 استيراد راوتر موديول المهام والأنشطة واللجان الجديد
+import tasksActivitiesRouter from './modules/unified-dashboard/tasks-activities/tasks-activities.routes';
+
 import { whatsappService } from './services/whatsappService'; // 🟢 خدمة الواتساب المركزية
 
 // تفعيل قراءة الملفات البيئية السرية (.env)
@@ -59,10 +62,13 @@ app.use('/api/public-site/ghaith', ghaithRoutes);
 // ✉️ 7. تفعيل موديول الخطابات والوثائق الإدارية لربطه بالـ Controller وغيث وسوكت
 app.use('/api/letters-reports', lettersReportsRouter);
 
-// 🔌 8. تهيئة وتشغيل خدمة الـ Socket.io وإقرانها بسيرفر الـ HTTP
+// 📋 8. تفعيل موديول المهام والأنشطة واللجان الإدارية
+app.use('/api/tasks-activities', tasksActivitiesRouter);
+
+// 🔌 9. تهيئة وتشغيل خدمة الـ Socket.io وإقرانها بسيرفر الـ HTTP
 socketService.initialize(server);
 
-// 9. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً (تعديل الاستماع ليكون عبر server)
+// 10. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً (تعديل الاستماع ليكون عبر server)
 server.listen(PORT, async () => {
   console.log(`===================================================`);
   console.log(`⚡ [SERVER RUNNING]: السيرفر ينبض بالحياة الآن على منفذ: ${PORT}`);

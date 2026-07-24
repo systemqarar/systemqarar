@@ -11,6 +11,9 @@ import { OnboardingWizardPage } from '../environments/unified-dashboard/modules/
 // 🔥 استيراد مسارات الخطابات والتقارير الجديدة المسبكة هندسياً
 import { lettersReportsRoutes } from '../environments/unified-dashboard/modules/letters-reports/letters-reports.routes';
 
+// 🎯 استيراد مسارات المهام والأنشطة واللجان الإدارية الجديدة
+import { tasksActivitiesRoutes } from '../environments/unified-dashboard/modules/tasks-activities/tasks-activities.routes';
+
 // استيراد مكونات المطور المسبكة الجديدة بناءً على تعديلك الذكي
 import DeveloperLayout from '../environments/develop-dashboard/components/DeveloperLayout';
 import { developRoutes } from '../environments/develop-dashboard/develop.routes';
@@ -100,6 +103,11 @@ export const AppRoutes: React.FC = () => {
 
             {/* ✉️ ضخ مسارات الخطابات والتقارير الذكية ديناميكياً داخل لوحة التحكم */}
             {lettersReportsRoutes.map((route, index) => (
+              <Route key={index} path={route.path} element={route.element} />
+            ))}
+
+            {/* 🎯 ضخ مسارات المهام والأنشطة واللجان الإدارية ديناميكياً */}
+            {tasksActivitiesRoutes.map((route, index) => (
               <Route key={index} path={route.path} element={route.element} />
             ))}
           </Route>

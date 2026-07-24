@@ -22,7 +22,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
       name: 'المهام والأنشطة', 
       icon: ClipboardList, 
       badge: { text: '٣ نشطة', type: 'info' },
-      path: '/dashboard/tasks'
+      path: '/dashboard/tasks' // 🎯 المسار المربوط بموديول المهام والأنشطة
     },
     { 
       id: 'communication', 
@@ -34,10 +34,17 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
     { id: 'letters', name: 'الخطابات الرسمية والتقارير', icon: FileText, path: '/dashboard/letters' },
   ];
 
-  // 🔄 المزامنة التلقائية للمسارات بنظام سليم ومستقبلي
+  // 🔄 المزامنة التلقائية للمسارات بنظام سليم ومستقبلي (تسمح بالربط الذكي مع المسارات الفرعية)
   useEffect(() => {
     const currentPath = location.pathname;
-    const matchedItem = menuItems.find(item => item.path === currentPath);
+    
+    const matchedItem = menuItems.find(item => {
+      if (item.path === '/dashboard') {
+        return currentPath === '/dashboard';
+      }
+      return currentPath.startsWith(item.path);
+    });
+
     if (matchedItem) {
       setActiveTab(matchedItem.id);
     } else if (currentPath === '/dashboard') {
@@ -79,7 +86,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
             className="absolute top-4 bottom-4 right-4 w-[85vw] max-w-[290px] text-white p-5 flex flex-col justify-between shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7)] bg-gradient-to-b from-[#560E1A] via-[#7A1C2E] to-[#380710] rounded-[2.5rem] border border-white/10 overflow-hidden z-10"
           >
             
-            <div className="absolute inset-0 z-0 opacity-10 pointer-events-none bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_16px]" />
+            <div className="absolute inset-0 z-0 opacity-10 pointer-events-none bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:16px_16px]" />
 
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
@@ -178,3 +185,5 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
     </AnimatePresence>
   );
 };
+
+export default SidebarDrawer;
