@@ -20,7 +20,6 @@ export default function GhaithPage() {
   ]);
   const [loading, setLoading] = useState<boolean>(false);
   
-  // تحديد نوع الـ Ref ليكون HTMLDivElement لإنهاء خطأ TS2339
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   // التمرير التلقائي لآخر رسالة
@@ -28,7 +27,7 @@ export default function GhaithPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // دالة تنسيق النص وتحديد Types للمتغيرات لإنهاء خطأ TS7006
+  // دالة تنسيق النص وتنظيف النجوم (*)
   const renderFormattedText = (text: string) => {
     if (!text) return null;
 
@@ -114,15 +113,21 @@ export default function GhaithPage() {
         {/* 1. هيدر منظومة قرار وغيث */}
         <div className="bg-[#7a1528] text-white p-4 flex items-center justify-between shadow-md relative z-10">
           <div className="flex items-center gap-3">
+            
+            {/* استبدال حرف غ بشعار قرار المباشر */}
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-900 font-black text-xl shadow-inner border border-amber-200">
-                غ
+              <div className="w-12 h-12 rounded-2xl bg-white p-1 flex items-center justify-center shadow-inner border border-amber-300/40 overflow-hidden">
+                <img 
+                  src="/logo.png" 
+                  alt="شعار نظام قرار" 
+                  className="w-full h-full object-contain"
+                />
               </div>
               <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#7a1528] rounded-full"></span>
             </div>
 
             <div>
-              <h2 className="font-bold text-lg leading-tight tracking-wide">منظومة قرار الرقمية</h2>
+              <h2 className="font-bold text-lg leading-tight tracking-wide">نظام قرار الرقمي</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-amber-300 font-semibold text-xs">غيث</span>
                 <span className="text-white/40 text-xs">•</span>
@@ -152,8 +157,9 @@ export default function GhaithPage() {
                 }`}
               >
                 {msg.sender === 'bot' && (
-                  <div className="text-xs font-bold text-[#7a1528] mb-1.5 flex items-center gap-1 border-b border-slate-100 pb-1">
-                    <span>🤖 غيث</span>
+                  <div className="text-xs font-bold text-[#7a1528] mb-1.5 flex items-center gap-1.5 border-b border-slate-100 pb-1">
+                    <img src="/logo.png" alt="لوقو" className="w-4 h-4 object-contain" />
+                    <span>غيث</span>
                   </div>
                 )}
                 <div className="whitespace-pre-wrap">
