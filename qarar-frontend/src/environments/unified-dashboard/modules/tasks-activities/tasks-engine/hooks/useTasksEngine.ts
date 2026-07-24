@@ -7,6 +7,9 @@ export const useTasksEngine = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // البادئة الموحدة والرسمية لمسارات السيرفر
+  const API_BASE = '/api/tasks-activities/tasks-engine';
+
   // دالة مساعدة لجلب التوكن وإضافته للهيدر للأمان
   const getAuthHeaders = () => {
     const token = localStorage.getItem('qarar_token');
@@ -16,7 +19,7 @@ export const useTasksEngine = () => {
     };
   };
 
-  // دالة مساعدة لمعالجة استجابات الـ API بشكل آمن يمنع كراش الـ JSON
+  // معالجة الاستجابات بأمان يمنع كراش الـ JSON
   const parseResponse = async (res: Response) => {
     const contentType = res.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -24,7 +27,7 @@ export const useTasksEngine = () => {
     }
     const text = await res.text();
     console.error(`[API Error ${res.status}]:`, text);
-    throw new Error(`خطأ في الاتصال بالسيرفر (${res.status}): المسار غير متطابق أو إعدادات السيرفر بها مشكلة.`);
+    throw new Error(`خطأ في الاتصال بالسيرفر (${res.status}).`);
   };
 
   // 1. جلب المهام
@@ -32,8 +35,8 @@ export const useTasksEngine = () => {
     setLoading(true);
     try {
       const url = activityId 
-        ? `/api/tasks-engine/tasks?activity_id=${activityId}`
-        : `/api/tasks-engine/tasks`;
+        ? `${API_BASE}/tasks?activity_id=${activityId}`
+        : `${API_BASE}/tasks`;
       
       const res = await fetch(url, { headers: getAuthHeaders() });
       if (res.ok) {
@@ -49,12 +52,12 @@ export const useTasksEngine = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [API_BASE]);
 
   // 2. جلب الأنشطة البرامجية
   const fetchActivities = useCallback(async () => {
     try {
-      const res = await fetch('/api/tasks-engine/activities', {
+      const res = await fetch(`${API_BASE}/activities`, {
         headers: getAuthHeaders(),
       });
       if (res.ok) {
@@ -65,13 +68,13 @@ export const useTasksEngine = () => {
     } catch (err: any) {
       console.error('Error fetching activities:', err);
     }
-  }, []);
+  }, [API_BASE]);
 
   // 3. إنشاء مهمة جديدة
   const createTask = async (taskInput: CreateTaskInput): Promise<boolean> => {
     setLoading(true);
     try {
-      const res = await fetch('/api/tasks-engine/tasks', {
+      const res = await fetch(`${API_BASE}/tasks`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(taskInput),
@@ -97,7 +100,7 @@ export const useTasksEngine = () => {
   const createActivity = async (activityInput: CreateActivityInput): Promise<boolean> => {
     setLoading(true);
     try {
-      const res = await fetch('/api/tasks-engine/activities', {
+      const res = await fetch(`${API_BASE}/activities`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(activityInput),
@@ -122,7 +125,7 @@ export const useTasksEngine = () => {
   // 5. التقديم على فرصة
   const applyForTask = async (taskId: string) => {
     try {
-      const res = await fetch(`/api/tasks-engine/tasks/${taskId}/apply`, {
+      const res = await fetch(`${API_BASE}/tasks/${taskId}/apply`, {
         method: 'POST',
         headers: getAuthHeaders(),
       });
@@ -141,7 +144,7 @@ export const useTasksEngine = () => {
   // 6. تقديم اعتذار
   const submitExcuse = async (assignmentId: string, reason: string) => {
     try {
-      const res = await fetch(`/api/tasks-engine/assignments/${assignmentId}/excuse`, {
+      const res = await fetch(`${API_BASE}/assignments/${assignmentId}/excuse`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ excuse_reason: reason }),
