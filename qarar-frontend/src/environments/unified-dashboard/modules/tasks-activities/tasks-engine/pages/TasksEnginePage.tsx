@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTasksEngine } from '../hooks/useTasksEngine';
 import { TaskCard } from '../components/TaskCard';
 import { CreateTaskInput, TaskPriority } from '../types/tasks-engine.types';
-import { Plus, X, Calendar, Flag, Users, FileCheck } from 'lucide-react';
+import { Plus, X } from 'lucide-react'; // ✅ تم حذف الأيقونات غير المستعملة لمنع خطأ TS6133
 
 export const TasksEnginePage: React.FC = () => {
   const engine = useTasksEngine();
@@ -150,7 +150,7 @@ export const TasksEnginePage: React.FC = () => {
         </div>
       )}
 
-      {/* النافذة المنبثقة لإنشاء مهمة متطابقة 100% مع النمط المؤسسي */}
+      {/* النافذة المنبثقة لإنشاء مهمة جديدة */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-xl p-6 shadow-2xl relative border border-gray-100 my-8">
@@ -180,7 +180,7 @@ export const TasksEnginePage: React.FC = () => {
 
               {/* التفاصيل والوصف */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">وصف المهمة والمتطلبات</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">وصف المهمة ومتطلباتها</label>
                 <textarea
                   rows={3}
                   placeholder="اكتب شرحاً شاملاً للمطلوب مخرجه..."
