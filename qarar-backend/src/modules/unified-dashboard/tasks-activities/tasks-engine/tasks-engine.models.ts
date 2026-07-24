@@ -1,5 +1,8 @@
-import { pool } from '../../../../db'; // يفترض استخدام pool/supabase المعتمد في المشروع
+import db from '../../../../config/db'; // ✅ استيراد الـ db الافتراضي بدون المساس بملف db.ts
 import { CreateActivityDTO, CreateTaskDTO, Task, TaskAssignment } from './tasks-engine.types';
+
+// استخراج الـ pool مباشرة من ملف الـ db المعتمد في مشروعك
+const pool = db.pool;
 
 export class TasksEngineModel {
 
