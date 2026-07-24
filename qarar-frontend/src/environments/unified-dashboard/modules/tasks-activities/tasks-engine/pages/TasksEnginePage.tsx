@@ -3,13 +3,18 @@ import { useTasksEngine } from '../hooks/useTasksEngine';
 import { TaskCard } from '../components/TaskCard';
 
 export const TasksEnginePage: React.FC = () => {
-  const { tasks, activities, loading, applyForTask, submitExcuse } = useTasksEngine();
+  const engine = useTasksEngine();
+  const { tasks = [], activities = [], loading = false, applyForTask, submitExcuse } = engine || {};
   const [selectedTab, setSelectedTab] = useState<'all' | 'open' | 'activities'>('all');
   const [selectedActivity, setSelectedActivity] = useState<string>('');
 
-  const filteredTasks = tasks.filter((t) => {
-    if (selectedActivity && t.activity_id !== selectedActivity) return false;
-    if (selectedTab === 'open') return t.assignment_type === 'open_announcement';
+  // 🛡️ حماية البيانات لمنع كسر الصفحة والشاشة البيضاء عند التحميل
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+  const safeActivities = Array.isArray(activities) ? activities : [];
+
+  const filteredTasks = safeTasks.filter((t) => {
+    if (selectedActivity && t?.activity_id !== selectedActivity) return false;
+    if (selectedTab === 'open') return t?.assignment_type === 'open_announcement';
     return true;
   });
 
@@ -32,7 +37,7 @@ export const TasksEnginePage: React.FC = () => {
               selectedTab === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            جميع المهام ({tasks.length})
+            جميع المهام ({safeTasks.length})
           </button>
           <button
             onClick={() => setSelectedTab('open')}
@@ -51,9 +56,9 @@ export const TasksEnginePage: React.FC = () => {
           className="border border-gray-300 rounded-lg text-xs p-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">جميع الأنشطة البرامجية</option>
-          {activities.map((act) => (
-            <option key={act.id} value={act.id}>
-              {act.title}
+          {safeActivities.map((act) => (
+            <option key={act?.id} value={act?.id}>
+              {act?.title}
             </option>
           ))}
         </select>
@@ -70,7 +75,7 @@ export const TasksEnginePage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTasks.map((task) => (
             <TaskCard
-              key={task.id}
+              key={task?.id}
               task={task}
               onApply={applyForTask}
               onExcuse={submitExcuse}

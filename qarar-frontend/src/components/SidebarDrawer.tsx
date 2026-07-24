@@ -22,7 +22,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
       name: 'المهام والأنشطة', 
       icon: ClipboardList, 
       badge: { text: '٣ نشطة', type: 'info' },
-      path: '/dashboard/tasks' // 🎯 المسار المربوط بموديول المهام والأنشطة
+      path: '/dashboard/tasks-activities' // ✅ تم تصحيح المسار ليتطابق تماماً مع الراوتر
     },
     { 
       id: 'communication', 
