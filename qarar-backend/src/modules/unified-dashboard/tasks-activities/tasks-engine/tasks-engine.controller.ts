@@ -3,12 +3,28 @@ import { TasksEngineModel } from './tasks-engine.models';
 
 export class TasksEngineController {
 
+  // دالة مساعدة لاستخراج ID المستخدم بأمان من التوكن مهما اختلفت مسمياته في الميدل وير
+  private static getUserId(req: Request): string | null {
+    const user = (req as any).user;
+    if (!user) return null;
+    return user.id || user.volunteer_id || user.userId || user.uuid || null;
+  }
+
   static async createActivity(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = TasksEngineController.getUserId(req);
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'تعذر التثبت من هوية المستخدم. يرجى إعادة تسجيل الدخول.'
+        });
+      }
+
       const activity = await TasksEngineModel.createActivity(userId, req.body);
       return res.status(201).json({ success: true, data: activity });
     } catch (error: any) {
+      console.error('Error creating activity:', error);
       return res.status(400).json({ success: false, message: error.message });
     }
   }
@@ -24,10 +40,19 @@ export class TasksEngineController {
 
   static async createTask(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = TasksEngineController.getUserId(req);
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'تعذر التثبت من هوية المستخدم. يرجى إعادة تسجيل الدخول.'
+        });
+      }
+
       const task = await TasksEngineModel.createTask(userId, req.body);
       return res.status(201).json({ success: true, data: task });
     } catch (error: any) {
+      console.error('Error creating task:', error);
       return res.status(400).json({ success: false, message: error.message });
     }
   }
@@ -47,7 +72,15 @@ export class TasksEngineController {
 
   static async applyForTask(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = TasksEngineController.getUserId(req);
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'تعذر التثبت من هوية المستخدم.'
+        });
+      }
+
       const taskId = req.params.id;
       const assignment = await TasksEngineModel.applyForOpenTask(taskId, userId);
       return res.status(200).json({ success: true, message: 'تم الانضمام للفرصة بنجاح', data: assignment });
@@ -58,7 +91,15 @@ export class TasksEngineController {
 
   static async submitExcuse(req: Request, res: Response) {
     try {
-      const userId = (req as any).user?.id;
+      const userId = TasksEngineController.getUserId(req);
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'تعذر التثبت من هوية المستخدم.'
+        });
+      }
+
       const assignmentId = req.params.assignmentId;
       const { excuse_reason } = req.body;
       
