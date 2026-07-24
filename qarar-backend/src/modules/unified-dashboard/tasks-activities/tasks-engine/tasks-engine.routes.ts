@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { TasksEngineController } from './tasks-engine.controller';
-import { authMiddleware } from '../../../../middlewares/authMiddleware';
+import { requireAuth } from '../../../../middlewares/authMiddleware';
 
 const router = Router();
 
 // تطبيق الحماية والمصادقة على كافة مسارات الموديول
-router.use(authMiddleware);
+router.use(requireAuth);
 
 // مسارات الأنشطة
 router.post('/activities', TasksEngineController.createActivity);
