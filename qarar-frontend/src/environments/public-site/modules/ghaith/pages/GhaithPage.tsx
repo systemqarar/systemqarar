@@ -1,8 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, FormEvent } from 'react';
+
+// تعريف نوع الرسالة
+interface Message {
+  id: number;
+  sender: 'user' | 'bot';
+  text: string;
+  time: string;
+}
 
 export default function GhaithPage() {
-  const [prompt, setPrompt] = useState('');
-  const [messages, setMessages] = useState([
+  const [prompt, setPrompt] = useState<string>('');
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
       sender: 'bot',
@@ -10,27 +18,27 @@ export default function GhaithPage() {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
-  const [loading, setLoading] = useState(false);
-  const chatEndRef = useRef(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  
+  // تحديد نوع الـ Ref ليكون HTMLDivElement لإنهاء خطأ TS2339
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   // التمرير التلقائي لآخر رسالة
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // دالة لتنظيم معالجة النصوص وتنسيق النجوم (*) إلى خط عريض أنيق
-  const renderFormattedText = (text) => {
+  // دالة تنسيق النص وتحديد Types للمتغيرات لإنهاء خطأ TS7006
+  const renderFormattedText = (text: string) => {
     if (!text) return null;
-    
-    return text.split('\n').map((line, lineIdx) => {
-      // تقسيم السطر بناءً على النجوم **أو *
+
+    return text.split('\n').map((line: string, lineIdx: number) => {
       const parts = line.split(/(\*\*.*?\*\*|\*.*?\*)/g);
-      
+
       return (
         <p key={lineIdx} className="min-h-[1.25rem] mb-1 last:mb-0 leading-relaxed">
-          {parts.map((part, partIdx) => {
+          {parts.map((part: string, partIdx: number) => {
             if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('*') && part.endsWith('*'))) {
-              // إزالة النجوم وإظهار النص كـ Bold ملون
               const cleanText = part.replace(/^\*+|\*+$/g, '');
               return (
                 <strong key={partIdx} className="font-bold text-[#7a1528]">
@@ -45,11 +53,11 @@ export default function GhaithPage() {
     });
   };
 
-  const handleAsk = async (e) => {
+  const handleAsk = async (e?: FormEvent) => {
     e?.preventDefault();
     if (!prompt.trim() || loading) return;
 
-    const userMessage = {
+    const userMessage: Message = {
       id: Date.now(),
       sender: 'user',
       text: prompt,
@@ -76,7 +84,7 @@ export default function GhaithPage() {
 
       const data = await response.json();
 
-      const botMessage = {
+      const botMessage: Message = {
         id: Date.now() + 1,
         sender: 'bot',
         text: data.success ? data.answer : `خطأ: ${data.message}`,
@@ -102,18 +110,17 @@ export default function GhaithPage() {
   return (
     <div className="flex justify-center items-center min-h-screen bg-slate-100 p-2 sm:p-4" dir="rtl">
       <div className="w-full max-w-md sm:max-w-xl h-[88vh] bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
-        
+
         {/* 1. هيدر منظومة قرار وغيث */}
         <div className="bg-[#7a1528] text-white p-4 flex items-center justify-between shadow-md relative z-10">
           <div className="flex items-center gap-3">
-            {/* أفق شارة غيث */}
             <div className="relative">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-900 font-black text-xl shadow-inner border border-amber-200">
                 غ
               </div>
               <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#7a1528] rounded-full"></span>
             </div>
-            
+
             <div>
               <h2 className="font-bold text-lg leading-tight tracking-wide">منظومة قرار الرقمية</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
