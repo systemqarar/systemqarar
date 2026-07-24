@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTasksEngine } from '../hooks/useTasksEngine';
 import { TaskCard } from '../components/TaskCard';
 import { CreateTaskInput, CreateActivityInput, TaskPriority, ActivityStatus } from '../types/tasks-engine.types';
-import { Plus, X, FolderPlus, CheckSquare } from 'lucide-react';
+import { X, FolderPlus, CheckSquare } from 'lucide-react'; // ✅ تم حذف Plus غير المستخدمة
 
 export const TasksEnginePage: React.FC = () => {
   const engine = useTasksEngine();
@@ -13,7 +13,7 @@ export const TasksEnginePage: React.FC = () => {
     applyForTask, 
     submitExcuse, 
     createTask,
-    createActivity // التأكد من وجود الدالة في الـ hook
+    createActivity
   } = engine || {};
 
   const [selectedTab, setSelectedTab] = useState<'all' | 'open' | 'activities'>('all');

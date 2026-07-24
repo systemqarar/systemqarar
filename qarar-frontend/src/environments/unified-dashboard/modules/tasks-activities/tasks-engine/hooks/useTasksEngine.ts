@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Task, Activity, CreateTaskInput } from '../types/tasks-engine.types';
+import { Task, Activity, CreateTaskInput, CreateActivityInput } from '../types/tasks-engine.types';
 
 export const useTasksEngine = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -55,7 +55,8 @@ export const useTasksEngine = () => {
     }
   }, []);
 
-  const createTask = async (taskInput: CreateTaskInput) => {
+  // إنشاء مهمة جديدة
+  const createTask = async (taskInput: CreateTaskInput): Promise<boolean> => {
     setLoading(true);
     try {
       const res = await fetch('/api/unified-dashboard/tasks-activities/tasks-engine/tasks', {
@@ -73,6 +74,31 @@ export const useTasksEngine = () => {
       }
     } catch (err: any) {
       alert(err.message || 'تعذر إنشاء المهمة');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ إضافة دالة إنشاء نشاط برامجي جديد
+  const createActivity = async (activityInput: CreateActivityInput): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/unified-dashboard/tasks-activities/tasks-engine/activities', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(activityInput),
+      });
+      const data = await res.json();
+      if (res.ok && (data.success || !data.error)) {
+        await fetchActivities(); // إعادة جلب الأنشطة فوراً للتحديث
+        return true;
+      } else {
+        alert(data.error || data.message || 'فشلت عملية إنشاء النشاط');
+        return false;
+      }
+    } catch (err: any) {
+      alert(err.message || 'تعذر إنشاء النشاط البرامجي');
       return false;
     } finally {
       setLoading(false);
@@ -127,7 +153,9 @@ export const useTasksEngine = () => {
     loading,
     error,
     fetchTasks,
+    fetchActivities,
     createTask,
+    createActivity, // ✅ مضافة للتصدير ومتاحة في الشاشة
     applyForTask,
     submitExcuse,
   };
