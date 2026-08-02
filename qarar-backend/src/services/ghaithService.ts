@@ -39,6 +39,7 @@ interface GhaithOptions {
     data: string;
   };
   responseSchema?: any; 
+  modelsPriority?: string[]; 
 }
 
 interface GlobalKeyStatus {
@@ -46,6 +47,15 @@ interface GlobalKeyStatus {
   value: string;
   cooldownUntil: number; 
 }
+
+// 🎯 القائمة الذهبية المأخوذة مباشرة من حسابك بالترتيب الحقيقي
+const DEFAULT_MODELS_FALLBACK = [
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+  'gemini-3.1-pro-preview',
+  'gemini-2.5-flash',
+  'gemini-2.5-pro'
+];
 
 let globalKeysPool: GlobalKeyStatus[] = [];
 
@@ -99,6 +109,7 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
     throw new Error('خطأ: لم يتم العثور على أي مفاتيح (GEMINI_KEY_X) في إعدادات البيئة.');
   }
 
+  const modelsToTry = options?.modelsPriority || DEFAULT_MODELS_FALLBACK;
   const maxAttempts = Math.max(globalKeysPool.length * 2, 4);
   let attempts = 0;
 
@@ -126,122 +137,110 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
     const selectedKey = selectedKeyObj.value;
     const selectedKeyName = selectedKeyObj.name;
 
-    try {
-      const baseSystemInstruction = 'أنت غيث، المساعد الرقمي الذكي لنظام قرار. تتحدث بلباقة، احترافية، وذكاء عالٍ. أسلوبك متعاون ومناسب تماماً للسياق والمهمة المطلوب تنفيذها.';
-      
-      const finalInstruction = options?.systemInstruction 
-        ? `${baseSystemInstruction} ${options.systemInstruction}` 
-        : baseSystemInstruction;
+    // 🔄 التجربة المباشرة لموديلات الجيل الجديد المتاحة
+    for (const modelName of modelsToTry) {
+      try {
+        const baseSystemInstruction = 'أنت غيث، المساعد الرقمي الذكي لنظام قرار. تتحدث بلباقة، احترافية، وذكاء عالٍ. أسلوبك متعاون ومناسب تماماً للسياق والمهمة المطلوب تنفيذها.';
+        
+        const finalInstruction = options?.systemInstruction 
+          ? `${baseSystemInstruction} ${options.systemInstruction}` 
+          : baseSystemInstruction;
 
-      const parts: GeminiPart[] = [{ text: prompt }];
+        const parts: GeminiPart[] = [{ text: prompt }];
 
-      if (options?.inlineData) {
-        parts.push({
-          inlineData: {
-            mimeType: options.inlineData.mimeType,
-            data: options.inlineData.data
-          }
-        });
-      }
-
-      const requestBody: any = {
-        contents: [{ parts: parts }],
-        systemInstruction: {
-          parts: [{ text: finalInstruction }]
-        }
-      };
-
-      if (options?.responseJson) {
-        requestBody.generationConfig = {
-          responseMimeType: 'application/json',
-          ...(options.responseSchema && { responseSchema: options.responseSchema })
-        };
-      }
-
-      // 🟢 [تعديل حاسم]: المسار المستقر /v1/ والموديل الرسمي المباشر
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${selectedKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const status = response.status;
-        const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
-
-        if (status === 404) {
-          // لو رجّع 404 على v1 (نادراً)، نجرب مسار v1beta المعالج
-          console.warn(`[⚠️ 404 المسار المستقر] جاري تجربة المسار البديل v1beta لـ ${selectedKeyName}...`);
-          const fallbackResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${selectedKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(requestBody),
+        if (options?.inlineData) {
+          parts.push({
+            inlineData: {
+              mimeType: options.inlineData.mimeType,
+              data: options.inlineData.data
             }
-          );
+          });
+        }
 
-          if (fallbackResponse.ok) {
-            const fbData = (await fallbackResponse.json()) as GeminiResponse;
-            const fbText = fbData?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (fbText) return fbText.trim();
+        const requestBody: any = {
+          contents: [{ parts: parts }],
+          systemInstruction: {
+            parts: [{ text: finalInstruction }]
+          }
+        };
+
+        if (options?.responseJson) {
+          requestBody.generationConfig = {
+            responseMimeType: 'application/json',
+            ...(options.responseSchema && { responseSchema: options.responseSchema })
+          };
+        }
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${selectedKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+          }
+        );
+
+        if (!response.ok) {
+          const status = response.status;
+          const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
+
+          if (status === 429) {
+            console.warn(`[⏳ 429 نفاد حصة] المفتاح [${selectedKeyName}] استُهلك على (${modelName}). التبديل للمفتاح التالي...`);
+            if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 60000;
+            break; 
+          }
+
+          if (status === 404) {
+            console.warn(`[⚠️ 404] الموديل (${modelName}) غير متوفر على المفتاح [${selectedKeyName}]. الانتقال للموديل التالي...`);
+            continue; 
+          }
+
+          const errorData = await response.json().catch(() => ({}));
+          console.error(`[❌ خطأ سيرفر ${status}] الموديل (${modelName}) - المفتاح [${selectedKeyName}]:`, errorData);
+          
+          if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 15000;
+          break; 
+        }
+
+        const data = (await response.json()) as GeminiResponse;
+        const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!textResponse) {
+          console.warn(`[⚠️ استجابة فارغة] الموديل (${modelName}) المفتاح [${selectedKeyName}]. تجربة البديل...`);
+          continue;
+        }
+
+        let cleanedText = textResponse.trim();
+        if (cleanedText.startsWith('```')) {
+          cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+        }
+
+        if (options?.responseJson) {
+          const firstBracket = cleanedText.indexOf('{');
+          const lastBracket = cleanedText.lastIndexOf('}');
+          
+          if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+            cleanedText = cleanedText.substring(firstBracket, lastBracket + 1);
+          }
+          
+          try {
+            JSON.parse(cleanedText); 
+          } catch (jsonError) {
+            console.warn(`[⚠️ JSON مكسور] الموديل (${modelName}). تجربة الموديل البديل...`);
+            continue; 
           }
         }
 
-        if (status === 429) {
-          console.warn(`[⏳ 429 نفاد حصة] المفتاح [${selectedKeyName}] استُهلك. التبديل للمفتاح التالي...`);
-          if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 60000;
-        } else {
-          console.error(`[❌ خطأ سيرفر ${status}] المفتاح [${selectedKeyName}]:`, errorData);
-          if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 15000;
-        }
+        return cleanedText;
 
-        continue; 
+      } catch (error) {
+        console.error(`[❌ خطأ شبكة] الموديل (${modelName}) المفتاح [${selectedKeyName}]:`, error);
       }
+    }
 
-      const data = (await response.json()) as GeminiResponse;
-      const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      if (!textResponse) {
-        console.warn(`[⚠️ استجابة فارغة] المفتاح [${selectedKeyName}]. التبديل للمفتاح التالي...`);
-        const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
-        if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 5000;
-        continue;
-      }
-
-      let cleanedText = textResponse.trim();
-      if (cleanedText.startsWith('```')) {
-        cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-      }
-
-      if (options?.responseJson) {
-        const firstBracket = cleanedText.indexOf('{');
-        const lastBracket = cleanedText.lastIndexOf('}');
-        
-        if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-          cleanedText = cleanedText.substring(firstBracket, lastBracket + 1);
-        }
-        
-        try {
-          JSON.parse(cleanedText); 
-        } catch (jsonError) {
-          console.warn(`[⚠️ JSON مكسور] المفتاح [${selectedKeyName}] رجّع صيغة غير صالحة. التبديل...`);
-          const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
-          if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 5000;
-          continue; 
-        }
-      }
-
-      return cleanedText;
-
-    } catch (error) {
-      console.error(`[❌ خطأ شبكة/اتصال] مع المفتاح [${selectedKeyName}]:`, error);
-      const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
-      if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 10000;
+    const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
+    if (targetGlobalKey && targetGlobalKey.cooldownUntil <= now) {
+      targetGlobalKey.cooldownUntil = Date.now() + 10000;
     }
   }
 
