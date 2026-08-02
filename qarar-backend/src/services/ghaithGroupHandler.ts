@@ -2,7 +2,10 @@
 
 import { askGhaith } from './ghaithService';
 import { delay } from '@whiskeysockets/baileys';
-import { pool } from '../db'; // للذاكرة والتلخيص فقط (تأكد من مسار الداتابيز عندك)
+// 🟢 الاستيراد المتوافق 100% مع ملف db.ts الرئيسي ومساره في config
+import db from '../config/db';
+
+const { pool } = db;
 
 // ذاكرة مؤقتة لتخزين معرفات (IDs) الرسائل التي يرسلها غيث نفسه لمنع الحلقة التكرارية
 const botSentMessageIds = new Set<string>();

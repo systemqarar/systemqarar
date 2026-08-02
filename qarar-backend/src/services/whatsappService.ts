@@ -8,7 +8,10 @@ import pino from 'pino';
 import path from 'path';
 import fs from 'fs';
 import { handleGroupMessage } from './ghaithGroupHandler';
-import { pool } from '../db'; // ⚠️ تأكد من مسار الداتابيز عندك
+// 🟢 الاستيراد المتوافق 100% مع ملف db.ts الرئيسي ومساره في config
+import db from '../config/db';
+
+const { pool } = db;
 
 const logger = pino({ level: 'silent' });
 const SESSION_DIR = path.join(process.cwd(), 'whatsapp_session');
