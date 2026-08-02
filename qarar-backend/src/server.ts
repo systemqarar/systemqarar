@@ -38,7 +38,13 @@ app.use(cors({
 }));
 app.use(express.json()); // للسماح للسيرفر بقراءة كائنات الـ JSON القادمة من الواجهات
 
-// 2. نقطة فحص السلامة (Health Check Endpoint)
+// 🟢 2. نقطة الاستجابة للرابط الرئيسي وفحص السلامة (Root & Health Check Endpoints)
+// مسار الرابط الرئيسي (يمنع خمول السيرفر ويرد على cron-job بـ 200 OK)
+app.get('/', (req, res) => {
+  res.status(200).send('⚡ نظام قرار شغال وجاهز 100%');
+});
+
+// مسار فحص الصحة العام
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'healthy', 
