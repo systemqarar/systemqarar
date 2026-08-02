@@ -40,6 +40,7 @@ async function restoreSessionFromDb() {
 
 /**
  * 🟢 دالة حفظ الجلسة من الفولدر المحلي إلى قاعدة البيانات
+ * 🛠️ (تم التعديل للحماية من خطأ اختفاء ملفات pre-keys المؤقتة ENOENT)
  */
 async function saveSessionToDb() {
   try {
@@ -48,7 +49,14 @@ async function saveSessionToDb() {
     const files = fs.readdirSync(SESSION_DIR);
     for (const file of files) {
       const filePath = path.join(SESSION_DIR, file);
-      if (fs.statSync(filePath).isFile()) {
+      
+      try {
+        // 🛑 فحص إضافي لحالة الملف لحظة القراءة لمنع ENOENT
+        if (!fs.existsSync(filePath)) continue;
+
+        const stat = fs.statSync(filePath);
+        if (!stat.isFile()) continue;
+
         const content = fs.readFileSync(filePath, 'utf-8');
         await pool.query(
           `INSERT INTO whatsapp_auth (key_id, value, updated_at)
@@ -57,6 +65,9 @@ async function saveSessionToDb() {
            DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
           [file, content]
         );
+      } catch (fileErr) {
+        // 💡 لو Baileys مسحت ملف مؤقت أثناء عملية التصفح، يتجاهله ويواصل حفظ باقي الجلسة
+        continue;
       }
     }
   } catch (err) {
