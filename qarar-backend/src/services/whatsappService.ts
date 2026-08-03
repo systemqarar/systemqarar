@@ -40,7 +40,6 @@ async function restoreSessionFromDb() {
 
 /**
  * 🟢 دالة حفظ الجلسة من الفولدر المحلي إلى قاعدة البيانات
- * 🛠️ (تم التعديل للحماية من خطأ اختفاء ملفات pre-keys المؤقتة ENOENT)
  */
 async function saveSessionToDb() {
   try {
@@ -51,7 +50,6 @@ async function saveSessionToDb() {
       const filePath = path.join(SESSION_DIR, file);
       
       try {
-        // 🛑 فحص إضافي لحالة الملف لحظة القراءة لمنع ENOENT
         if (!fs.existsSync(filePath)) continue;
 
         const stat = fs.statSync(filePath);
@@ -66,7 +64,6 @@ async function saveSessionToDb() {
           [file, content]
         );
       } catch (fileErr) {
-        // 💡 لو Baileys مسحت ملف مؤقت أثناء عملية التصفح، يتجاهله ويواصل حفظ باقي الجلسة
         continue;
       }
     }
@@ -79,6 +76,14 @@ class WhatsappService {
   private sock: any = null;
   private isInitializing = false;
 
+  public getSocket() {
+    return this.sock;
+  }
+
+  public isConnected(): boolean {
+    return !!(this.sock && this.sock.ws && this.sock.ws.readyState === 1);
+  }
+
   async initialize() {
     if (process.env.DEVELOPMENT_MODE === 'true') {
       console.log('⚠️ [تنبيه أمان]: تم إيقاف تفعيل وحدة اتصال الواتساب الحي بنجاح بناءً على طلب الإدارة.');
@@ -89,7 +94,6 @@ class WhatsappService {
     this.isInitializing = true;
 
     try {
-      // 🟢 1. استرجاع الجلسة المحفوظة في PostgreSQL قبل التهيئة
       await restoreSessionFromDb();
 
       console.log('📡 جاري جلب أحدث إصدار لواتساب ويب...');
@@ -104,25 +108,39 @@ class WhatsappService {
         logger,
         printQRInTerminal: false,
         connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 0
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 25000,
+        // 🛡️ معالجة حماية لمنع انهيار التشفير أثناء تجديد الموديل/المفاتيح
+        getMessage: async (key) => {
+          return { conversation: '' };
+        }
       });
 
-      // 🟢 2. حفظ الجلسة في الداتابيز فور كل تحديث
+      // حفظ الجلسة فور كل تحديث
       this.sock.ev.on('creds.update', async () => {
         await saveCreds();
         await saveSessionToDb();
       });
 
-      // الاستماع للرسائل الواردة وتمريرها لمُعالج القروبات (غيث)
+      // 🟢 الاستماع للرسائل الواردة وتمريرها لمُعالج القروبات
       this.sock.ev.on('messages.upsert', async (m: any) => {
         try {
           if (m.type === 'notify' && m.messages && m.messages.length > 0) {
             for (const msg of m.messages) {
+              // تجنب معالجة رسائل البوت نفسه أو الرسائل الفارغة
+              if (msg.key.fromMe) continue;
+
+              // تمرير الرسالة لمُعالج القروبات
               await handleGroupMessage(this.sock, msg);
             }
           }
-        } catch (err) {
-          console.error('❌ خطأ أثناء استقبال وتمرير رسالة القروب:', err);
+        } catch (err: any) {
+          // التعامل مع أخطاء التشفير المؤقتة بمرونة دون إيقاف السيرفر
+          if (err?.message?.includes('Bad MAC') || err?.message?.includes('Session error')) {
+            console.warn('⚠️ [تشفير الواتساب]: تم استلام رسالة بمفتاح قديم جارٍ تحديثه تلقائياً...');
+          } else {
+            console.error('❌ خطأ أثناء استقبال وتمرير رسالة القروب:', err?.message || err);
+          }
         }
       });
 
@@ -137,13 +155,15 @@ class WhatsappService {
 
           this.isInitializing = false;
           if (shouldReconnect) {
+            console.log('🔄 جاري إعادة الاتصال بالواتساب خلال 10 ثوانٍ...');
             await delay(10000);
             this.initialize();
+          } else {
+            console.error('❌ تم تسجيل الخروج من جلسة الواتساب. يُرجى إعادة مسح كود QR أو طلب كود ربط جديد.');
           }
         } else if (connection === 'open') {
-          console.log('🟢 تم ربط الواتساب بنجاح! نظام قرار الآن جاهز لإرسال الرسائل 🎉');
+          console.log('🟢 تم ربط الواتساب بنجاح! نظام قرار الآن جاهز لإرسال واستقبال الرسائل 🎉');
           this.isInitializing = false;
-          // حفظ إضافي للتأكيد بعد فتح الاتصال بنجاح
           await saveSessionToDb();
         }
       });
@@ -164,9 +184,12 @@ class WhatsappService {
     }
   }
 
-  async sendMessage(targetPhone: string, messageText: string): Promise<boolean> {
+  /**
+   * 🟢 دالة إرسال الرسائل الخاصة مع إعادة المحاولة
+   */
+  async sendMessage(targetPhone: string, messageText: string, retries = 2): Promise<boolean> {
     try {
-      if (!this.sock) {
+      if (!this.isConnected()) {
         console.error('❌ [قرار - خطأ]: سيرفر الواتساب غير متصل حالياً.');
         return false;
       }
@@ -180,8 +203,8 @@ class WhatsappService {
 
       const jid = `${formattedNumber}@s.whatsapp.net`;
 
-      const randomSeconds = Math.floor(Math.random() * (7000 - 3000 + 1)) + 3000;
-      console.log(`⏱️ [تمويه أمني]: الانتظار لمدة ${randomSeconds / 1000} ثوانٍ بشكل عشوائي...`);
+      const randomSeconds = Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000;
+      console.log(`⏱️ [تمويه أمني]: الانتظار لمدة ${randomSeconds / 1000} ثوانٍ...`);
       await delay(randomSeconds);
 
       console.log(`📡 جاري إرسال الرسالة الآن إلى: ${jid}...`);
@@ -191,8 +214,15 @@ class WhatsappService {
       console.log(`✅ تم إرسال الرسالة بنجاح للرقم: ${formattedNumber}`);
       return true;
 
-    } catch (error) {
-      console.error(`❌ فشل إرسال الرسالة إلى ${targetPhone}:`, error);
+    } catch (error: any) {
+      console.error(`❌ فشل إرسال الرسالة إلى ${targetPhone}:`, error?.message || error);
+      
+      // إعادة المحاولة في حال انقطاع الشبكة
+      if (retries > 0) {
+        console.log(`🔄 إعادة محاولة الإرسال لـ ${targetPhone}... (المحاولات المتبقية: ${retries})`);
+        await delay(3000);
+        return this.sendMessage(targetPhone, messageText, retries - 1);
+      }
       return false;
     }
   }

@@ -184,22 +184,25 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
           const status = response.status;
           const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
 
+          // 1. حالة نفاد حصة المفتاح كاملاً
           if (status === 429) {
-            console.warn(`[⏳ 429 نفاد حصة] المفتاح [${selectedKeyName}] استُهلك على (${modelName}). التبديل للمفتاح التالي...`);
+            console.warn(`[⏳ 429 نفاد حصة] المفتاح [${selectedKeyName}] استُهلك. التبديل للمفتاح التالي...`);
             if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 60000;
-            break; 
+            break; // الخروج للانتقال للمفتاح التالي
           }
 
+          // 2. حالة عدم توفر الموديل
           if (status === 404) {
             console.warn(`[⚠️ 404] الموديل (${modelName}) غير متوفر على المفتاح [${selectedKeyName}]. الانتقال للموديل التالي...`);
-            continue; 
+            continue; // التجربة مع الموديل التالي مباشرة
           }
 
+          // 3. حالة الضغط على السيرفر (503/500/502/504) أو الأخطاء المؤقتة
           const errorData = await response.json().catch(() => ({}));
-          console.error(`[❌ خطأ سيرفر ${status}] الموديل (${modelName}) - المفتاح [${selectedKeyName}]:`, errorData);
+          console.warn(`[⚠️ خطأ سيرفر ${status}] الموديل (${modelName}) - المفتاح [${selectedKeyName}]:`, errorData);
           
-          if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 15000;
-          break; 
+          // الانتقال للموديل التالي في القائمة بدل إيقاف الدورة
+          continue; 
         }
 
         const data = (await response.json()) as GeminiResponse;
@@ -235,6 +238,8 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
 
       } catch (error) {
         console.error(`[❌ خطأ شبكة] الموديل (${modelName}) المفتاح [${selectedKeyName}]:`, error);
+        // عند حدوث مشكلة شبكة، ننتقل للموديل التالي
+        continue;
       }
     }
 

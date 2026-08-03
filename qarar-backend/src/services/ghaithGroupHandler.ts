@@ -6,14 +6,40 @@ import db from '../config/db';
 
 const { pool } = db;
 
-// ذاكرة مؤقتة لتخزين معرفات (IDs) الرسائل التي يرسلها غيث لمنع الحلقة التكرارية
-const botSentMessageIds = new Set<string>();
+// ذاكرة مؤقتة بحجم محدد لمنع الـ Memory Leak (تتبع أحدث 500 رسالة فقط)
+class BoundedSet<T> {
+  private maxSize: number;
+  private set = new Set<T>();
+
+  constructor(maxSize = 500) {
+    this.maxSize = maxSize;
+  }
+
+  add(val: T) {
+    if (this.set.size >= this.maxSize) {
+      const oldest = this.set.values().next().value;
+      if (oldest !== undefined) this.set.delete(oldest);
+    }
+    this.set.add(val);
+  }
+
+  has(val: T): boolean {
+    return this.set.has(val);
+  }
+
+  delete(val: T): boolean {
+    return this.set.delete(val);
+  }
+}
+
+const botSentMessageIds = new BoundedSet<string>(500);
 
 export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
+  const remoteJid = msg.key?.remoteJid || '';
+  const messageId = msg.key?.id || '';
+  let isComposing = false;
+
   try {
-    const remoteJid = msg.key?.remoteJid || '';
-    const messageId = msg.key?.id || '';
-    
     // 1. التأكد أن المحادثة قادمة من قروب
     if (!remoteJid.endsWith('@g.us')) return;
 
@@ -41,8 +67,6 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
     const pushName = msg.pushName || 'عضو في القروب';
     const participantJid = msg.key?.participant || remoteJid;
 
-    console.log(`📌 [رسالة قروب]: ID القروب = "${remoteJid}" | المرسل = (${pushName})`);
-
     // 4. فحص قائمة القروبات المسموح بها
     const allowedGroupIds = (process.env.ALLOWED_GROUP_JIDS || '')
       .split(',')
@@ -62,15 +86,22 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
       console.error('⚠️ خطأ في حفظ رسالة القروب:', dbErr);
     }
 
-    // 6. فحص نداء غيث الصريح ("يا غيث" أو "@غيث")
+    // 6. فحص نداء غيث الصريح أو الاقتباس المباشر
     const hasYaGhaith = cleanText.includes('يا غيث');
     const hasTagGhaith = cleanText.includes('@غيث');
+    
+    // فحص ما إذا كانت الرسالة رداً/اقتباساً على رسالة للبوت
+    const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+    const quotedParticipant = contextInfo?.participant;
+    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net';
+    const isQuotingGhaith = quotedParticipant && quotedParticipant.includes(botJid.split('@')[0]);
 
-    if (!hasYaGhaith && !hasTagGhaith) return;
+    if (!hasYaGhaith && !hasTagGhaith && !isQuotingGhaith) return;
 
     console.log(`🤖 [غيث]: جاري الرد المباشر على (${pushName}) في القروب...`);
 
     await sock.sendPresenceUpdate('composing', remoteJid);
+    isComposing = true;
 
     // 7. جلب السجل والملخص للسياق
     let historyText = '';
@@ -101,7 +132,7 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
       console.error('⚠️ تعذر جلب الذاكرة للسياق.');
     }
 
-    // 🟢 8. التوجيه الشامل لشخصية غيث وأسلوب كتابته الجديد
+    // 8. التوجيه الشامل لشخصية غيث
     const isOwner = msg.key?.fromMe === true;
     const systemPrompt = `
 أنت "غيث".. متطوع وفردة وأخ عزيز في "وحدة الوحدة".. والمساعد الرقمي لنظام قرار..
@@ -115,7 +146,7 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
 5. **عفوي وطبيعي:** لا تتكلم كأنك آلة أو ملقن.. لا تتبرع بذكر معلومات مخزنة عندك من تلقاء نفسك إطلاقاً.. جاوب فقط على قدر السؤال بذكاء ومرح..
 
 ### 👤 العلاقات والألقاب:
-- **لؤي:** هو صاحبك ورفيقك "صحبي لؤي" أو "لؤي" مباشرة.. ممنوع تقولو باشمهندس أو مطورنا.. ${isOwner ? `(تنبيه: المتحدث معك الآن هو صحبك لؤي نفسه!)..` : ''}
+- **لؤي:** هو صاحبك ورفيقك "لؤي" أو "ابو اللول" مباشرة.. ممنوع تقولو باشمهندس أو مطورنا.. ${isOwner ? `(تنبيه: المتحدث معك الآن هو لؤي نفسه!)..` : ''}
 - **الخال فضل:** رئيس وحدة الوحدة وقائدها الحالي (له كل الاحترام والتقدير والمهابة)..
 - **القيادات والكبار:** احترام وإجلال خاص للأستاذ عماد.. ماما إيمان / الأستاذة إيمان.. والمهندس حازم.. وكل أعضاء ومجاهدات الوحدة..
 
@@ -153,20 +184,19 @@ ${historyText}
 "${cleanText}"
     `;
 
-    // 🟢 معالجة آمنة ومحلية لاستدعاء غيث
+    // 9. الحصول على الرد
     let ghaithReply = '';
     try {
       ghaithReply = await askGhaith(userPrompt, { systemInstruction: systemPrompt });
     } catch (apiErr) {
-      console.error('⚠️ [غيث - القروب]: تعذر الحصول على الرد من Gemini (احتمال نفاد الحصة 429):', apiErr);
+      console.error('⚠️ [غيث - القروب]: تعذر الحصول على الرد من Gemini:', apiErr);
       ghaithReply = 'معليش يا حبيب.. الراس شويه دايخ من كثرة الرسائل والضغط.. أمهلني دقيقة وبظبط معاك';
     }
 
-    await delay(1500);
+    await delay(1200);
 
-    // 9. إرسال الرد المباشر مع إضافة التوقيع آلياً في نهاية النص
+    // 10. إرسال الرد
     if (ghaithReply) {
-      // 🏷️ تجميع النص النهائي وإضافة التوقيع آلياً
       const finalReply = `${ghaithReply.trim()}\n\n~ غيث`;
 
       const sentMsg = await sock.sendMessage(
@@ -182,9 +212,7 @@ ${historyText}
       console.log(`✅ [غيث]: تم إرسال الرد بنجاح إلى (${pushName}) في القروب 🎉`);
     }
 
-    await sock.sendPresenceUpdate('paused', remoteJid);
-
-    // 10. التلخيص التلقائي بعد 60 رسالة
+    // 11. التلخيص التلقائي عند الحاجة
     try {
       const countRes = await pool.query(
         'SELECT COUNT(*) FROM group_messages WHERE group_jid = $1',
@@ -199,6 +227,10 @@ ${historyText}
 
   } catch (error) {
     console.error('❌ خطأ في معالجة رسالة القروب عبر غيث:', error);
+  } finally {
+    if (isComposing) {
+      await sock.sendPresenceUpdate('paused', remoteJid).catch(() => {});
+    }
   }
 }
 
