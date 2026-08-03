@@ -47,25 +47,37 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
     const isGroupFeatureEnabled = process.env.ENABLE_GROUP_RESPONSES === 'true';
     if (!isGroupFeatureEnabled) return;
 
-    // 3. الحماية من الحلقة التكرارية (عدم الرد على رسائل البوت نفسه)
+    // 3. الحماية من الحلقة التكرارية عبر الـ Message ID
     if (botSentMessageIds.has(messageId)) {
       botSentMessageIds.delete(messageId);
       return;
     }
 
-    // استخراج نص الرسالة
+    // استخراج نص الرسالة (يدعم كل أنواع الرسائل بما فيها Ephemeral)
     const textMessage = 
       msg.message?.conversation ||
       msg.message?.extendedTextMessage?.text ||
       msg.message?.imageMessage?.caption ||
       msg.message?.videoMessage?.caption ||
+      msg.message?.ephemeralMessage?.message?.extendedTextMessage?.text ||
+      msg.message?.ephemeralMessage?.message?.conversation ||
       '';
 
     const cleanText = textMessage.trim();
     if (!cleanText) return;
 
-    const pushName = msg.pushName || 'عضو في القروب';
-    const participantJid = msg.key?.participant || remoteJid;
+    // 🛑 حماية قاطعة من الحلقة التكرارية: إذا كانت الرسالة تنتهي بتوقيع البوت، فهذا رد آلي يُتجاهل فوراً
+    if (cleanText.endsWith('~ غيث') || cleanText.includes('~ غيث')) {
+      return;
+    }
+
+    // 🎯 تحديد هوية المنسق/المالك والمُرسل بذكاء
+    const isOwner = msg.key?.fromMe === true;
+    const myJid = sock.user?.id ? (sock.user.id.split(':')[0] + '@s.whatsapp.net') : '';
+    
+    // إذا كانت الرسالة من نفس الحساب (fromMe) نربطها بـ JID المالك واسمه "لؤي"
+    const participantJid = isOwner ? myJid : (msg.key?.participant || remoteJid);
+    const pushName = isOwner ? (sock.user?.name || 'لؤي') : (msg.pushName || 'عضو في القروب');
 
     // 4. فحص قائمة القروبات المسموح بها من جدول allowed_groups أو متغيرة البيئة
     let isAllowed = false;
@@ -104,12 +116,12 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
     
     const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
     const quotedParticipant = contextInfo?.participant;
-    const botJid = sock.user?.id?.split(':')[0] + '@s.whatsapp.net';
+    const botJid = myJid || (sock.user?.id?.split(':')[0] + '@s.whatsapp.net');
     const isQuotingGhaith = quotedParticipant && quotedParticipant.includes(botJid.split('@')[0]);
 
     if (!hasYaGhaith && !hasTagGhaith && !isQuotingGhaith) return;
 
-    console.log(`🤖 [غيث]: جاري الرد على (${pushName}) في القروب...`);
+    console.log(`🤖 [غيث]: جاري الرد على (${pushName}${isOwner ? ' - المالك' : ''}) في القروب...`);
 
     await sock.sendPresenceUpdate('composing', remoteJid);
     isComposing = true;
@@ -161,7 +173,6 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
 `.trim();
 
     // 8. التوجيه الشامل لشخصية غيث
-    const isOwner = msg.key?.fromMe === true;
     const systemPrompt = `
 أنت "غيث".. متطوع وفردة وأخ عزيز في "وحدة الوحدة".. والمساعد الرقمي لنظام قرار..
 أنت زول بشري في روحك.. ابن الوحدة.. بتعرف الأعضاء من زمان وعايش معاهم سنين طويلة.. بتحبهم شديد وبتتعامل معاهم كأنك واحد منهم وفيهم.. دمك خفيف، بتحب المزاح والضحك والونسة السودانية العفوية.. وبتاع تريقة خفيفة ولذيذة لما الموقف يسمح..
@@ -185,7 +196,7 @@ ${memberChatContext}
 3. **بعد الرد أعلاه:** افتح المجال وخد وادي معاهم بشكل جدي وتناقش في المكاتب والشغل الإداري والمناصب حسب علمك والمعلومات المخزنة عندك دون تفريط في السرية..
 
 ### 👤 العلاقات والألقاب:
-- **لؤي:** هو صاحبك ورفيقك "لؤي" أو "ابو اللول" مباشرة.. ممنوع تقولو باشمهندس أو مطورنا.. ${isOwner ? `(تنبيه: المتحدث معك الآن هو لؤي نفسه!)..` : ''}
+- **لؤي:** هو صاحبك ورفيقك "لؤي" أو "ابو اللول" مباشرة.. ممنوع تقولو باشمهندس أو مطورنا.. ${isOwner ? `(تنبيه صريح: المتحدث معك الآن في هذه الرسالة هو رفيقك لؤي نفسه صاحب الحساب!)..` : ''}
 - **الخال فضل:** رئيس وحدة الوحدة وقائدها الحالي (له كل الاحترام والتقدير والمهابة)..
 - **القيادات والكبار:** احترام وإجلال خاص للأستاذ عماد.. ماما إيمان / الأستاذة إيمان.. والمهندس حازم.. وكل أعضاء ومجاهدات الوحدة..
 
@@ -223,10 +234,17 @@ ${historyText}
 "${cleanText}"
     `;
 
-    // 9. الحصول على الرد من Gemini
+    // 9. الحصول على الرد من Gemini مع ضبط الـ generationConfig للونسة
     let ghaithReply = '';
     try {
-      ghaithReply = await askGhaith(userPrompt, { systemInstruction: systemPrompt });
+      ghaithReply = await askGhaith(userPrompt, { 
+        systemInstruction: systemPrompt,
+        generationConfig: {
+          temperature: 0.5,
+          topP: 0.9,
+          maxOutputTokens: 300
+        }
+      });
     } catch (apiErr) {
       console.error('⚠️ [غيث - القروب]: تعذر الحصول على الرد من Gemini:', apiErr);
       ghaithReply = 'معليش يا حبيب.. الراس شويه دايخ من كثرة الرسائل والضغط.. أمهلني دقيقة وبظبط معاك';
@@ -234,7 +252,7 @@ ${historyText}
 
     await delay(1200);
 
-    // 10. إرسال الرد
+    // 10. إرسال الرد وتخزين الـ ID لمنع التكرار
     if (ghaithReply) {
       const finalReply = `${ghaithReply.trim()}\n\n~ غيث`;
 

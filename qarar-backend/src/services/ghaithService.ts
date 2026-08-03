@@ -31,7 +31,7 @@ interface GeminiResponse {
   };
 }
 
-interface GhaithOptions {
+export interface GhaithOptions {
   responseJson?: boolean;       
   systemInstruction?: string;   
   inlineData?: {                
@@ -40,6 +40,13 @@ interface GhaithOptions {
   };
   responseSchema?: any; 
   modelsPriority?: string[]; 
+  generationConfig?: {          // 🎯 إضافة دعم إعدادات التوليد (Temperature, topP, maxOutputTokens... إلخ)
+    temperature?: number;
+    topP?: number;
+    topK?: number;
+    maxOutputTokens?: number;
+    [key: string]: any;
+  };
 }
 
 interface GlobalKeyStatus {
@@ -166,19 +173,23 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
           });
         }
 
+        // 🎯 تجميع الـ generationConfig الممررة مع خصائص الـ JSON
+        const genConfig: any = { ...(options?.generationConfig || {}) };
+
+        if (options?.responseJson) {
+          genConfig.responseMimeType = 'application/json';
+          if (options.responseSchema) {
+            genConfig.responseSchema = options.responseSchema;
+          }
+        }
+
         const requestBody: any = {
           contents: [{ parts: parts }],
           systemInstruction: {
             parts: [{ text: finalInstruction }]
-          }
+          },
+          ...(Object.keys(genConfig).length > 0 && { generationConfig: genConfig })
         };
-
-        if (options?.responseJson) {
-          requestBody.generationConfig = {
-            responseMimeType: 'application/json',
-            ...(options.responseSchema && { responseSchema: options.responseSchema })
-          };
-        }
 
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${selectedKey}`,
