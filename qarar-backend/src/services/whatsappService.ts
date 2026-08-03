@@ -1,3 +1,5 @@
+// src/services/whatsappService.ts
+
 import makeWASocket, { 
   useMultiFileAuthState, 
   DisconnectReason, 
@@ -8,13 +10,15 @@ import pino from 'pino';
 import path from 'path';
 import fs from 'fs';
 import { handleGroupMessage } from './ghaithGroupHandler';
-// 🟢 الاستيراد المتوافق 100% مع ملف db.ts الرئيسي ومساره في config
 import db from '../config/db';
 
 const { pool } = db;
 
 const logger = pino({ level: 'silent' });
 const SESSION_DIR = path.join(process.cwd(), 'whatsapp_session');
+
+// 🛡️ ذاكرة مؤقتة لمنع تكرار معالجة نفس الرسالة
+const processedMessageIds = new Set<string>();
 
 /**
  * 🟢 دالة استرجاع الجلسة من قاعدة البيانات إلى الفولدر المحلي
@@ -75,6 +79,8 @@ async function saveSessionToDb() {
 class WhatsappService {
   private sock: any = null;
   private isInitializing = false;
+  // ⏱️ تسجيل وقت بدء تشغيل السيرفر لمنع معالجة الرسائل القديمة أثناء الـ Restart
+  private startTime: number = Math.floor(Date.now() / 1000);
 
   public getSocket() {
     return this.sock;
@@ -92,6 +98,7 @@ class WhatsappService {
 
     if (this.isInitializing) return;
     this.isInitializing = true;
+    this.startTime = Math.floor(Date.now() / 1000); // تحديث توقيت التشغيل
 
     try {
       await restoreSessionFromDb();
@@ -111,9 +118,7 @@ class WhatsappService {
         defaultQueryTimeoutMs: 60000,
         keepAliveIntervalMs: 25000,
         // 🛡️ معالجة حماية لمنع انهيار التشفير أثناء تجديد الموديل/المفاتيح
-        getMessage: async (key) => {
-          return { conversation: '' };
-        }
+        getMessage: async () => ({ conversation: '' })
       });
 
       // حفظ الجلسة فور كل تحديث
@@ -122,20 +127,43 @@ class WhatsappService {
         await saveSessionToDb();
       });
 
-      // 🟢 الاستماع للرسائل الواردة وتمريرها لمُعالج القروبات
+      // 🟢 الاستماع للرسائل الواردة وتمريرها لمُعالج القروبات بحماية صارمة
       this.sock.ev.on('messages.upsert', async (m: any) => {
         try {
-          if (m.type === 'notify' && m.messages && m.messages.length > 0) {
-            for (const msg of m.messages) {
-              // تجنب معالجة رسائل البوت نفسه أو الرسائل الفارغة
-              if (msg.key.fromMe) continue;
+          if (m.type !== 'notify' || !m.messages || m.messages.length === 0) return;
 
-              // تمرير الرسالة لمُعالج القروبات
-              await handleGroupMessage(this.sock, msg);
+          for (const msg of m.messages) {
+            // 1️⃣ إهمال أي رسالة صادرة من البوت نفسه
+            if (msg.key.fromMe) continue;
+
+            // 2️⃣ إهمال الرسائل الخالية من المحتوى النصي/الوسائط (كالتفاعلات والإشعارات)
+            if (!msg.message) continue;
+
+            // 3️⃣ 🔥 فحص التوقيت: إهمال أي رسالة أُرسلت قبل تشغيل السيرفر الحالي لمنع الـ Burst
+            const msgTimestamp = typeof msg.messageTimestamp === 'number' 
+              ? msg.messageTimestamp 
+              : (msg.messageTimestamp?.low || 0);
+
+            if (msgTimestamp < this.startTime - 5) {
+              continue;
             }
+
+            // 4️⃣ 🛡️ فحص التكرار: منع معالجة نفس الرسالة مرتين
+            const msgId = msg.key.id;
+            if (msgId) {
+              if (processedMessageIds.has(msgId)) continue;
+              processedMessageIds.add(msgId);
+              
+              if (processedMessageIds.size > 1000) {
+                const firstItem = processedMessageIds.values().next().value;
+                if (firstItem) processedMessageIds.delete(firstItem);
+              }
+            }
+
+            // 🚀 تمرير الرسالة لمُعالج القروبات
+            await handleGroupMessage(this.sock, msg);
           }
         } catch (err: any) {
-          // التعامل مع أخطاء التشفير المؤقتة بمرونة دون إيقاف السيرفر
           if (err?.message?.includes('Bad MAC') || err?.message?.includes('Session error')) {
             console.warn('⚠️ [تشفير الواتساب]: تم استلام رسالة بمفتاح قديم جارٍ تحديثه تلقائياً...');
           } else {
@@ -217,7 +245,6 @@ class WhatsappService {
     } catch (error: any) {
       console.error(`❌ فشل إرسال الرسالة إلى ${targetPhone}:`, error?.message || error);
       
-      // إعادة المحاولة في حال انقطاع الشبكة
       if (retries > 0) {
         console.log(`🔄 إعادة محاولة الإرسال لـ ${targetPhone}... (المحاولات المتبقية: ${retries})`);
         await delay(3000);

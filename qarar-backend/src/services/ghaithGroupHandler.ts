@@ -75,7 +75,7 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
 
     if (!allowedGroupIds.includes(remoteJid)) return;
 
-    // 5. حفظ الرسالة في قاعدة البيانات للسياق
+    // 5. حفظ الرسالة في قاعدة البيانات للسياق والذاكرة
     try {
       await pool.query(
         `INSERT INTO group_messages (group_jid, sender_jid, sender_name, message_text)
@@ -212,14 +212,17 @@ ${historyText}
       console.log(`✅ [غيث]: تم إرسال الرد بنجاح إلى (${pushName}) في القروب 🎉`);
     }
 
-    // 11. التلخيص التلقائي عند الحاجة
+    // 11. التلخيص التلقائي في الخلفية بدون تزاحم طلبات
     try {
       const countRes = await pool.query(
         'SELECT COUNT(*) FROM group_messages WHERE group_jid = $1',
         [remoteJid]
       );
       if (parseInt(countRes.rows[0].count, 10) >= 60) {
-        await summarizeAndCleanGroupDb(remoteJid);
+        // تشغيل التلخيص بعد 5 ثوانٍ في الخلفية بشكل منفصل
+        setTimeout(() => {
+          summarizeAndCleanGroupDb(remoteJid).catch(() => {});
+        }, 5000);
       }
     } catch (err) {
       // تجاهل أخطاء التلخيص
@@ -235,7 +238,7 @@ ${historyText}
 }
 
 /**
- * دالة التلخيص وتنظيف الداتابيز
+ * 🧹 دالة التلخيص وتنظيف الداتابيز (معدلة لاستخدام الموديلات الخفيفة فقط في الخلفية)
  */
 async function summarizeAndCleanGroupDb(groupJid: string): Promise<void> {
   try {
@@ -250,8 +253,11 @@ async function summarizeAndCleanGroupDb(groupJid: string): Promise<void> {
     const oldSummary = oldSumRes.rows[0]?.summary_text || '';
 
     const summaryPrompt = `لخص المحادثات التالية لقروب واتساب في نقاط رئيسية مركزة. الملخص القديم: "${oldSummary}"\n\nالمحادثات:\n${textToSummarize}`;
+    
+    // 💡 استخدام موديل Flash Lite للتلخيص لتفادي الـ Rate Limit
     const newSummary = await askGhaith(summaryPrompt, {
-      systemInstruction: 'أنت خبير تلخيص محادثات مختصر ومفيد.'
+      systemInstruction: 'أنت خبير تلخيص محادثات مختصر ومفيد.',
+      modelsPriority: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-lite-latest']
     });
 
     await pool.query(
@@ -270,6 +276,7 @@ async function summarizeAndCleanGroupDb(groupJid: string): Promise<void> {
        )`,
       [groupJid]
     );
+    console.log(`🧹 [تنفيذ التلخيص]: تم تلخيص ونظافة داتابيز القروب (${groupJid}) بنجاح.`);
   } catch (err) {
     console.error('❌ خطأ أثناء تلخيص داتابيز القروب:', err);
   }

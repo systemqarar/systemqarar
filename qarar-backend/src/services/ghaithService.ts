@@ -48,8 +48,10 @@ interface GlobalKeyStatus {
   cooldownUntil: number; 
 }
 
-// 🎯 القائمة الذهبية المأخوذة مباشرة من حسابك بالترتيب الحقيقي
+// 🎯 القائمة الذهبية المأخوذة من حسابك (مُرتبة بالبدء بالموديلات الخفيفة لمنع استهلاك TPM)
 const DEFAULT_MODELS_FALLBACK = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
   'gemini-3.6-flash',
   'gemini-3.5-flash',
   'gemini-3.1-pro-preview',
@@ -59,6 +61,9 @@ const DEFAULT_MODELS_FALLBACK = [
 
 let globalKeysPool: GlobalKeyStatus[] = [];
 
+/**
+ * 🔄 تحديث مصفوفة المفاتيح من متغبرات البيئة تلقائياً
+ */
 function refreshKeysPool() {
   const currentEnvKeys: { name: string; value: string }[] = [];
 
@@ -109,36 +114,40 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
     throw new Error('خطأ: لم يتم العثور على أي مفاتيح (GEMINI_KEY_X) في إعدادات البيئة.');
   }
 
-  const modelsToTry = options?.modelsPriority || DEFAULT_MODELS_FALLBACK;
-  const maxAttempts = Math.max(globalKeysPool.length * 2, 4);
+  let modelsToTry = [...(options?.modelsPriority || DEFAULT_MODELS_FALLBACK)];
+  const maxAttempts = Math.max(globalKeysPool.length * 3, 6);
   let attempts = 0;
 
-  while (attempts < maxAttempts) {
+  while (attempts < maxAttempts && modelsToTry.length > 0) {
     attempts++;
     const now = Date.now();
     let activeKeys = globalKeysPool.filter(k => k.cooldownUntil <= now);
 
+    // ⏳ حالة خمول جميع المفاتيح: الانتظار الفعلي لأول مفتاح سيتوفر
     if (activeKeys.length === 0) {
       const sortedKeys = [...globalKeysPool].sort((a, b) => a.cooldownUntil - b.cooldownUntil);
       const nextAvailableKey = sortedKeys[0];
       const waitTime = Math.max(nextAvailableKey.cooldownUntil - now, 1000);
       
-      console.warn(`⚠️ [كل المفاتيح في خمول مؤقت]: انتظار ${Math.ceil(waitTime / 1000)}s لتصفير الحصة...`);
-      await sleep(Math.min(waitTime, 5000));
+      console.warn(`⚠️ [Render Execution] جميع المفاتيح في خمول. انتظار ${Math.ceil(waitTime / 1000)}s لتصفير الحصة...`);
+      await sleep(Math.min(waitTime, 4000));
       
       refreshKeysPool();
       activeKeys = globalKeysPool.filter(k => k.cooldownUntil <= Date.now());
       if (activeKeys.length === 0) {
-        activeKeys = [...globalKeysPool];
+        activeKeys = [sortedKeys[0]]; // استخدام الأقرب للجاهزية فقط
       }
     }
 
-    const selectedKeyObj = activeKeys[0];
+    // 🎲 التوزيع العشوائي الحقيقي (مبني لبيئات Serverless و Render لمنع التصادم)
+    const randomIndex = Math.floor(Math.random() * activeKeys.length);
+    const selectedKeyObj = activeKeys[randomIndex];
     const selectedKey = selectedKeyObj.value;
     const selectedKeyName = selectedKeyObj.name;
 
-    // 🔄 التجربة المباشرة لموديلات الجيل الجديد المتاحة
-    for (const modelName of modelsToTry) {
+    // 🔄 فحص قائمة الموديلات
+    for (let i = 0; i < modelsToTry.length; i++) {
+      const modelName = modelsToTry[i];
       try {
         const baseSystemInstruction = 'أنت غيث، المساعد الرقمي الذكي لنظام قرار. تتحدث بلباقة، احترافية، وذكاء عالٍ. أسلوبك متعاون ومناسب تماماً للسياق والمهمة المطلوب تنفيذها.';
         
@@ -184,24 +193,24 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
           const status = response.status;
           const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
 
-          // 1. حالة نفاد حصة المفتاح كاملاً
+          // 1. حالة نفاد الحصة أو الضغط (429) -> خمول 10 ثوانٍ فقط والتبديل المباشر
           if (status === 429) {
-            console.warn(`[⏳ 429 نفاد حصة] المفتاح [${selectedKeyName}] استُهلك. التبديل للمفتاح التالي...`);
-            if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 60000;
-            break; // الخروج للانتقال للمفتاح التالي
+            console.warn(`[⏳ 429 RateLimit] المفتاح [${selectedKeyName}]. خمول 10s والتبديل للمفتاح التالي...`);
+            if (targetGlobalKey) targetGlobalKey.cooldownUntil = Date.now() + 10000;
+            break; // الخروج لتجربة مفتاح آخر فوراً
           }
 
-          // 2. حالة عدم توفر الموديل
+          // 2. حالة عدم توفر الموديل (404) -> حذفه لتفادي المحاولات الفاشلة
           if (status === 404) {
-            console.warn(`[⚠️ 404] الموديل (${modelName}) غير متوفر على المفتاح [${selectedKeyName}]. الانتقال للموديل التالي...`);
-            continue; // التجربة مع الموديل التالي مباشرة
+            console.warn(`[⚠️ 404 Not Found] الموديل (${modelName}) غير متوفر. استبعاده...`);
+            modelsToTry.splice(i, 1);
+            i--;
+            continue;
           }
 
-          // 3. حالة الضغط على السيرفر (503/500/502/504) أو الأخطاء المؤقتة
+          // 3. أخطاء السيرفر الأخرى
           const errorData = await response.json().catch(() => ({}));
-          console.warn(`[⚠️ خطأ سيرفر ${status}] الموديل (${modelName}) - المفتاح [${selectedKeyName}]:`, errorData);
-          
-          // الانتقال للموديل التالي في القائمة بدل إيقاف الدورة
+          console.warn(`[⚠️ HTTP ${status}] الموديل (${modelName}) - المفتاح [${selectedKeyName}]:`, errorData);
           continue; 
         }
 
@@ -234,20 +243,16 @@ export async function askGhaith(prompt: string, options?: GhaithOptions): Promis
           }
         }
 
+        // 🟢 نجاح العملية
+        console.log(`✅ [استجابة ناجحة] تم بواسطة الموديل: (${modelName}) على المفتاح: [${selectedKeyName}]`);
         return cleanedText;
 
       } catch (error) {
         console.error(`[❌ خطأ شبكة] الموديل (${modelName}) المفتاح [${selectedKeyName}]:`, error);
-        // عند حدوث مشكلة شبكة، ننتقل للموديل التالي
         continue;
       }
     }
-
-    const targetGlobalKey = globalKeysPool.find(k => k.name === selectedKeyName);
-    if (targetGlobalKey && targetGlobalKey.cooldownUntil <= now) {
-      targetGlobalKey.cooldownUntil = Date.now() + 10000;
-    }
   }
 
-  throw new Error('عذراً، فشل غيث في إتمام العملية حالياً بسبب ضغط مؤقت. يرجى المحاولة بعد لحظات.');
+  throw new Error('عذراً، فشل غيث في إتمام العملية حالياً بسبب ضغط مؤقت على كافة المفاتيح. يرجى المحاولة بعد لحظات.');
 }
