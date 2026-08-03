@@ -43,6 +43,9 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
     // 1. التأكد أن المحادثة قادمة من قروب
     if (!remoteJid.endsWith('@g.us')) return;
 
+    // 📩 طباعة الجيل/المعرف للقروب لمعرفة القروبات الشغالة وغير الشغالة
+    console.log(`📩 [رسالة قروب جديدة]: وصل نص من القروب (Group JID): ${remoteJid}`);
+
     // 2. مفتاح التشغيل/الإيقاف العام للقروبات
     const isGroupFeatureEnabled = process.env.ENABLE_GROUP_RESPONSES === 'true';
     if (!isGroupFeatureEnabled) return;
@@ -66,7 +69,7 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
     const cleanText = textMessage.trim();
     if (!cleanText) return;
 
-    // 🛑 حماية قاطعة من الحلقة التكرارية: إذا كانت الرسالة تنتهي بتوقيع البوت، فهذا رد آلي يُتجاهل فوراً
+    // 🛑 حماية قاطعة من الحلقة التكرارية: إذا كانت الرسالة تحتوي توقيع البوت، تتجاهل فوراً
     if (cleanText.endsWith('~ غيث') || cleanText.includes('~ غيث')) {
       return;
     }
@@ -75,7 +78,7 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
     const isOwner = msg.key?.fromMe === true;
     const myJid = sock.user?.id ? (sock.user.id.split(':')[0] + '@s.whatsapp.net') : '';
     
-    // إذا كانت الرسالة من نفس الحساب (fromMe) ولم تحتوي توقيع غيث، نربطها بـ JID المالك واسمه "لؤي"
+    // إذا كانت الرسالة من نفس الحساب (fromMe)، نربطها بـ JID المالك واسمه "لؤي"
     const participantJid = isOwner ? myJid : (msg.key?.participant || remoteJid);
     const pushName = isOwner ? 'لؤي' : (msg.pushName || 'عضو في القروب');
 
@@ -97,7 +100,11 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
       isAllowed = allowedEnv.includes(remoteJid);
     }
 
-    if (!isAllowed) return;
+    // ⛔ إذا كان القروب غير مسموح به، نطبع تنبيه في اللوقز يوضح الـ JID الخاص بالقروب المرفوض
+    if (!isAllowed) {
+      console.log(`⛔ [قروب محظور/غير مفعل]: تم تجاهل الرسالة لأن القروب (${remoteJid}) غير مضاف لقائمة ALLOWED_GROUP_JIDS.`);
+      return;
+    }
 
     // 5. حفظ الرسالة في جدول group_messages لسياق المحادثات العامة
     try {
@@ -122,7 +129,7 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
 
     if (!hasYaGhaith && !hasTagGhaith && !isQuotingGhaith) return;
 
-    console.log(`🤖 [غيث]: جاري الرد على (${pushName}${isOwner ? ' - المالك لؤي' : ''}) في القروب...`);
+    console.log(`🤖 [غيث]: جاري الرد على (${pushName}${isOwner ? ' - المالك لؤي' : ''}) في القروب (${remoteJid})...`);
 
     await sock.sendPresenceUpdate('composing', remoteJid);
     isComposing = true;
@@ -197,7 +204,7 @@ ${isOwner ? `⚠️ **تنبيه خاص جداً صارم:** المتحدث مع
 3. **بعد الرد أعلاه:** افتح المجال وخد وادي معاهم بشكل جدي وتناقش في المكاتب والشغل الإداري والمناصب حسب علمك والمعلومات المخزنة عندك دون تفريط في السرية..
 
 ### 👤 العلاقات والألقاب:
-- **لؤي:** هو صاحبك ورفيقك "لؤي" أو "ابو اللول" مباشرة.. ممنوع تقولو باشمهندس أو مطورنا.. ${isOwner ? `(ناديه بـ لؤي أو ابو اللول والتزم بكلامه فوراً)..` : ''}
+- **لؤي:** هو صاحبك ورفيقك "لؤي" أو "ابو اللول" مباشرة.. ممنوع تقولو باشمهندس أو مطورنا.. ${isOwner ? `(ناديه بـ لؤي أو ابو اللول والتزم بكلامه وتوجيهاته فوراً)..` : ''}
 - **الخال فضل:** رئيس وحدة الوحدة وقائدها الحالي (له كل الاحترام والتقدير والمهابة)..
 - **القيادات والكبار:** احترام وإجلال خاص للأستاذ عماد.. ماما إيمان / الأستاذة إيمان.. والمهندس حازم.. وكل أعضاء ومجاهدات الوحدة..
 
@@ -261,14 +268,12 @@ ${historyText}
 
       try {
         // إذا كانت الرسالة من لؤي بنفسه (fromMe)، نرسل بدون quoted لضمان الإرسال
-        // لأن الواتساب يرفض أحياناً اقتباس الرسالة الذاتية صامتاً
         if (isOwner) {
           sentMsg = await sock.sendMessage(remoteJid, { text: finalReply });
         } else {
           try {
             sentMsg = await sock.sendMessage(remoteJid, { text: finalReply }, { quoted: msg });
           } catch (quoteErr) {
-            // محاولة إرسال بدون اقتباس في حالة فشل الـ quoted
             sentMsg = await sock.sendMessage(remoteJid, { text: finalReply });
           }
         }
@@ -286,10 +291,8 @@ ${historyText}
 
     // 11. التلخيص واستخراج ذاكرة الدردشة في الخلفية
     setTimeout(() => {
-      // أ. التعلم الذكي للدردشة
       autoLearnMemberChatProfile(participantJid, pushName, cleanText).catch(() => {});
 
-      // ب. التلخيص التلقائي عند تراكم 60 رسالة
       pool.query('SELECT COUNT(*) FROM group_messages WHERE group_jid = $1', [remoteJid])
         .then(countRes => {
           if (parseInt(countRes.rows[0].count, 10) >= 60) {
@@ -317,11 +320,9 @@ async function autoLearnMemberChatProfile(participantJid: string, pushName: stri
     const hasMatch = keywords.some(kw => text.includes(kw));
     if (!hasMatch) return;
 
-    // 1. جلب المعلومة القديمة المخزنة عن العضو من group_members
     const existingRes = await pool.query('SELECT chat_info FROM group_members WHERE user_jid = $1', [participantJid]);
     const oldInfo = existingRes.rows[0]?.chat_info || 'لا توجد ملاحظات سابقة مخزنة';
 
-    // 2. طلب التحديث الذكي من الموديل الخفيف
     const extractPrompt = `
 أنت خبير تلخيص ذاكرة الدردشة.
 اسم العضو: "${pushName}"
@@ -400,4 +401,3 @@ async function summarizeAndCleanGroupDb(groupJid: string): Promise<void> {
     console.error('❌ خطأ أثناء تلخيص داتابيز القروب:', err);
   }
 }
-

@@ -117,7 +117,6 @@ class WhatsappService {
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
         keepAliveIntervalMs: 25000,
-        // 🛡️ معالجة حماية لمنع انهيار التشفير أثناء تجديد الموديل/المفاتيح
         getMessage: async () => ({ conversation: '' })
       });
 
@@ -130,18 +129,13 @@ class WhatsappService {
       // 🟢 الاستماع للرسائل الواردة والصادرة وتمريرها لمُعالج القروبات
       this.sock.ev.on('messages.upsert', async (m: any) => {
         try {
-          // السماح بـ notify و append لضمان استلام رسائلك الصادرة من الجوال
           if (!m.messages || m.messages.length === 0) return;
 
           for (const msg of m.messages) {
-            // 🛑 ملحوظة: تم إلغاء شرط (if (msg.key.fromMe) continue;) لكي يستطيع البوت
-            // استقبال رسائلك التي تكتبها من جوالك الشخصي والرد عليها كـ (لؤي).
-            // الحماية من التكرار تتم داخل handleGroupMessage عن طريق فحص توقيع '~ غيث' و Message ID.
-
-            // 1️⃣ إهمال الرسائل الخالية من المحتوى النصي/الوسائط (كالتفاعلات والإشعارات)
+            // 1️⃣ إهمال الرسائل الخالية من المحتوى النصي/الوسائط
             if (!msg.message) continue;
 
-            // 2️⃣ 🔥 فحص التوقيت: إهمال أي رسالة أُرسلت قبل تشغيل السيرفر الحالي لمنع الـ Burst
+            // 2️⃣ 🔥 فحص التوقيت: إهمال أي رسالة أُرسلت قبل تشغيل السيرفر الحالي
             const msgTimestamp = typeof msg.messageTimestamp === 'number' 
               ? msg.messageTimestamp 
               : (msg.messageTimestamp?.low || 0);
