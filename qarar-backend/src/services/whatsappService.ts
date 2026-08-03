@@ -127,19 +127,21 @@ class WhatsappService {
         await saveSessionToDb();
       });
 
-      // 🟢 الاستماع للرسائل الواردة وتمريرها لمُعالج القروبات بحماية صارمة
+      // 🟢 الاستماع للرسائل الواردة والصادرة وتمريرها لمُعالج القروبات
       this.sock.ev.on('messages.upsert', async (m: any) => {
         try {
-          if (m.type !== 'notify' || !m.messages || m.messages.length === 0) return;
+          // السماح بـ notify و append لضمان استلام رسائلك الصادرة من الجوال
+          if (!m.messages || m.messages.length === 0) return;
 
           for (const msg of m.messages) {
-            // 1️⃣ إهمال أي رسالة صادرة من البوت نفسه
-            if (msg.key.fromMe) continue;
+            // 🛑 ملحوظة: تم إلغاء شرط (if (msg.key.fromMe) continue;) لكي يستطيع البوت
+            // استقبال رسائلك التي تكتبها من جوالك الشخصي والرد عليها كـ (لؤي).
+            // الحماية من التكرار تتم داخل handleGroupMessage عن طريق فحص توقيع '~ غيث' و Message ID.
 
-            // 2️⃣ إهمال الرسائل الخالية من المحتوى النصي/الوسائط (كالتفاعلات والإشعارات)
+            // 1️⃣ إهمال الرسائل الخالية من المحتوى النصي/الوسائط (كالتفاعلات والإشعارات)
             if (!msg.message) continue;
 
-            // 3️⃣ 🔥 فحص التوقيت: إهمال أي رسالة أُرسلت قبل تشغيل السيرفر الحالي لمنع الـ Burst
+            // 2️⃣ 🔥 فحص التوقيت: إهمال أي رسالة أُرسلت قبل تشغيل السيرفر الحالي لمنع الـ Burst
             const msgTimestamp = typeof msg.messageTimestamp === 'number' 
               ? msg.messageTimestamp 
               : (msg.messageTimestamp?.low || 0);
@@ -148,7 +150,7 @@ class WhatsappService {
               continue;
             }
 
-            // 4️⃣ 🛡️ فحص التكرار: منع معالجة نفس الرسالة مرتين
+            // 3️⃣ 🛡️ فحص التكرار: منع معالجة نفس الرسالة مرتين
             const msgId = msg.key.id;
             if (msgId) {
               if (processedMessageIds.has(msgId)) continue;
