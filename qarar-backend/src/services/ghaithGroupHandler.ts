@@ -47,7 +47,7 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
     const isGroupFeatureEnabled = process.env.ENABLE_GROUP_RESPONSES === 'true';
     if (!isGroupFeatureEnabled) return;
 
-    // 3. الحماية من الحلقة التكرارية عبر الـ Message ID
+    // 3. الحماية من الحلقة التكرارية عبر الـ Message ID الصادر من البوت
     if (botSentMessageIds.has(messageId)) {
       botSentMessageIds.delete(messageId);
       return;
@@ -75,9 +75,9 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
     const isOwner = msg.key?.fromMe === true;
     const myJid = sock.user?.id ? (sock.user.id.split(':')[0] + '@s.whatsapp.net') : '';
     
-    // إذا كانت الرسالة من نفس الحساب (fromMe) نربطها بـ JID المالك واسمه "لؤي"
+    // إذا كانت الرسالة من نفس الحساب (fromMe) ولم تحتوي توقيع غيث، نربطها بـ JID المالك واسمه "لؤي"
     const participantJid = isOwner ? myJid : (msg.key?.participant || remoteJid);
-    const pushName = isOwner ? (sock.user?.name || 'لؤي') : (msg.pushName || 'عضو في القروب');
+    const pushName = isOwner ? 'لؤي' : (msg.pushName || 'عضو في القروب');
 
     // 4. فحص قائمة القروبات المسموح بها من جدول allowed_groups أو متغيرة البيئة
     let isAllowed = false;
@@ -111,17 +111,18 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
     }
 
     // 6. فحص نداء غيث الصريح أو الاقتباس المباشر
-    const hasYaGhaith = cleanText.includes('يا غيث');
+    const hasYaGhaith = cleanText.includes('يا غيث') || cleanText.includes('ياغيث');
     const hasTagGhaith = cleanText.includes('@غيث');
     
-    const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+    const contextInfo = msg.message?.extendedTextMessage?.contextInfo || 
+                        msg.message?.ephemeralMessage?.message?.extendedTextMessage?.contextInfo;
     const quotedParticipant = contextInfo?.participant;
     const botJid = myJid || (sock.user?.id?.split(':')[0] + '@s.whatsapp.net');
     const isQuotingGhaith = quotedParticipant && quotedParticipant.includes(botJid.split('@')[0]);
 
     if (!hasYaGhaith && !hasTagGhaith && !isQuotingGhaith) return;
 
-    console.log(`🤖 [غيث]: جاري الرد على (${pushName}${isOwner ? ' - المالك' : ''}) في القروب...`);
+    console.log(`🤖 [غيث]: جاري الرد على (${pushName}${isOwner ? ' - المالك لؤي' : ''}) في القروب...`);
 
     await sock.sendPresenceUpdate('composing', remoteJid);
     isComposing = true;
@@ -179,7 +180,7 @@ export async function handleGroupMessage(sock: any, msg: any): Promise<void> {
 
 ### 👤 العضو المتحدث معك الآن في القروب:
 ${memberChatContext}
-*(تنبيه: ناديه باسمه وعامله بحسب ملاحظات الدردشة كأنك عارفه من زمان!)*
+${isOwner ? `⚠️ **تنبيه خاص جداً صارم:** المتحدث معك في هذه الرسالة هو رفيقك وصاحبك **"لؤي"** بنفسه (مراسل من نفس رقم الحساب).. أي كلام أو توجيهات أو طلبات بيقولها ليك لؤي أثناء المحادثة بتعتبر **تعليمات صارمة وقاطعة وواجبة التنفيذ فوراً وبدون أي تردد أو مراجعة**..` : ''}
 
 ### ⚠️ قواعد أسلوب الكتابة والترقيم الصارمة جداً:
 1. **أسلوب الدردشة المباشرة:** ممنوع بتاتاً استخدام علامات التعجب (!)، الفواصل (،)، علامات الاستفهام (؟)، أو النقطة النهائية الجافة (.).
@@ -196,7 +197,7 @@ ${memberChatContext}
 3. **بعد الرد أعلاه:** افتح المجال وخد وادي معاهم بشكل جدي وتناقش في المكاتب والشغل الإداري والمناصب حسب علمك والمعلومات المخزنة عندك دون تفريط في السرية..
 
 ### 👤 العلاقات والألقاب:
-- **لؤي:** هو صاحبك ورفيقك "لؤي" أو "ابو اللول" مباشرة.. ممنوع تقولو باشمهندس أو مطورنا.. ${isOwner ? `(تنبيه صريح: المتحدث معك الآن في هذه الرسالة هو رفيقك لؤي نفسه صاحب الحساب!)..` : ''}
+- **لؤي:** هو صاحبك ورفيقك "لؤي" أو "ابو اللول" مباشرة.. ممنوع تقولو باشمهندس أو مطورنا.. ${isOwner ? `(ناديه بـ لؤي أو ابو اللول والتزم بكلامه فوراً)..` : ''}
 - **الخال فضل:** رئيس وحدة الوحدة وقائدها الحالي (له كل الاحترام والتقدير والمهابة)..
 - **القيادات والكبار:** احترام وإجلال خاص للأستاذ عماد.. ماما إيمان / الأستاذة إيمان.. والمهندس حازم.. وكل أعضاء ومجاهدات الوحدة..
 
@@ -250,23 +251,37 @@ ${historyText}
       ghaithReply = 'معليش يا حبيب.. الراس شويه دايخ من كثرة الرسائل والضغط.. أمهلني دقيقة وبظبط معاك';
     }
 
-    await delay(1200);
+    await delay(1000);
 
-    // 10. إرسال الرد وتخزين الـ ID لمنع التكرار
+    // 10. إرسال الرد المحمي وتخزين الـ ID لمنع التكرار
     if (ghaithReply) {
       const finalReply = `${ghaithReply.trim()}\n\n~ غيث`;
 
-      const sentMsg = await sock.sendMessage(
-        remoteJid, 
-        { text: finalReply }, 
-        { quoted: msg }
-      );
+      let sentMsg: any = null;
 
-      if (sentMsg?.key?.id) {
-        botSentMessageIds.add(sentMsg.key.id);
+      try {
+        // إذا كانت الرسالة من لؤي بنفسه (fromMe)، نرسل بدون quoted لضمان الإرسال
+        // لأن الواتساب يرفض أحياناً اقتباس الرسالة الذاتية صامتاً
+        if (isOwner) {
+          sentMsg = await sock.sendMessage(remoteJid, { text: finalReply });
+        } else {
+          try {
+            sentMsg = await sock.sendMessage(remoteJid, { text: finalReply }, { quoted: msg });
+          } catch (quoteErr) {
+            // محاولة إرسال بدون اقتباس في حالة فشل الـ quoted
+            sentMsg = await sock.sendMessage(remoteJid, { text: finalReply });
+          }
+        }
+
+        if (sentMsg?.key?.id) {
+          botSentMessageIds.add(sentMsg.key.id);
+          console.log(`✅ [غيث]: تم تسليم الرد بنجاح إلى (${pushName}${isOwner ? ' - المالك لؤي' : ''}) في القروب 🎉`);
+        } else {
+          console.warn(`⚠️ [غيث]: تم طلب الإرسال إلى (${pushName}) ولكن لم يُرجع الواتساب Message ID.`);
+        }
+      } catch (sendErr) {
+        console.error('❌ [غيث]: فشل إرسال الرسالة إلى سيرفر الواتساب:', sendErr);
       }
-      
-      console.log(`✅ [غيث]: تم إرسال الرد بنجاح إلى (${pushName}) في القروب 🎉`);
     }
 
     // 11. التلخيص واستخراج ذاكرة الدردشة في الخلفية
@@ -385,3 +400,4 @@ async function summarizeAndCleanGroupDb(groupJid: string): Promise<void> {
     console.error('❌ خطأ أثناء تلخيص داتابيز القروب:', err);
   }
 }
+
