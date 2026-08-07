@@ -6,7 +6,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useDashboard } from '../../../../../hooks/useDashboard';
 import { SidebarDrawer } from '../../../../../components/SidebarDrawer';
 import { GhaithButton } from '../../../../../components/GhaithButton';
-import { ActiveUsersButton } from '../../../../../components/ActiveUsersButton'; // 🔌 استيراد زر النشطين الجديد
+import { ActiveUsersButton } from '../../../../../components/ActiveUsersButton'; 
 import { Header } from '../../../../../components/Header'; 
 
 import { EmergencyCards } from '../components/EmergencyCards';
@@ -17,29 +17,35 @@ export const DashboardLayout = () => {
   const navigate = useNavigate(); 
   const location = useLocation(); 
 
-  // 🗺️ الروابط الأساسية للوحة التحكم
+  // 🗺️ الروابط الأساسية للوحة التحكم (تم تصحيح المسارات المعطلة)
   const navigationItems = [
     { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
     { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
-    { id: 'tasks', name: 'المهام والأنشطة (Tasks & Activities)', icon: ClipboardList, path: '#' },
-    { id: 'communication', name: 'مركز التواصل الذكي (Smart Communication)', icon: MessageSquare, path: '#' },
-    { id: 'documents', name: 'الخطابات والوثائق (Official Documents)', icon: FileText, path: '#' },
+    { id: 'tasks', name: 'المهام والأنشطة (Tasks & Activities)', icon: ClipboardList, path: '/dashboard/tasks-activities' },
+    { id: 'communication', name: 'مركز التواصل الذكي (Smart Communication)', icon: MessageSquare, path: '/dashboard/communication' },
+    { id: 'documents', name: 'الخطابات والوثائق (Official Documents)', icon: FileText, path: '/dashboard/letters' },
   ];
 
-  // 1️⃣ مزامنة الـ Tabs مع الرابط الحالي
+  // 1️⃣ مزامنة الـ Tabs مع جميع الرابط الحالية في المتصفح
   useEffect(() => {
-    if (location.pathname === '/dashboard' || location.pathname === '/dashboard/') {
+    const currentPath = location.pathname;
+    
+    if (currentPath === '/dashboard' || currentPath === '/dashboard/') {
       setActiveTab('overview');
-    } else if (location.pathname.includes('/volunteer-profile') || location.pathname.includes('/profile')) {
+    } else if (currentPath.includes('/profile')) {
       setActiveTab('profile');
+    } else if (currentPath.includes('/tasks-activities')) {
+      setActiveTab('tasks');
+    } else if (currentPath.includes('/communication')) {
+      setActiveTab('communication');
+    } else if (currentPath.includes('/letters')) {
+      setActiveTab('documents');
     }
   }, [location.pathname, setActiveTab]);
 
   // 2️⃣ دالة موحدة للتحويل عند الضغط الفعلي
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
-    
-    // 🌟 تعديل 1: إغلاق القائمة الجانبية فوراً لمنع الطبقة الشفافة من حجب الضغطات
     setIsSidebarOpen(false); 
 
     const currentItem = navigationItems.find(n => n.id === tabId);
@@ -75,7 +81,6 @@ export const DashboardLayout = () => {
                 <BentoGrid />
               </motion.div>
             ) : (
-              /* 🎯 تعديل 2: تحويل الحاوية إلى motion.div وإعطائها مفتاحاً ذكياً يعتمد على المسار لمنع تجمد الشاشة وضمان سلاسة الانتقال */
               <motion.div
                 key={location.pathname}
                 initial={{ opacity: 0, y: 5 }}
@@ -90,9 +95,8 @@ export const DashboardLayout = () => {
           </AnimatePresence>
         </main>
 
-        {/* 🌟 3️⃣ عرض الأزرار بطريقة مرنة وشرطية بالكامل لمنع التداخل */}
+        {/* عرض الأزرار بطريقة مرنة وشرطية */}
         {isOverviewRoute ? (
-          /* في صفحة الداشبورد الرئيسية: نقسم المساحة لـ 60% غيث و 40% النشطين */
           <div className="fixed bottom-5 left-5 right-5 z-30 flex items-center gap-3" dir="rtl">
             <div className="flex-[3]">
               <GhaithButton onClick={() => handleTabChange('communication')} isDashboard={true} />
@@ -102,7 +106,6 @@ export const DashboardLayout = () => {
             </div>
           </div>
         ) : (
-          /* في باقي الصفحات الفرعية: يظهر زر غيث منفرداً في وضعه الثابت الطبيعي بكامل العرض */
           <GhaithButton onClick={() => handleTabChange('communication')} isDashboard={false} />
         )}
 
