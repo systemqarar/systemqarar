@@ -7,7 +7,6 @@ export class TasksEngineModel {
 
   // ==================== 1. إدارة الأنشطة البرامجية واللجان ====================
 
-  // إنشاء نشاط جديد مع لجانه (إن وجدت)
   static async createActivity(userId: string, data: CreateActivityDTO) {
     const client = await pool.connect();
     try {
@@ -50,7 +49,6 @@ export class TasksEngineModel {
     }
   }
 
-  // جلب قائمة الأنشطة الرئيسية فقط مع عدد اللجان والمهام
   static async getActivitiesWithTree() {
     const query = `
       SELECT 
@@ -77,7 +75,7 @@ export class TasksEngineModel {
     return res.rows;
   }
 
-  // 🎯 جلب تفاصيل نشاط محدد بالكامل (تحديث مؤمن يضم المهام المباشرة تحت مسمى tasks و direct_tasks)
+  // 🎯 جلب تفاصيل نشاط محدد بالكامل (تصحيح آمن لمعاملات الـ UUID)
   static async getActivityByIdWithTree(activityId: string) {
     const query = `
       SELECT 
@@ -131,7 +129,7 @@ export class TasksEngineModel {
           ), '[]'
         ) as committees,
 
-        -- 🎯 المهام المباشرة التابعة للنشاط (تم إرفاقها باسم tasks وكذلك direct_tasks لضمان الربط التام)
+        -- 🎯 المهام المباشرة التابعة للنشاط (استخدام IS NULL حصرياً لتجنب خطأ UUID)
         COALESCE(
           (
             SELECT json_agg(
@@ -160,7 +158,7 @@ export class TasksEngineModel {
                   ), '[]'
                 )
               )
-            ) FROM tasks dt WHERE dt.activity_id = a.id AND (dt.committee_id IS NULL OR dt.committee_id = '')
+            ) FROM tasks dt WHERE dt.activity_id = a.id AND dt.committee_id IS NULL
           ), '[]'
         ) as tasks,
 
@@ -192,7 +190,7 @@ export class TasksEngineModel {
                   ), '[]'
                 )
               )
-            ) FROM tasks dt WHERE dt.activity_id = a.id AND (dt.committee_id IS NULL OR dt.committee_id = '')
+            ) FROM tasks dt WHERE dt.activity_id = a.id AND dt.committee_id IS NULL
           ), '[]'
         ) as direct_tasks
 
@@ -204,7 +202,6 @@ export class TasksEngineModel {
     return res.rows[0] || null;
   }
 
-  // إضافة لجنة جديدة لنشاط قائم
   static async addCommittee(activityId: string, name: string, leaderId?: string, description?: string) {
     const query = `
       INSERT INTO activity_committees (activity_id, name, leader_id, description)
@@ -214,7 +211,6 @@ export class TasksEngineModel {
     return res.rows[0];
   }
 
-  // تحديث قائد اللجنة أو تفاصيلها
   static async updateCommittee(committeeId: string, data: { name?: string; leader_id?: string; description?: string }) {
     const query = `
       UPDATE activity_committees
@@ -260,14 +256,12 @@ export class TasksEngineModel {
       );
       const task = taskResult.rows[0];
 
-      // تسجيل الحركة في سجل الشفافية
       await client.query(
         `INSERT INTO task_activity_logs (task_id, performed_by, action_type, details)
          VALUES ($1, $2, 'created', $3)`,
         [task.id, userId, `تم إنشاء المهمة بنجاح: ${task.title}`]
       );
 
-      // إسناد مباشر إذا تم تحديد متطوعين
       if (data.assignee_ids && data.assignee_ids.length > 0) {
         for (const volId of data.assignee_ids) {
           await client.query(
@@ -288,7 +282,6 @@ export class TasksEngineModel {
     }
   }
 
-  // جلب المهام مع دعم التصفية المتقدمة
   static async getTasks(filters: { activity_id?: string; committee_id?: string; is_standalone?: boolean; status?: string }) {
     let query = `
       SELECT 
@@ -333,7 +326,6 @@ export class TasksEngineModel {
     return res.rows;
   }
 
-  // تعديل المهمة
   static async updateTask(taskId: string, data: Partial<CreateTaskDTO>) {
     const query = `
       UPDATE tasks
