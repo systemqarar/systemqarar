@@ -43,7 +43,7 @@ export const ActivityDetailsPage: React.FC = () => {
     committee_id: undefined,
   });
 
-  // 🎯 طلب بيانات النشاط عند تغير المعرف بدون متغيرات مهملة
+  // 🎯 طلب بيانات النشاط عند تغير المعرف
   useEffect(() => {
     if (activityId && fetchActivityById) {
       console.log('📡 [ActivityDetailsPage] جاري طلب بيانات النشاط لمعرف:', activityId);
@@ -62,26 +62,38 @@ export const ActivityDetailsPage: React.FC = () => {
       if (success) {
         setShowAddCommitteeModal(false);
         setCommitteeForm({ committee_name: '', name: '', description: '' });
+        // 🔄 إعادة تحديث البيانات
+        if (fetchActivityById) {
+          await fetchActivityById(activityId);
+        }
       }
     } catch (err) {
       console.error('خطأ أثناء إضافة اللجنة:', err);
     }
   };
 
-  // إنشاء مهمة جديدة
+  // 🎯 إنشاء مهمة جديدة (معالجة إرسال البيانات وإعادة التحديث المباشر)
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activityId || !taskForm.title.trim() || !taskForm.due_time || !createTask) return;
 
     try {
-      const success = await createTask({
+      // تجهيز البيانات بالصيغة المعتمدة لقواعد البيانات
+      const taskPayload: CreateTaskInput = {
         ...taskForm,
         activity_id: activityId,
-        max_volunteers: Number(taskForm.max_volunteers),
-      });
+        committee_id: taskForm.committee_id || null, // تحويل undefined إلى null
+        max_volunteers: Number(taskForm.max_volunteers) || 1,
+        due_time: new Date(taskForm.due_time).toISOString(), // تحويل الوقت إلى ISO String
+      };
+
+      console.log('🚀 [ActivityDetailsPage] إرسال بيانات المهمة:', taskPayload);
+
+      const success = await createTask(taskPayload);
 
       if (success) {
         setShowAddTaskModal(false);
+        // إعادة ضبط نموذج المهمة
         setTaskForm({
           title: '',
           description: '',
@@ -92,13 +104,18 @@ export const ActivityDetailsPage: React.FC = () => {
           activity_id: activityId,
           committee_id: undefined,
         });
+
+        // 🔄 إعادة جلب بيانات النشاط فوراً لتنعكس المهمة الجديدة في الصفحة
+        if (fetchActivityById) {
+          await fetchActivityById(activityId);
+        }
       }
     } catch (err) {
-      console.error('خطأ أثناء إنشاء المهمة:', err);
+      console.error('❌ خطأ أثناء إنشاء المهمة:', err);
     }
   };
 
-  // تصفية المهام بأمان تام مع دعم Optional Chaining
+  // تصفية المهام بأمان تام
   const allTasks: Task[] = Array.isArray(currentActivity?.tasks) ? currentActivity.tasks : [];
   const standaloneTasks = allTasks.filter((t: Task) => t && !t.committee_id);
   const committees = Array.isArray(currentActivity?.committees) ? currentActivity.committees : [];
@@ -151,7 +168,7 @@ export const ActivityDetailsPage: React.FC = () => {
             </button>
             <button
               onClick={() => {
-                setTaskForm((prev) => ({ ...prev, committee_id: undefined }));
+                setTaskForm((prev) => ({ ...prev, activity_id: activityId, committee_id: undefined }));
                 setShowAddTaskModal(true);
               }}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
@@ -193,7 +210,7 @@ export const ActivityDetailsPage: React.FC = () => {
                     </div>
                     <button
                       onClick={() => {
-                        setTaskForm((prev) => ({ ...prev, committee_id: committee.id }));
+                        setTaskForm((prev) => ({ ...prev, activity_id: activityId, committee_id: committee.id }));
                         setShowAddTaskModal(true);
                       }}
                       className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs rounded-xl text-gray-700 font-bold"
@@ -276,7 +293,7 @@ export const ActivityDetailsPage: React.FC = () => {
                   rows={3}
                   value={committeeForm.description || ''}
                   onChange={(e) => setCommitteeForm({ ...committeeForm, description: e.target.value })}
-                  placeholder="مهام واختصاصات هذه اللجنة..."
+                  placeholder="مهام وااختصاصات هذه اللجنة..."
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
