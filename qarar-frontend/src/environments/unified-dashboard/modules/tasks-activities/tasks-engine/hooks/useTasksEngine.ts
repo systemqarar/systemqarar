@@ -15,10 +15,10 @@ export const useTasksEngine = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 🎯 تصحيح المسار الأساسي للسيرفر (إزالة التكرار)
-  const API_BASE = '/api/tasks-activities';
+  // 🎯 المسار الأصلي والصحيح للسيرفر
+  const API_BASE = '/api/tasks-activities/tasks-engine';
 
-  // دالة جلب التوكن للأمان
+  // دالة جلب التوكن
   const getAuthHeaders = () => {
     const token = localStorage.getItem('qarar_token');
     return {
@@ -27,7 +27,7 @@ export const useTasksEngine = () => {
     };
   };
 
-  // معالجة استجابات الـ API ومنع كراش الـ JSON
+  // معالجة الاستجابات بأمان لمنع كراش التطبيق
   const parseResponse = async (res: Response) => {
     const contentType = res.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -38,7 +38,7 @@ export const useTasksEngine = () => {
     throw new Error(`خطأ في الاتصال بالسيرفر (${res.status})`);
   };
 
-  // 1. جلب الأنشطة البرامجية
+  // 1. جلب الأنشطة البرامجية الرئيسية
   const fetchActivities = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/activities`, {
@@ -54,7 +54,7 @@ export const useTasksEngine = () => {
     }
   }, [API_BASE]);
 
-  // 2. جلب تفاصيل نشاط محدد بواسطة الـ ID
+  // 2. جلب تفاصيل نشاط محدد
   const fetchActivityById = useCallback(async (activityId: string) => {
     setLoading(true);
     setError(null);
@@ -62,7 +62,6 @@ export const useTasksEngine = () => {
       const res = await fetch(`${API_BASE}/activities/${activityId}`, {
         headers: getAuthHeaders(),
       });
-
       if (res.ok) {
         const data = await parseResponse(res);
         const activityData = data?.data || data;
