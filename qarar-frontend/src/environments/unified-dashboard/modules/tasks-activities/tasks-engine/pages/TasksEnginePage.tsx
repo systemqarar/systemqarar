@@ -6,16 +6,18 @@ import { Activity, CreateActivityInput, CreateTaskInput, Task } from '../types/t
 
 export const TasksEnginePage: React.FC = () => {
   const navigate = useNavigate();
+  
+  const engine = useTasksEngine() || {};
   const {
     activities = [],
     tasks = [],
-    loading,
-    error,
+    loading = false,
+    error = null,
     createActivity,
     createTask,
-    applyForTask,
-    submitExcuse,
-  } = useTasksEngine();
+    applyForTask = () => {},
+    submitExcuse = () => {},
+  } = engine;
 
   // التبويب الحالي: الأنشطة البرامجية أم المهام المستقلة
   const [activeTab, setActiveTab] = useState<'activities' | 'standalone_tasks'>('activities');
@@ -45,50 +47,58 @@ export const TasksEnginePage: React.FC = () => {
   // إنشاء نشاط جديد
   const handleCreateActivity = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activityForm.title.trim() || !activityForm.start_date || !activityForm.end_date) return;
+    if (!activityForm.title.trim() || !activityForm.start_date || !activityForm.end_date || !createActivity) return;
 
-    const success = await createActivity(activityForm);
-    if (success) {
-      setShowActivityModal(false);
-      setActivityForm({
-        title: '',
-        description: '',
-        start_date: '',
-        end_date: '',
-        icon: '🎯',
-      });
+    try {
+      const success = await createActivity(activityForm);
+      if (success) {
+        setShowActivityModal(false);
+        setActivityForm({
+          title: '',
+          description: '',
+          start_date: '',
+          end_date: '',
+          icon: '🎯',
+        });
+      }
+    } catch (err) {
+      console.error('خطأ أثناء إنشاء النشاط:', err);
     }
   };
 
   // إنشاء مهمة مستقلة جديدة
   const handleCreateStandaloneTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!taskForm.title.trim() || !taskForm.due_time) return;
+    if (!taskForm.title.trim() || !taskForm.due_time || !createTask) return;
 
-    const success = await createTask({
-      ...taskForm,
-      activity_id: undefined,
-      committee_id: undefined,
-      max_volunteers: Number(taskForm.max_volunteers),
-    });
-
-    if (success) {
-      setShowTaskModal(false);
-      setTaskForm({
-        title: '',
-        description: '',
-        due_time: '',
-        max_volunteers: 1,
-        priority: 'normal',
-        assignment_type: 'open_announcement',
+    try {
+      const success = await createTask({
+        ...taskForm,
+        activity_id: undefined,
+        committee_id: undefined,
+        max_volunteers: Number(taskForm.max_volunteers),
       });
+
+      if (success) {
+        setShowTaskModal(false);
+        setTaskForm({
+          title: '',
+          description: '',
+          due_time: '',
+          max_volunteers: 1,
+          priority: 'normal',
+          assignment_type: 'open_announcement',
+        });
+      }
+    } catch (err) {
+      console.error('خطأ أثناء إنشاء المهمة:', err);
     }
   };
 
   // تصفية المهام المستقلة (التي ليس لها activity_id)
-  const safeTasks: Task[] = tasks || [];
-  const safeActivities: Activity[] = activities || [];
-  const standaloneTasks = safeTasks.filter((task: Task) => !task.activity_id);
+  const safeTasks: Task[] = Array.isArray(tasks) ? tasks : [];
+  const safeActivities: Activity[] = Array.isArray(activities) ? activities : [];
+  const standaloneTasks = safeTasks.filter((task: Task) => task && !task.activity_id);
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 dir-rtl" dir="rtl">
@@ -142,7 +152,11 @@ export const TasksEnginePage: React.FC = () => {
       </div>
 
       {/* رسالة الخطأ أو التحميل */}
-      {error && <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs">{error}</div>}
+      {error && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs">
+          {typeof error === 'string' ? error : 'حدث خطأ أثناء تحميل البيانات'}
+        </div>
+      )}
 
       {/* محتوى تبويب الأنشطة */}
       {activeTab === 'activities' && (
@@ -154,7 +168,8 @@ export const TasksEnginePage: React.FC = () => {
               {safeActivities.map((activity: Activity) => (
                 <div
                   key={activity.id}
-                  onClick={() => navigate(`/tasks-activities/activities/${activity.id}`)}
+                  /* 🎯 المسار المصلح بالكامل مع سابقة /dashboard */
+                  onClick={() => navigate(`/dashboard/tasks-activities/activities/${activity.id}`)}
                   className="bg-white border border-gray-200 hover:border-emerald-500 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
                 >
                   <div>

@@ -8,16 +8,18 @@ export const ActivityDetailsPage: React.FC = () => {
   const { id: activityId } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  // حماية استدعاء הـ Hook
+  const engine = useTasksEngine() || {};
   const {
-    currentActivity,
-    loading,
-    error,
+    currentActivity = null,
+    loading = false,
+    error = null,
     fetchActivityById,
     addCommittee,
     createTask,
-    applyForTask,
-    submitExcuse,
-  } = useTasksEngine();
+    applyForTask = () => {},
+    submitExcuse = () => {},
+  } = engine;
 
   // حالات فتح/إغلاق النوافذ المنبثقة
   const [showAddCommitteeModal, setShowAddCommitteeModal] = useState(false);
@@ -42,47 +44,55 @@ export const ActivityDetailsPage: React.FC = () => {
   });
 
   useEffect(() => {
-    if (activityId) {
+    if (activityId && fetchActivityById) {
       fetchActivityById(activityId);
     }
-  }, [activityId, fetchActivityById]);
+  }, [activityId]);
 
   // إنشاء لجنة جديدة
   const handleCreateCommittee = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = committeeForm.committee_name || committeeForm.name || '';
-    if (!activityId || !name.trim()) return;
+    if (!activityId || !name.trim() || !addCommittee) return;
 
-    const success = await addCommittee(activityId, committeeForm);
-    if (success) {
-      setShowAddCommitteeModal(false);
-      setCommitteeForm({ committee_name: '', name: '', description: '' });
+    try {
+      const success = await addCommittee(activityId, committeeForm);
+      if (success) {
+        setShowAddCommitteeModal(false);
+        setCommitteeForm({ committee_name: '', name: '', description: '' });
+      }
+    } catch (err) {
+      console.error('خطأ أثناء إضافة اللجنة:', err);
     }
   };
 
   // إنشاء مهمة جديدة
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activityId || !taskForm.title.trim() || !taskForm.due_time) return;
+    if (!activityId || !taskForm.title.trim() || !taskForm.due_time || !createTask) return;
 
-    const success = await createTask({
-      ...taskForm,
-      activity_id: activityId,
-      max_volunteers: Number(taskForm.max_volunteers),
-    });
-
-    if (success) {
-      setShowAddTaskModal(false);
-      setTaskForm({
-        title: '',
-        description: '',
-        due_time: '',
-        max_volunteers: 1,
-        priority: 'normal',
-        assignment_type: 'open_announcement',
+    try {
+      const success = await createTask({
+        ...taskForm,
         activity_id: activityId,
-        committee_id: undefined,
+        max_volunteers: Number(taskForm.max_volunteers),
       });
+
+      if (success) {
+        setShowAddTaskModal(false);
+        setTaskForm({
+          title: '',
+          description: '',
+          due_time: '',
+          max_volunteers: 1,
+          priority: 'normal',
+          assignment_type: 'open_announcement',
+          activity_id: activityId,
+          committee_id: undefined,
+        });
+      }
+    } catch (err) {
+      console.error('خطأ أثناء إنشاء المهمة:', err);
     }
   };
 
@@ -96,11 +106,11 @@ export const ActivityDetailsPage: React.FC = () => {
 
   if (error || !currentActivity) {
     return (
-      <div className="p-6 text-center">
-        <div className="text-rose-600 font-bold mb-4">{error || 'النشاط غير موجود'}</div>
+      <div className="p-6 text-center bg-white rounded-2xl border border-gray-200 shadow-sm my-6">
+        <div className="text-rose-600 font-bold mb-4">{typeof error === 'string' ? error : 'النشاط غير موجود أو تم حذفه'}</div>
         <button
-          onClick={() => navigate('/tasks-activities')}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+          onClick={() => navigate('/dashboard/tasks-activities')}
+          className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 text-xs transition-colors"
         >
           العودة لإدارة المهام والأنشطة
         </button>
@@ -108,21 +118,22 @@ export const ActivityDetailsPage: React.FC = () => {
     );
   }
 
-  // تصفية المهام المستقلة المباشرة للنشاط (بدون لجنة)
-  const allTasks: Task[] = currentActivity.tasks || [];
-  const standaloneTasks = allTasks.filter((t: Task) => !t.committee_id);
+  // تصفية المهام
+  const allTasks: Task[] = Array.isArray(currentActivity.tasks) ? currentActivity.tasks : [];
+  const standaloneTasks = allTasks.filter((t: Task) => t && !t.committee_id);
+  const committees = Array.isArray(currentActivity.committees) ? currentActivity.committees : [];
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 dir-rtl" dir="rtl">
-      {/* رأس الصفحة والهيدر الرئيسي للنشاط */}
+      {/* هيدر النشاط */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4 mb-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="text-2xl">{currentActivity.icon || '🎯'}</span>
+              <span className="text-2xl p-2 bg-emerald-50 rounded-xl">{currentActivity.icon || '🎯'}</span>
               <h1 className="text-2xl font-bold text-gray-900">{currentActivity.title}</h1>
               <span className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                {currentActivity.status === 'active' ? 'نشط الان' : currentActivity.status}
+                {currentActivity.status === 'active' ? 'نشط الآن' : currentActivity.status}
               </span>
             </div>
             {currentActivity.description && (
@@ -149,33 +160,29 @@ export const ActivityDetailsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* معلومات سريعة */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-gray-500">
           <div>🗓 البداية: {currentActivity.start_date ? new Date(currentActivity.start_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
           <div>🏁 النهاية: {currentActivity.end_date ? new Date(currentActivity.end_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
-          <div>👥 عدد اللجان: {currentActivity.committees?.length || 0}</div>
+          <div>👥 عدد اللجان: {committees.length}</div>
           <div>📋 إجمالي المهام: {allTasks.length}</div>
         </div>
       </div>
 
-      {/* 1. قسم اللجان الفرعية في النشاط */}
+      {/* قسم اللجان */}
       <section className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <span>🏛️</span> اللجان الفرعية للنشاط
-          </h2>
-        </div>
+        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <span>🏛️</span> اللجان الفرعية للنشاط
+        </h2>
 
-        {currentActivity.committees && currentActivity.committees.length > 0 ? (
+        {committees.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {currentActivity.committees.map((committee) => {
-              const committeeTasks = allTasks.filter(
-                (t: Task) => t.committee_id === committee.id
-              );
+            {committees.map((committee) => {
+              if (!committee) return null;
+              const committeeTasks = allTasks.filter((t: Task) => t && t.committee_id === committee.id);
               const committeeName = committee.committee_name || committee.name || 'لجنة بدون اسم';
 
               return (
-                <div key={committee.id} className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
+                <div key={committee.id} className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="text-base font-bold text-gray-800">{committeeName}</h3>
@@ -188,13 +195,12 @@ export const ActivityDetailsPage: React.FC = () => {
                         setTaskForm((prev) => ({ ...prev, committee_id: committee.id }));
                         setShowAddTaskModal(true);
                       }}
-                      className="px-3 py-1 bg-white border border-gray-300 hover:bg-gray-100 text-xs rounded-lg text-gray-700 font-medium"
+                      className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs rounded-xl text-gray-700 font-bold"
                     >
                       + إضافة مهمة للجنة
                     </button>
                   </div>
 
-                  {/* قائمة مهام اللجنة */}
                   <div className="space-y-3 pt-2">
                     {committeeTasks.length > 0 ? (
                       committeeTasks.map((task: Task) => (
@@ -206,7 +212,7 @@ export const ActivityDetailsPage: React.FC = () => {
                         />
                       ))
                     ) : (
-                      <div className="text-center py-4 bg-white rounded-lg border border-dashed border-gray-200 text-xs text-gray-400">
+                      <div className="text-center py-4 bg-white rounded-xl border border-dashed border-gray-200 text-xs text-gray-400">
                         لا توجد مهام داخل هذه اللجنة حالياً
                       </div>
                     )}
@@ -216,13 +222,13 @@ export const ActivityDetailsPage: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-500 text-sm">
+          <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-8 text-center text-gray-500 text-sm">
             لم يتم إنشاء أي لجان لهذا النشاط بعد. يمكنك إضافة لجنة لتنظيم فريق العمل.
           </div>
         )}
       </section>
 
-      {/* 2. قسم المهام المستقلة للنشاط (غير التابعة للجنة) */}
+      {/* قسم المهام العامة */}
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
           <span>📌</span> المهام العامة / المباشرة للنشاط
@@ -240,13 +246,13 @@ export const ActivityDetailsPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-500 text-sm">
+          <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-8 text-center text-gray-500 text-sm">
             لا توجد مهام عامة مباشرة للنشاط.
           </div>
         )}
       </section>
 
-      {/* نافذة إضافة لجنة */}
+      {/* مودال إنشاء لجنة */}
       {showAddCommitteeModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
@@ -269,11 +275,11 @@ export const ActivityDetailsPage: React.FC = () => {
                   rows={3}
                   value={committeeForm.description || ''}
                   onChange={(e) => setCommitteeForm({ ...committeeForm, description: e.target.value })}
-                  placeholder="مهام وااختصاصات هذه اللجنة..."
+                  placeholder="مهام واختصاصات هذه اللجنة..."
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-2 border-t">
                 <button
                   type="button"
                   onClick={() => setShowAddCommitteeModal(false)}
@@ -293,7 +299,7 @@ export const ActivityDetailsPage: React.FC = () => {
         </div>
       )}
 
-      {/* نافذة إضافة مهمة */}
+      {/* مودال إنشاء مهمة */}
       {showAddTaskModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto">
