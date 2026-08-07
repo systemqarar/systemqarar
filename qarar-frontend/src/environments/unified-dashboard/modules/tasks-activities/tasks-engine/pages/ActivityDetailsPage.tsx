@@ -43,11 +43,24 @@ export const ActivityDetailsPage: React.FC = () => {
     committee_id: undefined,
   });
 
+  // 🎯 طلب بيانات النشاط عند تحميل الصفحة
   useEffect(() => {
     if (activityId && fetchActivityById) {
+      console.log('📡 [ActivityDetailsPage] جاري طلب بيانات النشاط لمعرف:', activityId);
       fetchActivityById(activityId);
     }
   }, [activityId]);
+
+  // 🎯 طباعة حالة المكون في الكونسول للمتابعة المباشرة
+  useEffect(() => {
+    console.log('🔍 [ActivityDetailsPage State]:', {
+      activityId,
+      hasCurrentActivity: !!currentActivity,
+      loading,
+      error,
+      currentActivityData: currentActivity,
+    });
+  }, [activityId, currentActivity, loading, error]);
 
   // إنشاء لجنة جديدة
   const handleCreateCommittee = async (e: React.FormEvent) => {
@@ -96,17 +109,11 @@ export const ActivityDetailsPage: React.FC = () => {
     }
   };
 
-  // ✅ تصحيح الشرط الأساسي: الانتظار طالما أن البيانات جاري طلبها أو لم تصل بعد
-  if (loading || (!currentActivity && !error)) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-gray-500 font-medium animate-pulse">جاري تحميل تفاصيل النشاط...</div>
-      </div>
-    );
-  }
-
-  // ✅ يعرض عدم الوجود فقط في حالة وجود خطأ صريح أو انتهاء التحميل وعدم وجود بيانات
-  if (error || !currentActivity) {
+  /* 
+    ========================================================================
+    🎯 تم تعطيل شرط الطرد المباشر لضمان بقاء الصفحة مفتوحة ومعاينة البيانات الحقيقية
+    ========================================================================
+  if (error || (!loading && !currentActivity)) {
     return (
       <div className="p-6 text-center bg-white rounded-2xl border border-gray-200 shadow-sm my-6 dir-rtl" dir="rtl">
         <div className="text-rose-600 font-bold mb-4">
@@ -121,15 +128,25 @@ export const ActivityDetailsPage: React.FC = () => {
       </div>
     );
   }
+  */
 
-  // تصفية المهام بأمان تام
+  // تصفية المهام بأمان تام مع دعم Optional Chaining
   const allTasks: Task[] = Array.isArray(currentActivity?.tasks) ? currentActivity.tasks : [];
   const standaloneTasks = allTasks.filter((t: Task) => t && !t.committee_id);
   const committees = Array.isArray(currentActivity?.committees) ? currentActivity.committees : [];
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 dir-rtl" dir="rtl">
-      {/* زر العودة العلوي لتوفير توجيه ممتاز للمستخدم */}
+      
+      {/* 🎯 شريط التشخيص العلوي (مؤقت لمعاينة حالة البيانات دون طرد) */}
+      <div className="bg-slate-900 text-emerald-400 p-3 rounded-xl text-xs font-mono flex flex-wrap justify-between items-center gap-2">
+        <div>🆔 المعرف: <span className="text-white">{activityId || 'غير محدد'}</span></div>
+        <div>⏳ التحميل: <span className="text-white">{loading ? 'جاري التحميل...' : 'مكتمل'}</span></div>
+        <div>📦 البيانات: <span className="text-white">{currentActivity ? 'متوفرة ✅' : 'غير متوفرة ❌'}</span></div>
+        {error && <div className="text-rose-400">🚨 الخطأ: {String(error)}</div>}
+      </div>
+
+      {/* زر العودة العلوي */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate('/dashboard/tasks-activities')}
@@ -139,18 +156,20 @@ export const ActivityDetailsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* هيدر النشاط */}
+      {/* هيدر النشاط بأمان كامل (Optional Chaining) */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4 mb-4">
           <div>
             <div className="flex items-center gap-3">
-              <span className="text-2xl p-2 bg-emerald-50 rounded-xl">{currentActivity.icon || '🎯'}</span>
-              <h1 className="text-2xl font-bold text-gray-900">{currentActivity.title}</h1>
+              <span className="text-2xl p-2 bg-emerald-50 rounded-xl">{currentActivity?.icon || '🎯'}</span>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {currentActivity?.title || (loading ? 'جاري تحميل العنوان...' : 'نشاط بدون عنوان')}
+              </h1>
               <span className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                {currentActivity.status === 'active' ? 'نشط الآن' : currentActivity.status}
+                {currentActivity?.status === 'active' ? 'نشط الآن' : (currentActivity?.status || 'غير محدد')}
               </span>
             </div>
-            {currentActivity.description && (
+            {currentActivity?.description && (
               <p className="text-gray-600 text-sm mt-2">{currentActivity.description}</p>
             )}
           </div>
@@ -175,8 +194,8 @@ export const ActivityDetailsPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-gray-500">
-          <div>🗓 البداية: {currentActivity.start_date ? new Date(currentActivity.start_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
-          <div>🏁 النهاية: {currentActivity.end_date ? new Date(currentActivity.end_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
+          <div>🗓 البداية: {currentActivity?.start_date ? new Date(currentActivity.start_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
+          <div>🏁 النهاية: {currentActivity?.end_date ? new Date(currentActivity.end_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
           <div>👥 عدد اللجان: {committees.length}</div>
           <div>📋 إجمالي المهام: {allTasks.length}</div>
         </div>
@@ -289,7 +308,7 @@ export const ActivityDetailsPage: React.FC = () => {
                   rows={3}
                   value={committeeForm.description || ''}
                   onChange={(e) => setCommitteeForm({ ...committeeForm, description: e.target.value })}
-                  placeholder="مهام وااختصاصات هذه اللجنة..."
+                  placeholder="مهام واختصاصات هذه اللجنة..."
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
