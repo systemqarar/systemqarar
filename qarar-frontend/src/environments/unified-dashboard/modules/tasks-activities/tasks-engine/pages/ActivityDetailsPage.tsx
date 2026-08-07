@@ -43,18 +43,12 @@ export const ActivityDetailsPage: React.FC = () => {
     committee_id: undefined,
   });
 
-  // 🎯 طلب بيانات النشاط عند تغير المعرف مع حماية الإلغاء
+  // 🎯 طلب بيانات النشاط عند تغير المعرف بدون متغيرات مهملة
   useEffect(() => {
-    let isMounted = true;
-
     if (activityId && fetchActivityById) {
       console.log('📡 [ActivityDetailsPage] جاري طلب بيانات النشاط لمعرف:', activityId);
       fetchActivityById(activityId);
     }
-
-    return () => {
-      isMounted = false;
-    };
   }, [activityId, fetchActivityById]);
 
   // إنشاء لجنة جديدة
