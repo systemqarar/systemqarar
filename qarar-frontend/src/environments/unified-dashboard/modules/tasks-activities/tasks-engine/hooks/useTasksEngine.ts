@@ -15,10 +15,10 @@ export const useTasksEngine = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // البادئة الموحدة والرسمية لمسارات السيرفر
-  const API_BASE = '/api/tasks-activities/tasks-engine';
+  // 🎯 تصحيح المسار الأساسي للسيرفر (إزالة التكرار)
+  const API_BASE = '/api/tasks-activities';
 
-  // دالة مساعدة لجلب التوكن وإضافته للهيدر للأمان
+  // دالة جلب التوكن للأمان
   const getAuthHeaders = () => {
     const token = localStorage.getItem('qarar_token');
     return {
@@ -27,7 +27,7 @@ export const useTasksEngine = () => {
     };
   };
 
-  // معالجة الاستجابات بأمان يمنع كراش الـ JSON
+  // معالجة استجابات الـ API ومنع كراش الـ JSON
   const parseResponse = async (res: Response) => {
     const contentType = res.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
@@ -35,10 +35,10 @@ export const useTasksEngine = () => {
     }
     const text = await res.text();
     console.error(`[API Error ${res.status}]:`, text);
-    throw new Error(`خطأ في الاتصال بالسيرفر (${res.status}).`);
+    throw new Error(`خطأ في الاتصال بالسيرفر (${res.status})`);
   };
 
-  // 1. جلب الأنشطة البرامجية الرئيسية
+  // 1. جلب الأنشطة البرامجية
   const fetchActivities = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/activities`, {
@@ -54,7 +54,7 @@ export const useTasksEngine = () => {
     }
   }, [API_BASE]);
 
-  // 2. جلب تفاصيل نشاط واحد بالكامل بالهيكل الشجري (لصفحة ActivityDetailsPage)
+  // 2. جلب تفاصيل نشاط محدد بواسطة الـ ID
   const fetchActivityById = useCallback(async (activityId: string) => {
     setLoading(true);
     setError(null);
@@ -62,6 +62,7 @@ export const useTasksEngine = () => {
       const res = await fetch(`${API_BASE}/activities/${activityId}`, {
         headers: getAuthHeaders(),
       });
+
       if (res.ok) {
         const data = await parseResponse(res);
         const activityData = data?.data || data;
@@ -80,7 +81,7 @@ export const useTasksEngine = () => {
     }
   }, [API_BASE]);
 
-  // 3. جلب المهام مع دعم التصفية المتقدمة (مستقلة / تابعة لنشاط / لجنة)
+  // 3. جلب المهام
   const fetchTasks = useCallback(async (filters?: { activity_id?: string; committee_id?: string; is_standalone?: boolean; status?: string }) => {
     setLoading(true);
     setError(null);
@@ -136,7 +137,7 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 5. إضافة لجنة جديدة لنشاط قائم
+  // 5. إضافة لجنة جديدة
   const addCommittee = async (activityId: string, committeeInput: CreateCommitteeInput): Promise<boolean> => {
     setLoading(true);
     try {
@@ -162,7 +163,7 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 6. إنشاء مهمة جديدة (مستقلة أو فرعية)
+  // 6. إنشاء مهمة
   const createTask = async (taskInput: CreateTaskInput): Promise<boolean> => {
     setLoading(true);
     try {
@@ -192,7 +193,7 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 7. تحديث مهمة قائمة (زيادة عدد المتطوعين / تغيير التاريخ / الحالة)
+  // 7. تحديث مهمة
   const updateTask = async (taskId: string, updateInput: UpdateTaskInput, activityId?: string): Promise<boolean> => {
     setLoading(true);
     try {
@@ -267,7 +268,7 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 10. إزالة متطوع من المهمة (للمسؤولين أو قادة اللجان)
+  // 10. إزالة متطوع
   const removeVolunteer = async (assignmentId: string, activityId?: string): Promise<boolean> => {
     setLoading(true);
     try {
