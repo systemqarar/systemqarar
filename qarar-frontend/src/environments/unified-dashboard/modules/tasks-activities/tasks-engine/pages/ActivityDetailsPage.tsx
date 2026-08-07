@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTasksEngine } from '../hooks/useTasksEngine';
 import { TaskCard } from '../components/TaskCard';
-import { CreateCommitteeInput, CreateTaskInput } from '../types/tasks-engine.types';
+import { CreateCommitteeInput, CreateTaskInput, Task } from '../types/tasks-engine.types';
 
 export const ActivityDetailsPage: React.FC = () => {
   const { id: activityId } = useParams<{ id: string }>();
@@ -26,6 +26,7 @@ export const ActivityDetailsPage: React.FC = () => {
   // نماذج الإدخال
   const [committeeForm, setCommitteeForm] = useState<CreateCommitteeInput>({
     committee_name: '',
+    name: '',
     description: '',
   });
 
@@ -49,12 +50,13 @@ export const ActivityDetailsPage: React.FC = () => {
   // إنشاء لجنة جديدة
   const handleCreateCommittee = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activityId || !committeeForm.committee_name.trim()) return;
+    const name = committeeForm.committee_name || committeeForm.name || '';
+    if (!activityId || !name.trim()) return;
 
     const success = await addCommittee(activityId, committeeForm);
     if (success) {
       setShowAddCommitteeModal(false);
-      setCommitteeForm({ committee_name: '', description: '' });
+      setCommitteeForm({ committee_name: '', name: '', description: '' });
     }
   };
 
@@ -107,7 +109,8 @@ export const ActivityDetailsPage: React.FC = () => {
   }
 
   // تصفية المهام المستقلة المباشرة للنشاط (بدون لجنة)
-  const standaloneTasks = currentActivity.tasks?.filter((t) => !t.committee_id) || [];
+  const allTasks: Task[] = currentActivity.tasks || [];
+  const standaloneTasks = allTasks.filter((t: Task) => !t.committee_id);
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 dir-rtl" dir="rtl">
@@ -148,10 +151,10 @@ export const ActivityDetailsPage: React.FC = () => {
 
         {/* معلومات سريعة */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-gray-500">
-          <div>🗓 البداية: {new Date(currentActivity.start_date).toLocaleDateString('ar-SA')}</div>
-          <div>🏁 النهاية: {new Date(currentActivity.end_date).toLocaleDateString('ar-SA')}</div>
+          <div>🗓 البداية: {currentActivity.start_date ? new Date(currentActivity.start_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
+          <div>🏁 النهاية: {currentActivity.end_date ? new Date(currentActivity.end_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
           <div>👥 عدد اللجان: {currentActivity.committees?.length || 0}</div>
-          <div>📋 إجمالي المهام: {currentActivity.tasks?.length || 0}</div>
+          <div>📋 إجمالي المهام: {allTasks.length}</div>
         </div>
       </div>
 
@@ -166,15 +169,16 @@ export const ActivityDetailsPage: React.FC = () => {
         {currentActivity.committees && currentActivity.committees.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {currentActivity.committees.map((committee) => {
-              const committeeTasks = currentActivity.tasks?.filter(
-                (t) => t.committee_id === committee.id
-              ) || [];
+              const committeeTasks = allTasks.filter(
+                (t: Task) => t.committee_id === committee.id
+              );
+              const committeeName = committee.committee_name || committee.name || 'لجنة بدون اسم';
 
               return (
                 <div key={committee.id} className="bg-gray-50 border border-gray-200 rounded-xl p-5 space-y-4">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="text-base font-bold text-gray-800">{committee.committee_name}</h3>
+                      <h3 className="text-base font-bold text-gray-800">{committeeName}</h3>
                       {committee.description && (
                         <p className="text-xs text-gray-500 mt-1">{committee.description}</p>
                       )}
@@ -193,7 +197,7 @@ export const ActivityDetailsPage: React.FC = () => {
                   {/* قائمة مهام اللجنة */}
                   <div className="space-y-3 pt-2">
                     {committeeTasks.length > 0 ? (
-                      committeeTasks.map((task) => (
+                      committeeTasks.map((task: Task) => (
                         <TaskCard
                           key={task.id}
                           task={task}
@@ -226,7 +230,7 @@ export const ActivityDetailsPage: React.FC = () => {
 
         {standaloneTasks.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {standaloneTasks.map((task) => (
+            {standaloneTasks.map((task: Task) => (
               <TaskCard
                 key={task.id}
                 task={task}
@@ -253,8 +257,8 @@ export const ActivityDetailsPage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  value={committeeForm.committee_name}
-                  onChange={(e) => setCommitteeForm({ ...committeeForm, committee_name: e.target.value })}
+                  value={committeeForm.committee_name || committeeForm.name || ''}
+                  onChange={(e) => setCommitteeForm({ ...committeeForm, committee_name: e.target.value, name: e.target.value })}
                   placeholder="مثال: لجنة التنظيم واللوجستيات"
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
@@ -265,7 +269,7 @@ export const ActivityDetailsPage: React.FC = () => {
                   rows={3}
                   value={committeeForm.description || ''}
                   onChange={(e) => setCommitteeForm({ ...committeeForm, description: e.target.value })}
-                  placeholder="مهام واختصاصات هذه اللجنة..."
+                  placeholder="مهام وااختصاصات هذه اللجنة..."
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>

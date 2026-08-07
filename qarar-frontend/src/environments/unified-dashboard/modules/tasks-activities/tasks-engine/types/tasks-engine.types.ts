@@ -40,8 +40,8 @@ export interface Task {
   max_volunteers: number;
   priority: TaskPriority;
   status: TaskStatus;
+  due_time?: string;
   start_time?: string;
-  due_time: string;
   created_at?: string;
   assignments?: TaskAssignment[];
 }
@@ -50,7 +50,8 @@ export interface Task {
 export interface ActivityCommittee {
   id: string;
   activity_id?: string;
-  name: string;
+  name?: string;
+  committee_name?: string; // توافق مرن مع أشكال المخرجات المختلفة
   leader_id?: string;
   description?: string;
   created_at?: string;
@@ -61,6 +62,7 @@ export interface Activity {
   id: string;
   title: string;
   description?: string;
+  icon?: string;
   unit_id?: number;
   created_by?: string;
   creation_source?: CreationSource;
@@ -68,7 +70,8 @@ export interface Activity {
   start_date?: string;
   end_date?: string;
   created_at?: string;
-  committees: ActivityCommittee[];
+  committees?: ActivityCommittee[];
+  tasks?: Task[]; // ربط هرمي مباشر للمهام التابعة للنشاط
 }
 
 // --- 6. Input Payload Interfaces (DTOs) ---
@@ -90,9 +93,16 @@ export interface CreateTaskInput {
   assignee_ids?: string[];
 }
 
+/** مدخلات تحديث المهمة */
+export interface UpdateTaskInput extends Partial<CreateTaskInput> {
+  id?: string;
+  status?: TaskStatus;
+}
+
 /** مدخلات إنشاء لجنة فرعية داخل نشاط */
 export interface CreateCommitteeInput {
-  name: string;
+  name?: string;
+  committee_name?: string;
   description?: string;
   leader_id?: string;
 }
@@ -101,10 +111,16 @@ export interface CreateCommitteeInput {
 export interface CreateActivityInput {
   title: string;
   description?: string;
+  icon?: string;
   unit_id?: number;
   status?: ActivityStatus;
   start_date?: string;
   end_date?: string;
   creation_source?: CreationSource;
   committees?: CreateCommitteeInput[];
+}
+
+/** مدخلات تحديث النشاط البرامجي */
+export interface UpdateActivityInput extends Partial<CreateActivityInput> {
+  id?: string;
 }

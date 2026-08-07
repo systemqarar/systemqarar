@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTasksEngine } from '../hooks/useTasksEngine';
 import { TaskCard } from '../components/TaskCard';
-import { CreateActivityInput, CreateTaskInput } from '../types/tasks-engine.types';
+import { Activity, CreateActivityInput, CreateTaskInput, Task } from '../types/tasks-engine.types';
 
 export const TasksEnginePage: React.FC = () => {
   const navigate = useNavigate();
   const {
-    activities,
-    tasks,
+    activities = [],
+    tasks = [],
     loading,
     error,
     createActivity,
@@ -86,7 +86,9 @@ export const TasksEnginePage: React.FC = () => {
   };
 
   // تصفية المهام المستقلة (التي ليس لها activity_id)
-  const standaloneTasks = tasks.filter((task) => !task.activity_id);
+  const safeTasks: Task[] = tasks || [];
+  const safeActivities: Activity[] = activities || [];
+  const standaloneTasks = safeTasks.filter((task: Task) => !task.activity_id);
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 dir-rtl" dir="rtl">
@@ -125,7 +127,7 @@ export const TasksEnginePage: React.FC = () => {
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          🎯 الأنشطة البرامجية ({activities.length})
+          🎯 الأنشطة البرامجية ({safeActivities.length})
         </button>
         <button
           onClick={() => setActiveTab('standalone_tasks')}
@@ -145,11 +147,11 @@ export const TasksEnginePage: React.FC = () => {
       {/* محتوى تبويب الأنشطة */}
       {activeTab === 'activities' && (
         <div>
-          {loading && activities.length === 0 ? (
+          {loading && safeActivities.length === 0 ? (
             <div className="text-center py-12 text-gray-400 text-sm animate-pulse">جاري تحميل الأنشطة البرامجية...</div>
-          ) : activities.length > 0 ? (
+          ) : safeActivities.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {activities.map((activity) => (
+              {safeActivities.map((activity: Activity) => (
                 <div
                   key={activity.id}
                   onClick={() => navigate(`/tasks-activities/activities/${activity.id}`)}
@@ -171,7 +173,9 @@ export const TasksEnginePage: React.FC = () => {
                   </div>
 
                   <div className="pt-3 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400">
-                    <span>🗓 {new Date(activity.start_date).toLocaleDateString('ar-SA')}</span>
+                    <span>
+                      🗓 {activity.start_date ? new Date(activity.start_date).toLocaleDateString('ar-SA') : 'غير محدد'}
+                    </span>
                     <span className="text-emerald-600 font-bold group-hover:translate-x-[-2px] transition-transform">
                       عرض التفاصيل واللجان ←
                     </span>
@@ -194,7 +198,7 @@ export const TasksEnginePage: React.FC = () => {
             <div className="text-center py-12 text-gray-400 text-sm animate-pulse">جاري تحميل سوق المهام...</div>
           ) : standaloneTasks.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {standaloneTasks.map((task) => (
+              {standaloneTasks.map((task: Task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
@@ -298,7 +302,7 @@ export const TasksEnginePage: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">التفاصيل والمتطلبات</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">التفاصيل ومتطلبات المهمة</label>
                 <textarea
                   rows={2}
                   value={taskForm.description || ''}
