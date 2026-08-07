@@ -12,49 +12,50 @@ import { Header } from '../../../../../components/Header';
 import { EmergencyCards } from '../components/EmergencyCards';
 import { BentoGrid } from '../components/BentoGrid';
 
+// 🎯 عناصر الملاحة الموحدة (خارج المكون لمنع إعادة التعريف عند كل رندر)
+const NAVIGATION_ITEMS = [
+  { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
+  { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
+  { id: 'tasks', name: 'المهام والأنشطة (Tasks & Activities)', icon: ClipboardList, path: '/dashboard/tasks-activities' },
+  { id: 'communication', name: 'مركز التواصل الذكي (Smart Communication)', icon: MessageSquare, path: '/dashboard/communication' },
+  { id: 'letters', name: 'الخطابات والوثائق (Official Documents)', icon: FileText, path: '/dashboard/letters' }, // ✅ تم توحيد المعرف إلى 'letters'
+];
+
 export const DashboardLayout = () => {
   const { activeTab, setActiveTab, isSidebarOpen, setIsSidebarOpen } = useDashboard();
   const navigate = useNavigate(); 
   const location = useLocation(); 
 
-  // 🗺️ الروابط الأساسية للوحة التحكم (تم تصحيح المسارات المعطلة)
-  const navigationItems = [
-    { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
-    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
-    { id: 'tasks', name: 'المهام والأنشطة (Tasks & Activities)', icon: ClipboardList, path: '/dashboard/tasks-activities' },
-    { id: 'communication', name: 'مركز التواصل الذكي (Smart Communication)', icon: MessageSquare, path: '/dashboard/communication' },
-    { id: 'documents', name: 'الخطابات والوثائق (Official Documents)', icon: FileText, path: '/dashboard/letters' },
-  ];
-
-  // 1️⃣ مزامنة الـ Tabs مع جميع الرابط الحالية في المتصفح
+  // 1️⃣ المزامنة التلقائية للمظهر فقط (تغير التبويب النشط دون إجبار المتصفح على Navigation)
   useEffect(() => {
     const currentPath = location.pathname;
-    
-    if (currentPath === '/dashboard' || currentPath === '/dashboard/') {
+
+    const matchedItem = NAVIGATION_ITEMS.find(item => {
+      if (item.path === '/dashboard') {
+        return currentPath === '/dashboard' || currentPath === '/dashboard/';
+      }
+      return currentPath.startsWith(item.path);
+    });
+
+    if (matchedItem) {
+      setActiveTab(matchedItem.id);
+    } else if (currentPath === '/dashboard' || currentPath === '/dashboard/') {
       setActiveTab('overview');
-    } else if (currentPath.includes('/profile')) {
-      setActiveTab('profile');
-    } else if (currentPath.includes('/tasks-activities')) {
-      setActiveTab('tasks');
-    } else if (currentPath.includes('/communication')) {
-      setActiveTab('communication');
-    } else if (currentPath.includes('/letters')) {
-      setActiveTab('documents');
     }
   }, [location.pathname, setActiveTab]);
 
-  // 2️⃣ دالة موحدة للتحويل عند الضغط الفعلي
-  const handleTabChange = (tabId: string) => {
+  // 2️⃣ دالة التوجيه عند الضغط اليدوي الفعلي من قبل المستخدم فقط
+  const handleUserTabSelect = (tabId: string) => {
     setActiveTab(tabId);
     setIsSidebarOpen(false); 
 
-    const currentItem = navigationItems.find(n => n.id === tabId);
+    const currentItem = NAVIGATION_ITEMS.find(n => n.id === tabId);
     if (currentItem && currentItem.path !== '#') {
       navigate(currentItem.path);
     }
   };
 
-  // 🔍 فحص ذكي: هل المتصفح واقف في جذر الـ Dashboard بالظبط؟
+  // فحص ما إذا كان المستخدم في الصفحة الرئيسية للوحة
   const isOverviewRoute = location.pathname === '/dashboard' || location.pathname === '/dashboard/';
 
   return (
@@ -64,7 +65,7 @@ export const DashboardLayout = () => {
         
         <Header 
           activeTab={activeTab} 
-          setActiveTab={handleTabChange} 
+          setActiveTab={handleUserTabSelect} 
           onMenuClick={() => setIsSidebarOpen(true)} 
         />
 
@@ -95,27 +96,28 @@ export const DashboardLayout = () => {
           </AnimatePresence>
         </main>
 
-        {/* عرض الأزرار بطريقة مرنة وشرطية */}
+        {/* أزرار الإجراءات السريعة */}
         {isOverviewRoute ? (
           <div className="fixed bottom-5 left-5 right-5 z-30 flex items-center gap-3" dir="rtl">
             <div className="flex-[3]">
-              <GhaithButton onClick={() => handleTabChange('communication')} isDashboard={true} />
+              <GhaithButton onClick={() => handleUserTabSelect('communication')} isDashboard={true} />
             </div>
             <div className="flex-[2]">
               <ActiveUsersButton />
             </div>
           </div>
         ) : (
-          <GhaithButton onClick={() => handleTabChange('communication')} isDashboard={false} />
+          <GhaithButton onClick={() => handleUserTabSelect('communication')} isDashboard={false} />
         )}
 
       </div>
 
+      {/* 💡 يمرر المكون الآن setActiveTab لتحديد الحالة فقط دون إعادة توجيه تلقائية */}
       <SidebarDrawer 
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
         activeTab={activeTab} 
-        setActiveTab={handleTabChange} 
+        setActiveTab={handleUserTabSelect} 
       />
 
     </div>

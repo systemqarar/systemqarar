@@ -1,4 +1,4 @@
-import { useEffect } from 'react'; // 🔄 استيراد الدالة مباشرة دون استيراد كائن React كاملاً
+import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom'; 
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Home, User, ClipboardList, MessageSquare, FileText, LogOut, Sparkles } from 'lucide-react';
@@ -10,47 +10,48 @@ interface SidebarDrawerProps {
   setActiveTab: (tab: string) => void;
 }
 
+// 🎯 نقل المصفوفة خارج المكون لمنع إعادة تعريفها مع كل رندر
+const MENU_ITEMS = [
+  { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
+  { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
+  { 
+    id: 'tasks', 
+    name: 'المهام والأنشطة', 
+    icon: ClipboardList, 
+    badge: { text: '٣ نشطة', type: 'info' },
+    path: '/dashboard/tasks-activities'
+  },
+  { 
+    id: 'communication', 
+    name: 'مركز التواصل الذكي', 
+    icon: MessageSquare, 
+    badge: { text: 'جاري إدارة الاجتماع', type: 'ai' },
+    path: '/dashboard/communication'
+  },
+  { id: 'letters', name: 'الخطابات الرسمية والتقارير', icon: FileText, path: '/dashboard/letters' },
+];
+
 export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: SidebarDrawerProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const menuItems = [
-    { id: 'overview', name: 'الرئيسية (Overview)', icon: Home, path: '/dashboard' },
-    { id: 'profile', name: 'الملف الشخصي (Profile)', icon: User, path: '/dashboard/profile' },
-    { 
-      id: 'tasks', 
-      name: 'المهام والأنشطة', 
-      icon: ClipboardList, 
-      badge: { text: '٣ نشطة', type: 'info' },
-      path: '/dashboard/tasks-activities' // ✅ تم تصحيح المسار ليتطابق تماماً مع الراوتر
-    },
-    { 
-      id: 'communication', 
-      name: 'مركز التواصل الذكي', 
-      icon: MessageSquare, 
-      badge: { text: 'جاري إدارة الاجتماع', type: 'ai' },
-      path: '/dashboard/communication'
-    },
-    { id: 'letters', name: 'الخطابات الرسمية والتقارير', icon: FileText, path: '/dashboard/letters' },
-  ];
-
-  // 🔄 المزامنة التلقائية للمسارات بنظام سليم ومستقبلي (تسمح بالربط الذكي مع المسارات الفرعية)
+  // 🔄 مزامنة المسار مع التبويب النشط بحماية من التكرار
   useEffect(() => {
     const currentPath = location.pathname;
     
-    const matchedItem = menuItems.find(item => {
+    const matchedItem = MENU_ITEMS.find(item => {
       if (item.path === '/dashboard') {
         return currentPath === '/dashboard';
       }
       return currentPath.startsWith(item.path);
     });
 
-    if (matchedItem) {
+    if (matchedItem && matchedItem.id !== activeTab) {
       setActiveTab(matchedItem.id);
-    } else if (currentPath === '/dashboard') {
+    } else if (currentPath === '/dashboard' && activeTab !== 'overview') {
       setActiveTab('overview');
     }
-  }, [location.pathname]);
+  }, [location.pathname, activeTab, setActiveTab]);
 
   const containerVariants = {
     open: {
@@ -116,7 +117,7 @@ export const SidebarDrawer = ({ isOpen, onClose, activeTab, setActiveTab }: Side
                   initial="closed"
                   className="space-y-1"
                 >
-                  {menuItems.map((item) => {
+                  {MENU_ITEMS.map((item) => {
                     const IsActive = activeTab === item.id;
                     return (
                       <motion.button

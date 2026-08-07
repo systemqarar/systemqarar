@@ -43,24 +43,19 @@ export const ActivityDetailsPage: React.FC = () => {
     committee_id: undefined,
   });
 
-  // 🎯 طلب بيانات النشاط عند تحميل الصفحة
+  // 🎯 طلب بيانات النشاط عند تغير المعرف مع حماية الإلغاء
   useEffect(() => {
+    let isMounted = true;
+
     if (activityId && fetchActivityById) {
       console.log('📡 [ActivityDetailsPage] جاري طلب بيانات النشاط لمعرف:', activityId);
       fetchActivityById(activityId);
     }
-  }, [activityId]);
 
-  // 🎯 طباعة حالة المكون في الكونسول للمتابعة المباشرة
-  useEffect(() => {
-    console.log('🔍 [ActivityDetailsPage State]:', {
-      activityId,
-      hasCurrentActivity: !!currentActivity,
-      loading,
-      error,
-      currentActivityData: currentActivity,
-    });
-  }, [activityId, currentActivity, loading, error]);
+    return () => {
+      isMounted = false;
+    };
+  }, [activityId, fetchActivityById]);
 
   // إنشاء لجنة جديدة
   const handleCreateCommittee = async (e: React.FormEvent) => {
@@ -109,27 +104,6 @@ export const ActivityDetailsPage: React.FC = () => {
     }
   };
 
-  /* 
-    ========================================================================
-    🎯 تم تعطيل شرط الطرد المباشر لضمان بقاء الصفحة مفتوحة ومعاينة البيانات الحقيقية
-    ========================================================================
-  if (error || (!loading && !currentActivity)) {
-    return (
-      <div className="p-6 text-center bg-white rounded-2xl border border-gray-200 shadow-sm my-6 dir-rtl" dir="rtl">
-        <div className="text-rose-600 font-bold mb-4">
-          {typeof error === 'string' ? error : 'النشاط غير موجود أو تم حذفه'}
-        </div>
-        <button
-          onClick={() => navigate('/dashboard/tasks-activities')}
-          className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 text-xs transition-colors"
-        >
-          العودة لإدارة المهام والأنشطة
-        </button>
-      </div>
-    );
-  }
-  */
-
   // تصفية المهام بأمان تام مع دعم Optional Chaining
   const allTasks: Task[] = Array.isArray(currentActivity?.tasks) ? currentActivity.tasks : [];
   const standaloneTasks = allTasks.filter((t: Task) => t && !t.committee_id);
@@ -138,7 +112,7 @@ export const ActivityDetailsPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 dir-rtl" dir="rtl">
       
-      {/* 🎯 شريط التشخيص العلوي (مؤقت لمعاينة حالة البيانات دون طرد) */}
+      {/* 🎯 شريط التشخيص العلوي */}
       <div className="bg-slate-900 text-emerald-400 p-3 rounded-xl text-xs font-mono flex flex-wrap justify-between items-center gap-2">
         <div>🆔 المعرف: <span className="text-white">{activityId || 'غير محدد'}</span></div>
         <div>⏳ التحميل: <span className="text-white">{loading ? 'جاري التحميل...' : 'مكتمل'}</span></div>
@@ -156,7 +130,7 @@ export const ActivityDetailsPage: React.FC = () => {
         </button>
       </div>
 
-      {/* هيدر النشاط بأمان كامل (Optional Chaining) */}
+      {/* هيدر النشاط */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4 mb-4">
           <div>
