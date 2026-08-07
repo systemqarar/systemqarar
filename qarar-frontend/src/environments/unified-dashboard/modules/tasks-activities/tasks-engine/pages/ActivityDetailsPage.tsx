@@ -62,7 +62,6 @@ export const ActivityDetailsPage: React.FC = () => {
       if (success) {
         setShowAddCommitteeModal(false);
         setCommitteeForm({ committee_name: '', name: '', description: '' });
-        // 🔄 إعادة تحديث البيانات
         if (fetchActivityById) {
           await fetchActivityById(activityId);
         }
@@ -72,19 +71,18 @@ export const ActivityDetailsPage: React.FC = () => {
     }
   };
 
-  // 🎯 إنشاء مهمة جديدة (معالجة إرسال البيانات وإعادة التحديث المباشر)
+  // 🎯 إنشاء مهمة جديدة مع مطابقة الأنواع المعتمدة في TypeScript
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activityId || !taskForm.title.trim() || !taskForm.due_time || !createTask) return;
 
     try {
-      // تجهيز البيانات بالصيغة المعتمدة لقواعد البيانات
       const taskPayload: CreateTaskInput = {
         ...taskForm,
         activity_id: activityId,
-        committee_id: taskForm.committee_id || null, // تحويل undefined إلى null
+        committee_id: taskForm.committee_id ? taskForm.committee_id : undefined,
         max_volunteers: Number(taskForm.max_volunteers) || 1,
-        due_time: new Date(taskForm.due_time).toISOString(), // تحويل الوقت إلى ISO String
+        due_time: new Date(taskForm.due_time).toISOString(),
       };
 
       console.log('🚀 [ActivityDetailsPage] إرسال بيانات المهمة:', taskPayload);
@@ -93,7 +91,6 @@ export const ActivityDetailsPage: React.FC = () => {
 
       if (success) {
         setShowAddTaskModal(false);
-        // إعادة ضبط نموذج المهمة
         setTaskForm({
           title: '',
           description: '',
@@ -105,7 +102,6 @@ export const ActivityDetailsPage: React.FC = () => {
           committee_id: undefined,
         });
 
-        // 🔄 إعادة جلب بيانات النشاط فوراً لتنعكس المهمة الجديدة في الصفحة
         if (fetchActivityById) {
           await fetchActivityById(activityId);
         }
@@ -123,7 +119,7 @@ export const ActivityDetailsPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 dir-rtl" dir="rtl">
       
-      {/* 🎯 شريط التشخيص العلوي */}
+      {/* شريط التشخيص العلوي */}
       <div className="bg-slate-900 text-emerald-400 p-3 rounded-xl text-xs font-mono flex flex-wrap justify-between items-center gap-2">
         <div>🆔 المعرف: <span className="text-white">{activityId || 'غير محدد'}</span></div>
         <div>⏳ التحميل: <span className="text-white">{loading ? 'جاري التحميل...' : 'مكتمل'}</span></div>
@@ -293,7 +289,7 @@ export const ActivityDetailsPage: React.FC = () => {
                   rows={3}
                   value={committeeForm.description || ''}
                   onChange={(e) => setCommitteeForm({ ...committeeForm, description: e.target.value })}
-                  placeholder="مهام وااختصاصات هذه اللجنة..."
+                  placeholder="مهام واختصاصات هذه اللجنة..."
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
