@@ -15,8 +15,8 @@ export const useTasksEngine = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 🎯 المسار الأصلي والصحيح للسيرفر
-  const API_BASE = '/api/tasks-activities/tasks-engine';
+  // 🎯 قم بتعديل هذا المسار ليتطابق مع ما هو معرف في الباكيند (مثلاً: '/api/tasks-engine' أو '/api/tasks-activities')
+  const API_BASE = '/api/tasks-engine';
 
   // دالة جلب التوكن
   const getAuthHeaders = () => {
@@ -35,7 +35,7 @@ export const useTasksEngine = () => {
     }
     const text = await res.text();
     console.error(`[API Error ${res.status}]:`, text);
-    throw new Error(`خطأ في الاتصال بالسيرفر (${res.status})`);
+    throw new Error(`مسار الـ API غير موجود على السيرفر (${res.status})`);
   };
 
   // 1. جلب الأنشطة البرامجية الرئيسية
