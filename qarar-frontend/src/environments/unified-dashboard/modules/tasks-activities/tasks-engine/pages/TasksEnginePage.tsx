@@ -1,290 +1,278 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTasksEngine } from '../hooks/useTasksEngine';
 import { TaskCard } from '../components/TaskCard';
-import { CreateTaskInput, CreateActivityInput, TaskPriority, ActivityStatus } from '../types/tasks-engine.types';
-import { X, FolderPlus, CheckSquare } from 'lucide-react'; // ✅ تم حذف Plus غير المستخدمة
+import { CreateActivityInput, CreateTaskInput } from '../types/tasks-engine.types';
 
 export const TasksEnginePage: React.FC = () => {
-  const engine = useTasksEngine();
-  const { 
-    tasks = [], 
-    activities = [], 
-    loading = false, 
-    applyForTask, 
-    submitExcuse, 
+  const navigate = useNavigate();
+  const {
+    activities,
+    tasks,
+    loading,
+    error,
+    createActivity,
     createTask,
-    createActivity
-  } = engine || {};
+    applyForTask,
+    submitExcuse,
+  } = useTasksEngine();
 
-  const [selectedTab, setSelectedTab] = useState<'all' | 'open' | 'activities'>('all');
-  const [selectedActivityFilter, setSelectedActivityFilter] = useState<string>('');
+  // التبويب الحالي: الأنشطة البرامجية أم المهام المستقلة
+  const [activeTab, setActiveTab] = useState<'activities' | 'standalone_tasks'>('activities');
 
-  // 1. حالات مودال إنشاء المهمة
-  const [isTaskModalOpen, setIsTaskModalOpen] = useState<boolean>(false);
-  const [taskSubmitting, setTaskSubmitting] = useState<boolean>(false);
+  // النوافذ المنبثقة
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
-  const initialTaskState: CreateTaskInput = {
+  // نماذج الإنشاء
+  const [activityForm, setActivityForm] = useState<CreateActivityInput>({
     title: '',
     description: '',
-    activity_id: '',
-    committee_id: '',
-    action_type: 'standard',
-    assignment_type: 'direct',
-    max_volunteers: 1,
-    priority: 'normal',
-    due_time: '',
-  };
-  const [taskFormData, setTaskFormData] = useState<CreateTaskInput>(initialTaskState);
-
-  // 2. حالات مودال إنشاء النشاط
-  const [isActivityModalOpen, setIsActivityModalOpen] = useState<boolean>(false);
-  const [activitySubmitting, setActivitySubmitting] = useState<boolean>(false);
-
-  const initialActivityState: CreateActivityInput = {
-    title: '',
-    description: '',
-    status: 'planned',
     start_date: '',
     end_date: '',
-  };
-  const [activityFormData, setActivityFormData] = useState<CreateActivityInput>(initialActivityState);
-
-  // حماية المصفوفات
-  const safeTasks = Array.isArray(tasks) ? tasks : [];
-  const safeActivities = Array.isArray(activities) ? activities : [];
-
-  // جلب اللجان للنشاط المحدد في نموذج المهمة
-  const selectedActivityObj = safeActivities.find(act => act.id === taskFormData.activity_id);
-  const availableCommittees = selectedActivityObj?.committees || [];
-
-  // تصفية المهام
-  const filteredTasks = safeTasks.filter((t) => {
-    if (selectedActivityFilter && t?.activity_id !== selectedActivityFilter) return false;
-    if (selectedTab === 'open') return t?.assignment_type === 'open_announcement';
-    return true;
+    icon: '🎯',
   });
 
-  // معالجة إنشاء المهمة
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!taskFormData.title.trim()) return alert('يرجى كتابة عنوان المهمة');
-    if (!taskFormData.due_time) return alert('يرجى تحديد تاريخ ووقت التسليم النهائي');
+  const [taskForm, setTaskForm] = useState<CreateTaskInput>({
+    title: '',
+    description: '',
+    due_time: '',
+    max_volunteers: 1,
+    priority: 'normal',
+    assignment_type: 'open_announcement',
+  });
 
-    const payload: CreateTaskInput = {
-      ...taskFormData,
-      activity_id: taskFormData.activity_id || undefined,
-      committee_id: taskFormData.committee_id || undefined,
-      description: taskFormData.description || undefined,
-    };
-
-    setTaskSubmitting(true);
-    const success = await createTask(payload);
-    setTaskSubmitting(false);
-
-    if (success) {
-      setIsTaskModalOpen(false);
-      setTaskFormData(initialTaskState);
-    }
-  };
-
-  // معالجة إنشاء النشاط البرامجي
+  // إنشاء نشاط جديد
   const handleCreateActivity = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activityFormData.title.trim()) return alert('يرجى كتابة عنوان النشاط');
+    if (!activityForm.title.trim() || !activityForm.start_date || !activityForm.end_date) return;
 
-    const payload: CreateActivityInput = {
-      ...activityFormData,
-      description: activityFormData.description || undefined,
-      start_date: activityFormData.start_date || undefined,
-      end_date: activityFormData.end_date || undefined,
-    };
-
-    setActivitySubmitting(true);
-    const success = createActivity ? await createActivity(payload) : false;
-    setActivitySubmitting(false);
-
+    const success = await createActivity(activityForm);
     if (success) {
-      setIsActivityModalOpen(false);
-      setActivityFormData(initialActivityState);
+      setShowActivityModal(false);
+      setActivityForm({
+        title: '',
+        description: '',
+        start_date: '',
+        end_date: '',
+        icon: '🎯',
+      });
     }
   };
 
+  // إنشاء مهمة مستقلة جديدة
+  const handleCreateStandaloneTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taskForm.title.trim() || !taskForm.due_time) return;
+
+    const success = await createTask({
+      ...taskForm,
+      activity_id: undefined,
+      committee_id: undefined,
+      max_volunteers: Number(taskForm.max_volunteers),
+    });
+
+    if (success) {
+      setShowTaskModal(false);
+      setTaskForm({
+        title: '',
+        description: '',
+        due_time: '',
+        max_volunteers: 1,
+        priority: 'normal',
+        assignment_type: 'open_announcement',
+      });
+    }
+  };
+
+  // تصفية المهام المستقلة (التي ليس لها activity_id)
+  const standaloneTasks = tasks.filter((task) => !task.activity_id);
+
   return (
-    <div className="p-4 md:p-6 dir-rtl text-right max-w-7xl mx-auto font-sans pb-24">
-      {/* الهيدر الأكبر مع أزرار الإجراءات */}
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6 dir-rtl" dir="rtl">
+      {/* هيدر الصفحة الرئيسي */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">محرك المهام والأنشطة الإدارية</h1>
-          <p className="text-xs md:text-sm text-gray-500 mt-1">إدارة الأنشطة واللجان وتوزيع المهام الحوكمية</p>
+          <h1 className="text-2xl font-bold text-gray-900">إدارة المهام والأنشطة</h1>
+          <p className="text-xs text-gray-500 mt-1">
+            متابعة الأنشطة البرامجية، اللجان، وسوق الفرص والمهام التطوعية.
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* زر إنشاء نشاط */}
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => setIsActivityModalOpen(true)}
-            className="flex items-center gap-2 bg-gray-900 hover:bg-black text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all shadow-md active:scale-95"
+            onClick={() => setShowTaskModal(true)}
+            className="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-bold transition-colors"
           >
-            <FolderPlus className="w-4 h-4 text-amber-400" />
-            إنشاء نشاط برامجي
+            + إضافة مهمة مستقلة
           </button>
-
-          {/* زر إنشاء مهمة */}
           <button
-            onClick={() => setIsTaskModalOpen(true)}
-            className="flex items-center gap-2 bg-[#7A1C2E] hover:bg-[#560E1A] text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all shadow-md active:scale-95"
+            onClick={() => setShowActivityModal(true)}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
           >
-            <CheckSquare className="w-4 h-4" />
-            إنشاء مهمة جديدة
+            + إنشاء نشاط برامجي
           </button>
         </div>
       </div>
 
-      {/* شريط التصفية والتبويب */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-gray-200 pb-4">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setSelectedTab('all')}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-              selectedTab === 'all' ? 'bg-[#7A1C2E] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            جميع المهام ({safeTasks.length})
-          </button>
-          <button
-            onClick={() => setSelectedTab('open')}
-            className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-              selectedTab === 'open' ? 'bg-[#7A1C2E] text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            سوق الفرص المفتوحة
-          </button>
-        </div>
-
-        <select
-          value={selectedActivityFilter}
-          onChange={(e) => setSelectedActivityFilter(e.target.value)}
-          className="border border-gray-300 rounded-xl text-xs p-2.5 bg-white outline-none focus:ring-2 focus:ring-[#7A1C2E]"
+      {/* شريط التبويبات */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('activities')}
+          className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${
+            activeTab === 'activities'
+              ? 'border-emerald-600 text-emerald-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
         >
-          <option value="">جميع الأنشطة البرامجية ({safeActivities.length})</option>
-          {safeActivities.map((act) => (
-            <option key={act?.id} value={act?.id}>
-              {act?.title}
-            </option>
-          ))}
-        </select>
+          🎯 الأنشطة البرامجية ({activities.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('standalone_tasks')}
+          className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${
+            activeTab === 'standalone_tasks'
+              ? 'border-emerald-600 text-emerald-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          📌 سوق المهام المستقلة ({standaloneTasks.length})
+        </button>
       </div>
 
-      {/* قائمة المهام */}
-      {loading ? (
-        <div className="text-center py-16 text-gray-500 text-sm font-semibold animate-pulse">جاري جلب البيانات من السيرفر...</div>
-      ) : filteredTasks.length === 0 ? (
-        <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
-          <p className="text-gray-500 text-sm font-bold">لا توجد مهام مطابقة حالياً.</p>
-          <p className="text-gray-400 text-xs mt-1">يمكنك البدء بإنشاء نشاط برامجي أو مهمة إدارية جديدة من الأزرار أعلاه.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTasks.map((task) => (
-            <TaskCard
-              key={task?.id}
-              task={task}
-              onApply={applyForTask}
-              onExcuse={submitExcuse}
-            />
-          ))}
+      {/* رسالة الخطأ أو التحميل */}
+      {error && <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs">{error}</div>}
+
+      {/* محتوى تبويب الأنشطة */}
+      {activeTab === 'activities' && (
+        <div>
+          {loading && activities.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-sm animate-pulse">جاري تحميل الأنشطة البرامجية...</div>
+          ) : activities.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {activities.map((activity) => (
+                <div
+                  key={activity.id}
+                  onClick={() => navigate(`/tasks-activities/activities/${activity.id}`)}
+                  className="bg-white border border-gray-200 hover:border-emerald-500 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
+                >
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="text-3xl p-2 bg-emerald-50 rounded-xl">{activity.icon || '🎯'}</span>
+                      <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700">
+                        {activity.status === 'active' ? 'نشط' : activity.status}
+                      </span>
+                    </div>
+                    <h3 className="text-base font-bold text-gray-900 group-hover:text-emerald-600 transition-colors mb-2">
+                      {activity.title}
+                    </h3>
+                    {activity.description && (
+                      <p className="text-xs text-gray-500 line-clamp-2 mb-4">{activity.description}</p>
+                    )}
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400">
+                    <span>🗓 {new Date(activity.start_date).toLocaleDateString('ar-SA')}</span>
+                    <span className="text-emerald-600 font-bold group-hover:translate-x-[-2px] transition-transform">
+                      عرض التفاصيل واللجان ←
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-12 text-center text-gray-500 text-sm">
+              لا يوجد أنشطة برامجية مسجلة حالياً. قم بإنشاء نشاطك الأول لبدء توزيع اللجان والمهام.
+            </div>
+          )}
         </div>
       )}
 
-      {/* 🟢 1. مودال إنشاء نشاط برامجي جديد */}
-      {isActivityModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl relative border border-gray-100 my-8">
-            <div className="flex justify-between items-center border-b pb-3 mb-4">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <FolderPlus className="w-5 h-5 text-[#7A1C2E]" />
-                إضافة نشاط برامجي جديد
-              </h2>
-              <button 
-                onClick={() => setIsActivityModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {/* محتوى تبويب المهام المستقلة */}
+      {activeTab === 'standalone_tasks' && (
+        <div>
+          {loading && standaloneTasks.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-sm animate-pulse">جاري تحميل سوق المهام...</div>
+          ) : standaloneTasks.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {standaloneTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onApply={applyForTask}
+                  onExcuse={submitExcuse}
+                />
+              ))}
             </div>
+          ) : (
+            <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-12 text-center text-gray-500 text-sm">
+              لا توجد مهام مستقلة معروضة حالياً في سوق المهام.
+            </div>
+          )}
+        </div>
+      )}
 
+      {/* نافذة إنشاء نشاط */}
+      {showActivityModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">إنشاء نشاط برامجي جديد</h3>
             <form onSubmit={handleCreateActivity} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">عنوان النشاط *</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">اسم النشاط *</label>
                 <input
                   type="text"
                   required
-                  placeholder="مثال: ملتقى قرار التطوعي السنوي"
-                  value={activityFormData.title}
-                  onChange={(e) => setActivityFormData({ ...activityFormData, title: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
+                  value={activityForm.title}
+                  onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
+                  placeholder="مثال: ملتقى المتطوعين السنوي"
+                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">الوصف والأهداف</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">وصف النشاط</label>
                 <textarea
-                  rows={3}
-                  placeholder="اكتب شرحاً مختصر عن أهداف النشاط..."
-                  value={activityFormData.description || ''}
-                  onChange={(e) => setActivityFormData({ ...activityFormData, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
+                  rows={2}
+                  value={activityForm.description || ''}
+                  onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
+                  placeholder="وصف المختصر وأهداف النشاط..."
+                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">حالة النشاط</label>
-                <select
-                  value={activityFormData.status}
-                  onChange={(e) => setActivityFormData({ ...activityFormData, status: e.target.value as ActivityStatus })}
-                  className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
-                >
-                  <option value="planned">مخطط له (Planned)</option>
-                  <option value="active">نشط حالياً (Active)</option>
-                  <option value="paused">متوقف مؤقتاً (Paused)</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ البداية</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ البداية *</label>
                   <input
                     type="date"
-                    value={activityFormData.start_date || ''}
-                    onChange={(e) => setActivityFormData({ ...activityFormData, start_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
+                    required
+                    value={activityForm.start_date}
+                    onChange={(e) => setActivityForm({ ...activityForm, start_date: e.target.value })}
+                    className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ النهاية</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ النهاية *</label>
                   <input
                     type="date"
-                    value={activityFormData.end_date || ''}
-                    onChange={(e) => setActivityFormData({ ...activityFormData, end_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
+                    required
+                    value={activityForm.end_date}
+                    onChange={(e) => setActivityForm({ ...activityForm, end_date: e.target.value })}
+                    className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
               </div>
-
-              <div className="flex justify-end gap-2 border-t pt-4 mt-6">
+              <div className="flex justify-end gap-2 pt-2 border-t">
                 <button
                   type="button"
-                  onClick={() => setIsActivityModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
+                  onClick={() => setShowActivityModal(false)}
+                  className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
-                  disabled={activitySubmitting}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-gray-900 hover:bg-black transition-all shadow-md disabled:opacity-50"
+                  className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700"
                 >
-                  {activitySubmitting ? 'جاري الحفظ...' : 'حفظ النشاط'}
+                  حفظ النشاط
                 </button>
               </div>
             </form>
@@ -292,135 +280,83 @@ export const TasksEnginePage: React.FC = () => {
         </div>
       )}
 
-      {/* 🔴 2. مودال إنشاء مهمة إدارية جديدة */}
-      {isTaskModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-xl p-6 shadow-2xl relative border border-gray-100 my-8">
-            <div className="flex justify-between items-center border-b pb-3 mb-4">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <CheckSquare className="w-5 h-5 text-[#7A1C2E]" />
-                إضافة مهمة إدارية جديدة
-              </h2>
-              <button 
-                onClick={() => setIsTaskModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateTask} className="space-y-4">
+      {/* نافذة إنشاء مهمة مستقلة */}
+      {showTaskModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">إنشاء مهمة مستقلة جديدة</h3>
+            <form onSubmit={handleCreateStandaloneTask} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">عنوان المهمة *</label>
                 <input
                   type="text"
                   required
-                  placeholder="مثال: إعداد التقرير الختامي"
-                  value={taskFormData.title}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
+                  value={taskForm.title}
+                  onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                  placeholder="مثال: إعداد تقرير المصروفات"
+                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">وصف المهمة ومتطلباتها</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">التفاصيل والمتطلبات</label>
                 <textarea
-                  rows={3}
-                  placeholder="اكتب شرحاً للمطلوب مخرجه..."
-                  value={taskFormData.description || ''}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
+                  rows={2}
+                  value={taskForm.description || ''}
+                  onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                  placeholder="شرح المطلوب تنفيذه..."
+                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">آلية التكليف</label>
-                  <select
-                    value={taskFormData.assignment_type}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, assignment_type: e.target.value as 'direct' | 'open_announcement' })}
-                    className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
-                  >
-                    <option value="direct">تكليف مباشر</option>
-                    <option value="open_announcement">فرصة مفتوحة (سوق الفرص)</option>
-                  </select>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ الموعد *</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={taskForm.due_time}
+                    onChange={(e) => setTaskForm({ ...taskForm, due_time: e.target.value })}
+                    className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">مستوى الأولوية</label>
-                  <select
-                    value={taskFormData.priority}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, priority: e.target.value as TaskPriority })}
-                    className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
-                  >
-                    <option value="low">منخفضة</option>
-                    <option value="normal">عادية</option>
-                    <option value="high">مرتفعة</option>
-                    <option value="urgent">طارئة جداً</option>
-                  </select>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">الحد الأقصى للمتطوعين *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={taskForm.max_volunteers}
+                    onChange={(e) => setTaskForm({ ...taskForm, max_volunteers: Number(e.target.value) })}
+                    className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
                 </div>
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ ووقت التسليم النهائي (Due Time) *</label>
-                <input
-                  type="datetime-local"
-                  required
-                  value={taskFormData.due_time}
-                  onChange={(e) => setTaskFormData({ ...taskFormData, due_time: e.target.value })}
-                  className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
-                />
+                <label className="block text-xs font-bold text-gray-700 mb-1">الأولوية</label>
+                <select
+                  value={taskForm.priority}
+                  onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value as any })}
+                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                >
+                  <option value="normal">عادي</option>
+                  <option value="high">عالي الأهمية</option>
+                  <option value="urgent">عاجل طارئ</option>
+                  <option value="low">منخفض</option>
+                </select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">الربط بنشاط برامجي</label>
-                  <select
-                    value={taskFormData.activity_id || ''}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, activity_id: e.target.value, committee_id: '' })}
-                    className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E]"
-                  >
-                    <option value="">عام (غير مرتبط بنشاط)</option>
-                    {safeActivities.map((act) => (
-                      <option key={act?.id} value={act?.id}>
-                        {act?.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">الربط بلجنة فرعية</label>
-                  <select
-                    disabled={!taskFormData.activity_id || availableCommittees.length === 0}
-                    value={taskFormData.committee_id || ''}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, committee_id: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-[#7A1C2E] disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="">عام (بدون لجنة فرعية)</option>
-                    {availableCommittees.map((comm) => (
-                      <option key={comm?.id} value={comm?.id}>
-                        {comm?.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 border-t pt-4 mt-6">
+              <div className="flex justify-end gap-2 pt-2 border-t">
                 <button
                   type="button"
-                  onClick={() => setIsTaskModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all"
+                  onClick={() => setShowTaskModal(false)}
+                  className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
-                  disabled={taskSubmitting}
-                  className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#7A1C2E] hover:bg-[#560E1A] transition-all shadow-md disabled:opacity-50"
+                  className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700"
                 >
-                  {taskSubmitting ? 'جاري الحفظ...' : 'حفظ ونشر المهمة'}
+                  نشر المهمة
                 </button>
               </div>
             </form>

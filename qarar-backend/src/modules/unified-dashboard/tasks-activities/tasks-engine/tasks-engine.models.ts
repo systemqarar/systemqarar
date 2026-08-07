@@ -1,12 +1,13 @@
-import db from '../../../../config/db'; // ✅ استيراد الـ db الافتراضي بدون المساس بملف db.ts
+import db from '../../../../config/db';
 import { CreateActivityDTO, CreateTaskDTO, Task, TaskAssignment } from './tasks-engine.types';
 
-// استخراج الـ pool مباشرة من ملف الـ db المعتمد في مشروعك
 const pool = db.pool;
 
 export class TasksEngineModel {
 
-  // --- الأنشطة واللجان ---
+  // ==================== 1. إدارة الأنشطة البرامجية واللجان ====================
+
+  // إنشاء نشاط جديد مع لجانه (إن وجدت)
   static async createActivity(userId: string, data: CreateActivityDTO) {
     const client = await pool.connect();
     try {
@@ -15,7 +16,15 @@ export class TasksEngineModel {
       const actResult = await client.query(
         `INSERT INTO activities (title, description, unit_id, created_by, creation_source, start_date, end_date)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [data.title, data.description, data.unit_id || null, userId, data.creation_source || 'manual', data.start_date, data.end_date]
+        [
+          data.title, 
+          data.description || null, 
+          data.unit_id || null, 
+          userId, 
+          data.creation_source || 'manual', 
+          data.start_date || null, 
+          data.end_date || null
+        ]
       );
       const activity = actResult.rows[0];
 
@@ -41,10 +50,12 @@ export class TasksEngineModel {
     }
   }
 
+  // جلب قائمة الأنشطة الرئيسية فقط مع عدد اللجان والمهام (لصفحة TasksEnginePage الرئيسية)
   static async getActivitiesWithTree() {
     const query = `
       SELECT 
         a.*,
+        u.username as creator_name,
         COALESCE(
           json_agg(
             DISTINCT jsonb_build_object(
@@ -54,17 +65,136 @@ export class TasksEngineModel {
               'description', c.description
             )
           ) FILTER (WHERE c.id IS NOT NULL), '[]'
-        ) as committees
+        ) as committees,
+        (SELECT COUNT(*) FROM tasks t WHERE t.activity_id = a.id) as total_tasks
       FROM activities a
+      LEFT JOIN users u ON a.created_by = u.id
       LEFT JOIN activity_committees c ON a.id = c.activity_id
-      GROUP BY a.id
+      GROUP BY a.id, u.username
       ORDER BY a.created_at DESC;
     `;
     const res = await pool.query(query);
     return res.rows;
   }
 
-  // --- المهام والإسناد ---
+  // جلب تفاصيل نشاط محدد بالكامل (الشجرة المكتملة لصفحة ActivityDetailsPage)
+  static async getActivityByIdWithTree(activityId: string) {
+    const query = `
+      SELECT 
+        a.*,
+        u.username as creator_name,
+        -- اللجان التابعة للنشاط مع قادتها ومهامهم
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', c.id,
+                'name', c.name,
+                'leader_id', c.leader_id,
+                'leader_name', lu.username,
+                'description', c.description,
+                'tasks', COALESCE(
+                  (
+                    SELECT json_agg(
+                      json_build_object(
+                        'id', t.id,
+                        'title', t.title,
+                        'description', t.description,
+                        'action_type', t.action_type,
+                        'assignment_type', t.assignment_type,
+                        'max_volunteers', t.max_volunteers,
+                        'priority', t.priority,
+                        'status', t.status,
+                        'due_time', t.due_time,
+                        'assignments', COALESCE(
+                          (
+                            SELECT json_agg(
+                              json_build_object(
+                                'assignment_id', ta.id,
+                                'volunteer_id', ta.volunteer_id,
+                                'status', ta.status,
+                                'assigned_at', ta.assigned_at
+                              )
+                            ) FROM task_assignments ta WHERE ta.task_id = t.id
+                          ), '[]'
+                        )
+                      )
+                    ) FROM tasks t WHERE t.committee_id = c.id
+                  ), '[]'
+                )
+              )
+            ) FROM activity_committees c
+            LEFT JOIN users lu ON c.leader_id = lu.id
+            WHERE c.activity_id = a.id
+          ), '[]'
+        ) as committees,
+
+        -- المهام المباشرة للنشاط (التي ليس لها لجنة فرعية)
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', dt.id,
+                'title', dt.title,
+                'description', dt.description,
+                'action_type', dt.action_type,
+                'assignment_type', dt.assignment_type,
+                'max_volunteers', dt.max_volunteers,
+                'priority', dt.priority,
+                'status', dt.status,
+                'due_time', dt.due_time,
+                'assignments', COALESCE(
+                  (
+                    SELECT json_agg(
+                      json_build_object(
+                        'assignment_id', ta.id,
+                        'volunteer_id', ta.volunteer_id,
+                        'status', ta.status,
+                        'assigned_at', ta.assigned_at
+                      )
+                    ) FROM task_assignments ta WHERE ta.task_id = dt.id
+                  ), '[]'
+                )
+              )
+            ) FROM tasks dt WHERE dt.activity_id = a.id AND dt.committee_id IS NULL
+          ), '[]'
+        ) as direct_tasks
+
+      FROM activities a
+      LEFT JOIN users u ON a.created_by = u.id
+      WHERE a.id = $1;
+    `;
+    const res = await pool.query(query, [activityId]);
+    return res.rows[0] || null;
+  }
+
+  // إضافة لجنة جديدة لنشاط قائم
+  static async addCommittee(activityId: string, name: string, leaderId?: string, description?: string) {
+    const query = `
+      INSERT INTO activity_committees (activity_id, name, leader_id, description)
+      VALUES ($1, $2, $3, $4) RETURNING *;
+    `;
+    const res = await pool.query(query, [activityId, name, leaderId || null, description || null]);
+    return res.rows[0];
+  }
+
+  // تحديث قائد اللجنة أو تفاصيلها
+  static async updateCommittee(committeeId: string, data: { name?: string; leader_id?: string; description?: string }) {
+    const query = `
+      UPDATE activity_committees
+      SET 
+        name = COALESCE($1, name),
+        leader_id = COALESCE($2, leader_id),
+        description = COALESCE($3, description)
+      WHERE id = $4 RETURNING *;
+    `;
+    const res = await pool.query(query, [data.name || null, data.leader_id || null, data.description || null, committeeId]);
+    return res.rows[0];
+  }
+
+
+  // ==================== 2. إدارة المهام (المستقلة والتابعة) ====================
+
   static async createTask(userId: string, data: CreateTaskDTO) {
     const client = await pool.connect();
     try {
@@ -122,7 +252,8 @@ export class TasksEngineModel {
     }
   }
 
-  static async getTasks(filters: { activity_id?: string; volunteer_id?: string; status?: string }) {
+  // جلب المهام مع دعم التصفية المتقدمة (بما في ذلك المهام المستقلة)
+  static async getTasks(filters: { activity_id?: string; committee_id?: string; is_standalone?: boolean; status?: string }) {
     let query = `
       SELECT 
         t.*,
@@ -144,9 +275,16 @@ export class TasksEngineModel {
     `;
     const params: any[] = [];
 
-    if (filters.activity_id) {
+    if (filters.is_standalone) {
+      query += ` AND t.activity_id IS NULL`;
+    } else if (filters.activity_id) {
       params.push(filters.activity_id);
       query += ` AND t.activity_id = $${params.length}`;
+    }
+
+    if (filters.committee_id) {
+      params.push(filters.committee_id);
+      query += ` AND t.committee_id = $${params.length}`;
     }
 
     if (filters.status) {
@@ -158,6 +296,34 @@ export class TasksEngineModel {
     const res = await pool.query(query, params);
     return res.rows;
   }
+
+  // تعديل المهمة (زيادة المتطوعين / تغيير الموعد النهائي / العنوان) بواسطة المنشئ أو قائد اللجنة
+  static async updateTask(taskId: string, data: Partial<CreateTaskDTO>) {
+    const query = `
+      UPDATE tasks
+      SET 
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        max_volunteers = COALESCE($3, max_volunteers),
+        priority = COALESCE($4, priority),
+        due_time = COALESCE($5, due_time),
+        status = COALESCE($6, status)
+      WHERE id = $7 RETURNING *;
+    `;
+    const res = await pool.query(query, [
+      data.title || null,
+      data.description || null,
+      data.max_volunteers || null,
+      data.priority || null,
+      data.due_time || null,
+      (data as any).status || null,
+      taskId
+    ]);
+    return res.rows[0];
+  }
+
+
+  // ==================== 3. الانضمام، الاعتذار وإدارة المتطوعين ====================
 
   // التقديم على فرصة مفتوحة (سوق المهام)
   static async applyForOpenTask(taskId: string, volunteerId: string) {
@@ -176,7 +342,9 @@ export class TasksEngineModel {
       }
 
       // 2. التحقق من الشواغر المتاحة
-      const taskRes = await client.query(`SELECT max_volunteers FROM tasks WHERE id = $1`, [taskId]);
+      const taskRes = await client.query(`SELECT max_volunteers, title FROM tasks WHERE id = $1`, [taskId]);
+      if (taskRes.rows.length === 0) throw new Error('المهمة غير موجودة.');
+
       const currentAssigned = await client.query(
         `SELECT COUNT(*) FROM task_assignments WHERE task_id = $1 AND status != 'excused'`,
         [taskId]
@@ -186,14 +354,14 @@ export class TasksEngineModel {
         throw new Error('عذراً، اكتمل عدد المتطوعين المكتفين لهذه المهمة.');
       }
 
-      // 3. الإسناد
+      // 3. الإسناد المباشر بقبول فوري
       const assignRes = await client.query(
         `INSERT INTO task_assignments (task_id, volunteer_id, assignment_mode, status)
          VALUES ($1, $2, 'self_applied', 'accepted') RETURNING *`,
         [taskId, volunteerId]
       );
 
-      // 4. سجل الحركة
+      // 4. سجل الحركة والإشعارات
       await client.query(
         `INSERT INTO task_activity_logs (task_id, performed_by, action_type, details)
          VALUES ($1, $2, 'assigned', 'انضمام ذاتي للمهمة عبر سوق الفرص')`,
@@ -224,7 +392,7 @@ export class TasksEngineModel {
       );
 
       if (assignRes.rowCount === 0) {
-        throw new Error('لم يتم العثور على التكليف المكتوب، أو لا تملك الصلاحية.');
+        throw new Error('لم يتم العثور على التكليف، أو لا تملك الصلاحية.');
       }
 
       const taskAssignment = assignRes.rows[0];
@@ -237,6 +405,39 @@ export class TasksEngineModel {
 
       await client.query('COMMIT');
       return taskAssignment;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // إزالة متطوع من المهمة (من قِبَل قائد اللجنة أو منشئ المهمة)
+  static async removeVolunteerFromTask(assignmentId: string, removedByUserId: string) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const assignRes = await client.query(
+        `DELETE FROM task_assignments WHERE id = $1 RETURNING *`,
+        [assignmentId]
+      );
+
+      if (assignRes.rowCount === 0) {
+        throw new Error('التكليف غير موجود.');
+      }
+
+      const assignment = assignRes.rows[0];
+
+      await client.query(
+        `INSERT INTO task_activity_logs (task_id, performed_by, action_type, details)
+         VALUES ($1, $2, 'removed', 'تم إلغاء تكليف المتطوع بواسطة المسؤول')`,
+        [assignment.task_id, removedByUserId]
+      );
+
+      await client.query('COMMIT');
+      return true;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
