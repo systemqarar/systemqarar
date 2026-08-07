@@ -8,7 +8,7 @@ export const ActivityDetailsPage: React.FC = () => {
   const { id: activityId } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // حماية استدعاء הـ Hook
+  // حماية استدعاء الـ Hook
   const engine = useTasksEngine() || {};
   const {
     currentActivity = null,
@@ -96,7 +96,8 @@ export const ActivityDetailsPage: React.FC = () => {
     }
   };
 
-  if (loading && !currentActivity) {
+  // ✅ تصحيح الشرط الأساسي: الانتظار طالما أن البيانات جاري طلبها أو لم تصل بعد
+  if (loading || (!currentActivity && !error)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-gray-500 font-medium animate-pulse">جاري تحميل تفاصيل النشاط...</div>
@@ -104,10 +105,13 @@ export const ActivityDetailsPage: React.FC = () => {
     );
   }
 
+  // ✅ يعرض عدم الوجود فقط في حالة وجود خطأ صريح أو انتهاء التحميل وعدم وجود بيانات
   if (error || !currentActivity) {
     return (
-      <div className="p-6 text-center bg-white rounded-2xl border border-gray-200 shadow-sm my-6">
-        <div className="text-rose-600 font-bold mb-4">{typeof error === 'string' ? error : 'النشاط غير موجود أو تم حذفه'}</div>
+      <div className="p-6 text-center bg-white rounded-2xl border border-gray-200 shadow-sm my-6 dir-rtl" dir="rtl">
+        <div className="text-rose-600 font-bold mb-4">
+          {typeof error === 'string' ? error : 'النشاط غير موجود أو تم حذفه'}
+        </div>
         <button
           onClick={() => navigate('/dashboard/tasks-activities')}
           className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 text-xs transition-colors"
@@ -118,13 +122,23 @@ export const ActivityDetailsPage: React.FC = () => {
     );
   }
 
-  // تصفية المهام
-  const allTasks: Task[] = Array.isArray(currentActivity.tasks) ? currentActivity.tasks : [];
+  // تصفية المهام بأمان تام
+  const allTasks: Task[] = Array.isArray(currentActivity?.tasks) ? currentActivity.tasks : [];
   const standaloneTasks = allTasks.filter((t: Task) => t && !t.committee_id);
-  const committees = Array.isArray(currentActivity.committees) ? currentActivity.committees : [];
+  const committees = Array.isArray(currentActivity?.committees) ? currentActivity.committees : [];
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 dir-rtl" dir="rtl">
+      {/* زر العودة العلوي لتوفير توجيه ممتاز للمستخدم */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate('/dashboard/tasks-activities')}
+          className="flex items-center gap-2 text-xs font-bold text-gray-600 hover:text-emerald-600 transition-colors"
+        >
+          <span>→</span> العودة إلى قائمة المهام والأنشطة
+        </button>
+      </div>
+
       {/* هيدر النشاط */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4 mb-4">
@@ -275,7 +289,7 @@ export const ActivityDetailsPage: React.FC = () => {
                   rows={3}
                   value={committeeForm.description || ''}
                   onChange={(e) => setCommitteeForm({ ...committeeForm, description: e.target.value })}
-                  placeholder="مهام واختصاصات هذه اللجنة..."
+                  placeholder="مهام وااختصاصات هذه اللجنة..."
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
