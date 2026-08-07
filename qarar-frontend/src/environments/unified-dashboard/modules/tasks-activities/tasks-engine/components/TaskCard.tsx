@@ -23,7 +23,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, currentUserId, onApply
 
   const myAssignment = task.assignments?.find(a => a.volunteer_id === currentUserId);
   const isAssignedToMe = Boolean(myAssignment);
-  const isFull = (task.assignments?.length || 0) >= task.max_volunteers;
+  const isFull = (task.assignments?.length || 0) >= (task.max_volunteers || 1);
 
   const handleExcuseSubmit = () => {
     if (!excuseReason.trim()) return alert('الرجاء كتابة سبب الاعتذار');
@@ -33,6 +33,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, currentUserId, onApply
       setExcuseReason('');
     }
   };
+
+  // التحقق الآمن من نوع وتواجد التاريخ لتفادي خطأ TypeScript TS2769
+  const formattedDueDate = task.due_time
+    ? new Date(task.due_time).toLocaleDateString('ar-SA')
+    : 'غير محدد';
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -46,8 +51,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, currentUserId, onApply
       )}
 
       <div className="flex items-center gap-4 text-xs text-gray-500 mb-4 border-t pt-3">
-        <div>⏱ التسليم: {new Date(task.due_time).toLocaleDateString('ar-SA')}</div>
-        <div>👥 المتطوعين: {task.assignments?.length || 0} / {task.max_volunteers}</div>
+        <div>⏱ التسليم: {formattedDueDate}</div>
+        <div>👥 المتطوعين: {task.assignments?.length || 0} / {task.max_volunteers || 1}</div>
         {task.creator_name && <div>👤 بواسطة: {task.creator_name}</div>}
       </div>
 
@@ -103,7 +108,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, currentUserId, onApply
                 onClick={handleExcuseSubmit}
                 className="px-4 py-2 text-xs bg-rose-600 text-white rounded-lg hover:bg-rose-700"
               >
-                تاكيد الاعتذار
+                تأكيد الاعتذار
               </button>
             </div>
           </div>
