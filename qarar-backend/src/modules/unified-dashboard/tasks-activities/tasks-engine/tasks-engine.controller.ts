@@ -166,6 +166,11 @@ export class TasksEngineController {
     }
   }
 
+  // 🎯 الدالة المطلوبة لملف المسارات (تُحيل إلى removeVolunteerFromTask مباشرة)
+  static async removeVolunteer(req: Request, res: Response) {
+    return TasksEngineController.removeVolunteerFromTask(req, res);
+  }
+
   static async removeVolunteerFromTask(req: Request, res: Response) {
     try {
       const userId = TasksEngineController.getUserId(req);
