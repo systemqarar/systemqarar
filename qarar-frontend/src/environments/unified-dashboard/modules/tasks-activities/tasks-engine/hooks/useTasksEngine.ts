@@ -15,12 +15,12 @@ export const useTasksEngine = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 🎯 المسار الموحد والمطابق للباكيند بدقة (server.ts -> tasks-activities.routes -> tasks-engine.routes)
+  // 🎯 المسار الموحد والمطابق للباكيند بدقة
   const API_BASE = '/api/tasks-activities/tasks-engine';
 
   // دالة جلب التوكن
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('qarar_token');
+    const token = localStorage.getItem('qarar_token') || localStorage.getItem('token');
     return {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -54,26 +54,46 @@ export const useTasksEngine = () => {
     }
   }, [API_BASE]);
 
-  // 2. جلب تفاصيل نشاط محدد
+  // 2. جلب تفاصيل نشاط محدد مع تسجيل التفاصيل في الكونسول
   const fetchActivityById = useCallback(async (activityId: string) => {
+    if (!activityId) return null;
+    
     setLoading(true);
     setError(null);
+    console.log(`📡 [useTasksEngine] جاري طلب النشاط بالمعرف: ${activityId}`);
+
     try {
       const res = await fetch(`${API_BASE}/activities/${activityId}`, {
         headers: getAuthHeaders(),
       });
-      if (res.ok) {
-        const data = await parseResponse(res);
-        const activityData = data?.data || data;
-        setCurrentActivity(activityData);
-        return activityData as Activity;
+
+      console.log(`📥 [useTasksEngine] حالة استجابة النشاط (${activityId}):`, res.status, res.statusText);
+
+      const data = await parseResponse(res);
+      console.log(`📦 [useTasksEngine] محتوى استجابة النشاط:`, data);
+
+      if (res.ok && (data.success || data.id || data.data)) {
+        const activityData = data.data !== undefined ? data.data : data;
+        
+        if (activityData) {
+          setCurrentActivity(activityData);
+          console.log(`✅ [useTasksEngine] تم تحديث currentActivity بنجاح:`, activityData);
+          return activityData as Activity;
+        } else {
+          setError('لم يتم العثور على بيانات هذا النشاط في قاعدة البيانات.');
+          setCurrentActivity(null);
+          return null;
+        }
       } else {
-        const data = await parseResponse(res);
-        setError(data?.error || data?.message || 'تعذر جلب تفاصيل النشاط');
+        const errMsg = data?.message || data?.error || 'تعذر جلب تفاصيل النشاط';
+        setError(errMsg);
+        setCurrentActivity(null);
         return null;
       }
     } catch (err: any) {
+      console.error(`❌ [useTasksEngine] خطأ أثناء جلب النشاط:`, err);
       setError(err.message || 'حدث خطأ أثناء جلب تفاصيل النشاط');
+      setCurrentActivity(null);
       return null;
     } finally {
       setLoading(false);
@@ -82,8 +102,6 @@ export const useTasksEngine = () => {
 
   // 3. جلب المهام
   const fetchTasks = useCallback(async (filters?: { activity_id?: string; committee_id?: string; is_standalone?: boolean; status?: string }) => {
-    setLoading(true);
-    setError(null);
     try {
       const params = new URLSearchParams();
       if (filters?.activity_id) params.append('activity_id', filters.activity_id);
@@ -99,14 +117,9 @@ export const useTasksEngine = () => {
         const data = await parseResponse(res);
         const tasksList = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
         setTasks(tasksList);
-      } else {
-        const data = await parseResponse(res);
-        setError(data?.error || data?.message || 'تعذر جلب المهام');
       }
     } catch (err: any) {
-      setError(err.message || 'حدث خطأ أثناء جلب المهام');
-    } finally {
-      setLoading(false);
+      console.error('Error fetching tasks:', err);
     }
   }, [API_BASE]);
 
@@ -296,6 +309,7 @@ export const useTasksEngine = () => {
     }
   };
 
+  // جلب البيانات الأولية مرة واحدة عند التهيئة بدون منافسة على حالة التحميل
   useEffect(() => {
     fetchTasks();
     fetchActivities();
