@@ -50,7 +50,7 @@ export class TasksEngineModel {
     }
   }
 
-  // جلب قائمة الأنشطة الرئيسية فقط مع عدد اللجان والمهام (لصفحة TasksEnginePage الرئيسية)
+  // جلب قائمة الأنشطة الرئيسية فقط مع عدد اللجان والمهام
   static async getActivitiesWithTree() {
     const query = `
       SELECT 
@@ -77,7 +77,7 @@ export class TasksEngineModel {
     return res.rows;
   }
 
-  // جلب تفاصيل نشاط محدد بالكامل (الشجرة المكتملة لصفحة ActivityDetailsPage)
+  // 🎯 جلب تفاصيل نشاط محدد بالكامل (تحديث مؤمن يضم المهام المباشرة تحت مسمى tasks و direct_tasks)
   static async getActivityByIdWithTree(activityId: string) {
     const query = `
       SELECT 
@@ -98,6 +98,8 @@ export class TasksEngineModel {
                     SELECT json_agg(
                       json_build_object(
                         'id', t.id,
+                        'activity_id', t.activity_id,
+                        'committee_id', t.committee_id,
                         'title', t.title,
                         'description', t.description,
                         'action_type', t.action_type,
@@ -129,12 +131,14 @@ export class TasksEngineModel {
           ), '[]'
         ) as committees,
 
-        -- المهام المباشرة للنشاط (التي ليس لها لجنة فرعية)
+        -- 🎯 المهام المباشرة التابعة للنشاط (تم إرفاقها باسم tasks وكذلك direct_tasks لضمان الربط التام)
         COALESCE(
           (
             SELECT json_agg(
               json_build_object(
                 'id', dt.id,
+                'activity_id', dt.activity_id,
+                'committee_id', dt.committee_id,
                 'title', dt.title,
                 'description', dt.description,
                 'action_type', dt.action_type,
@@ -156,7 +160,39 @@ export class TasksEngineModel {
                   ), '[]'
                 )
               )
-            ) FROM tasks dt WHERE dt.activity_id = a.id AND dt.committee_id IS NULL
+            ) FROM tasks dt WHERE dt.activity_id = a.id AND (dt.committee_id IS NULL OR dt.committee_id = '')
+          ), '[]'
+        ) as tasks,
+
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object(
+                'id', dt.id,
+                'activity_id', dt.activity_id,
+                'committee_id', dt.committee_id,
+                'title', dt.title,
+                'description', dt.description,
+                'action_type', dt.action_type,
+                'assignment_type', dt.assignment_type,
+                'max_volunteers', dt.max_volunteers,
+                'priority', dt.priority,
+                'status', dt.status,
+                'due_time', dt.due_time,
+                'assignments', COALESCE(
+                  (
+                    SELECT json_agg(
+                      json_build_object(
+                        'assignment_id', ta.id,
+                        'volunteer_id', ta.volunteer_id,
+                        'status', ta.status,
+                        'assigned_at', ta.assigned_at
+                      )
+                    ) FROM task_assignments ta WHERE ta.task_id = dt.id
+                  ), '[]'
+                )
+              )
+            ) FROM tasks dt WHERE dt.activity_id = a.id AND (dt.committee_id IS NULL OR dt.committee_id = '')
           ), '[]'
         ) as direct_tasks
 
@@ -252,7 +288,7 @@ export class TasksEngineModel {
     }
   }
 
-  // جلب المهام مع دعم التصفية المتقدمة (بما في ذلك المهام المستقلة)
+  // جلب المهام مع دعم التصفية المتقدمة
   static async getTasks(filters: { activity_id?: string; committee_id?: string; is_standalone?: boolean; status?: string }) {
     let query = `
       SELECT 
@@ -297,7 +333,7 @@ export class TasksEngineModel {
     return res.rows;
   }
 
-  // تعديل المهمة (زيادة المتطوعين / تغيير الموعد النهائي / العنوان) بواسطة المنشئ أو قائد اللجنة
+  // تعديل المهمة
   static async updateTask(taskId: string, data: Partial<CreateTaskDTO>) {
     const query = `
       UPDATE tasks
@@ -325,13 +361,11 @@ export class TasksEngineModel {
 
   // ==================== 3. الانضمام، الاعتذار وإدارة المتطوعين ====================
 
-  // التقديم على فرصة مفتوحة (سوق المهام)
   static async applyForOpenTask(taskId: string, volunteerId: string) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      // 1. التحقق من السعة الشخصية للمتطوع (حد أقصى 3 مهام قيد التنفيذ)
       const countRes = await client.query(
         `SELECT COUNT(*) FROM task_assignments 
          WHERE volunteer_id = $1 AND status IN ('assigned', 'accepted', 'in_progress')`,
@@ -341,7 +375,6 @@ export class TasksEngineModel {
         throw new Error('تجاوزت الحد الأقصى للمهام المفتوحة المسموح بها في نفس الوقت (3 مهام).');
       }
 
-      // 2. التحقق من الشواغر المتاحة
       const taskRes = await client.query(`SELECT max_volunteers, title FROM tasks WHERE id = $1`, [taskId]);
       if (taskRes.rows.length === 0) throw new Error('المهمة غير موجودة.');
 
@@ -354,14 +387,12 @@ export class TasksEngineModel {
         throw new Error('عذراً، اكتمل عدد المتطوعين المكتفين لهذه المهمة.');
       }
 
-      // 3. الإسناد المباشر بقبول فوري
       const assignRes = await client.query(
         `INSERT INTO task_assignments (task_id, volunteer_id, assignment_mode, status)
          VALUES ($1, $2, 'self_applied', 'accepted') RETURNING *`,
         [taskId, volunteerId]
       );
 
-      // 4. سجل الحركة والإشعارات
       await client.query(
         `INSERT INTO task_activity_logs (task_id, performed_by, action_type, details)
          VALUES ($1, $2, 'assigned', 'انضمام ذاتي للمهمة عبر سوق الفرص')`,
@@ -378,7 +409,6 @@ export class TasksEngineModel {
     }
   }
 
-  // تقديم طلب اعتذار
   static async submitExcuse(assignmentId: string, volunteerId: string, reason: string) {
     const client = await pool.connect();
     try {
@@ -413,7 +443,6 @@ export class TasksEngineModel {
     }
   }
 
-  // إزالة متطوع من المهمة (من قِبَل قائد اللجنة أو منشئ المهمة)
   static async removeVolunteerFromTask(assignmentId: string, removedByUserId: string) {
     const client = await pool.connect();
     try {
