@@ -44,13 +44,22 @@ export const ActivityDetailsPage: React.FC = () => {
     assignment_type: 'open_announcement',
   });
 
-  // طلب بيانات النشاط عند تغير المعرف
+  // 🎯 طلب بيانات النشاط والمهام بشكل مستقل لضمان الحسم القطعي والالتفاف على مشكلة الباكيند
   useEffect(() => {
-    if (activityId && fetchActivityById) {
-      console.log('📡 [ActivityDetailsPage] جاري طلب بيانات النشاط لمعرف:', activityId);
-      fetchActivityById(activityId);
+    if (activityId) {
+      console.log('📡 [ActivityDetailsPage] جاري جلب النشاط والمهام للـ ID:', activityId);
+      
+      // 1. جلب النشاط عشان اللجان والعناوين تظهر
+      if (fetchActivityById) {
+        fetchActivityById(activityId);
+      }
+      
+      // 2. الحل الجذري: جلب المهام التابعة للنشاط مباشرة من جدول المهام الموحد
+      if (engine.fetchTasks) {
+        engine.fetchTasks({ activity_id: activityId });
+      }
     }
-  }, [activityId, fetchActivityById]);
+  }, [activityId, fetchActivityById, engine.fetchTasks]);
 
   // إنشاء لجنة جديدة
   const handleCreateCommittee = async (e: React.FormEvent) => {
@@ -105,8 +114,8 @@ export const ActivityDetailsPage: React.FC = () => {
     }
   };
 
-  // تصفية المهام بأمان تام
-  const allTasks: Task[] = Array.isArray(currentActivity?.tasks) ? currentActivity.tasks : [];
+  // 🎯 التعديل الجوهري: القراءة مباشرة من مصفوفة المهام العامة المضمونة في الـ Hook
+  const allTasks: Task[] = Array.isArray(engine.tasks) ? engine.tasks : [];
   const standaloneTasks = allTasks.filter((t: Task) => t && !t.committee_id);
   const committees = Array.isArray(currentActivity?.committees) ? currentActivity.committees : [];
 
