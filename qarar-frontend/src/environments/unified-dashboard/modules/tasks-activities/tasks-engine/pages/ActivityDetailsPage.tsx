@@ -24,6 +24,9 @@ export const ActivityDetailsPage: React.FC = () => {
   // حالات فتح/إغلاق النوافذ المنبثقة
   const [showAddCommitteeModal, setShowAddCommitteeModal] = useState(false);
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  
+  // 🎯 متغير مؤسسي مستقل لحفظ معرف اللجنة النشطة لضمان عدم ضياعه
+  const [activeCommitteeId, setActiveCommitteeId] = useState<string | undefined>(undefined);
 
   // نماذج الإدخال
   const [committeeForm, setCommitteeForm] = useState<CreateCommitteeInput>({
@@ -32,18 +35,16 @@ export const ActivityDetailsPage: React.FC = () => {
     description: '',
   });
 
-  const [taskForm, setTaskForm] = useState<CreateTaskInput>({
+  const [taskForm, setTaskForm] = useState<Omit<CreateTaskInput, 'activity_id' | 'committee_id'>>({
     title: '',
     description: '',
     due_time: '',
     max_volunteers: 1,
     priority: 'normal',
     assignment_type: 'open_announcement',
-    activity_id: activityId,
-    committee_id: undefined,
   });
 
-  // 🎯 طلب بيانات النشاط عند تغير المعرف
+  // طلب بيانات النشاط عند تغير المعرف
   useEffect(() => {
     if (activityId && fetchActivityById) {
       console.log('📡 [ActivityDetailsPage] جاري طلب بيانات النشاط لمعرف:', activityId);
@@ -68,27 +69,28 @@ export const ActivityDetailsPage: React.FC = () => {
     }
   };
 
-  // 🎯 إنشاء مهمة جديدة (إصلاح مشكلة الـ committee_id بشكل حتمي)
+  // 🎯 إنشاء مهمة جديدة بربط حتمي ومضمون
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activityId || !taskForm.title.trim() || !taskForm.due_time || !createTask) return;
 
     try {
-      // تمرير الـ committee_id كما هو من الـ State دون شروط تفرغه
+      // بناء الـ Payload المؤسسي الحتمي بدمج المعرفات مباشرة عند الإرسال
       const taskPayload: CreateTaskInput = {
         ...taskForm,
         activity_id: activityId,
-        committee_id: taskForm.committee_id || undefined,
+        committee_id: activeCommitteeId ? activeCommitteeId : undefined,
         max_volunteers: Number(taskForm.max_volunteers) || 1,
         due_time: new Date(taskForm.due_time).toISOString(),
       };
 
-      console.log('🚀 [ActivityDetailsPage] إرسال بيانات المهمة المحدثة:', taskPayload);
+      console.log('🚀 [ActivityDetailsPage] إرسال بيانات المهمة الحتمية:', taskPayload);
 
       const success = await createTask(taskPayload);
 
       if (success) {
         setShowAddTaskModal(false);
+        setActiveCommitteeId(undefined); // تصفير معرف اللجنة بأمان
         setTaskForm({
           title: '',
           description: '',
@@ -96,8 +98,6 @@ export const ActivityDetailsPage: React.FC = () => {
           max_volunteers: 1,
           priority: 'normal',
           assignment_type: 'open_announcement',
-          activity_id: activityId,
-          committee_id: undefined,
         });
       }
     } catch (err) {
@@ -158,7 +158,7 @@ export const ActivityDetailsPage: React.FC = () => {
             </button>
             <button
               onClick={() => {
-                setTaskForm((prev) => ({ ...prev, activity_id: activityId, committee_id: undefined }));
+                setActiveCommitteeId(undefined); // مهمة عامة مباشرة
                 setShowAddTaskModal(true);
               }}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
@@ -200,7 +200,7 @@ export const ActivityDetailsPage: React.FC = () => {
                     </div>
                     <button
                       onClick={() => {
-                        setTaskForm((prev) => ({ ...prev, activity_id: activityId, committee_id: committee.id }));
+                        setActiveCommitteeId(committee.id); // 🎯 قفل وحفظ المعرف حتمياً للجنة المحددة
                         setShowAddTaskModal(true);
                       }}
                       className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs rounded-xl text-gray-700 font-bold"
@@ -313,7 +313,7 @@ export const ActivityDetailsPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
-              {taskForm.committee_id ? 'إضافة مهمة جديدة للجنة' : 'إضافة مهمة جديدة للنشاط'}
+              {activeCommitteeId ? 'إضافة مهمة جديدة للجنة' : 'إضافة مهمة جديدة للنشاط'}
             </h3>
             <form onSubmit={handleCreateTask} className="space-y-4">
               <div>
@@ -377,7 +377,10 @@ export const ActivityDetailsPage: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button
                   type="button"
-                  onClick={() => setShowAddTaskModal(false)}
+                  onClick={() => {
+                    setShowAddTaskModal(false);
+                    setActiveCommitteeId(undefined);
+                  }}
                   className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg"
                 >
                   إلغاء
