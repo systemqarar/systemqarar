@@ -175,18 +175,31 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 6. إنشاء مهمة
+  // 🎯 6. إنشاء مهمة (محدثة ومضمونة الربط والتتبع)
   const createTask = async (taskInput: CreateTaskInput): Promise<boolean> => {
     setLoading(true);
+    console.log('📡 [useTasksEngine] جاري إرسال طلب إنشاء المهمة:', taskInput);
+
     try {
+      // تنظيف البيانات لضمان عدم إهمال الحقول عند التحويل لـ JSON
+      const cleanPayload = {
+        ...taskInput,
+        committee_id: taskInput.committee_id || null,
+      };
+
       const res = await fetch(`${API_BASE}/tasks`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(taskInput),
+        body: JSON.stringify(cleanPayload),
       });
 
+      console.log(`📥 [useTasksEngine] حالة استجابة إنشاء المهمة:`, res.status);
       const data = await parseResponse(res);
-      if (res.ok && (data.success || !data.error)) {
+      console.log(`📦 [useTasksEngine] محتوى استجابة إنشاء المهمة:`, data);
+
+      if (res.ok && (data.success || data.id || !data.error)) {
+        console.log('✅ [useTasksEngine] تم إنشاء المهمة بنجاح، جاري تحديث البيانات...');
+        
         if (taskInput.activity_id) {
           await fetchActivityById(taskInput.activity_id);
         } else {
@@ -194,10 +207,13 @@ export const useTasksEngine = () => {
         }
         return true;
       } else {
-        alert(data.error || data.message || 'فشلت عملية إنشاء المهمة');
+        const errMsg = data.error || data.message || 'فشلت عملية إنشاء المهمة';
+        console.error('❌ [useTasksEngine]', errMsg);
+        alert(errMsg);
         return false;
       }
     } catch (err: any) {
+      console.error('❌ [useTasksEngine] خطأ في الشبكة/السيرفر أثناء إنشاء المهمة:', err);
       alert(err.message || 'تعذر إنشاء المهمة');
       return false;
     } finally {

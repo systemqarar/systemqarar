@@ -62,16 +62,13 @@ export const ActivityDetailsPage: React.FC = () => {
       if (success) {
         setShowAddCommitteeModal(false);
         setCommitteeForm({ committee_name: '', name: '', description: '' });
-        if (fetchActivityById) {
-          await fetchActivityById(activityId);
-        }
       }
     } catch (err) {
-      console.error('خطأ أثناء إضافة اللجنة:', err);
+      console.error('❌ خطأ أثناء إضافة اللجنة:', err);
     }
   };
 
-  // 🎯 إنشاء مهمة جديدة مع مطابقة الأنواع المعتمدة في TypeScript
+  // 🎯 إنشاء مهمة جديدة (يعتمد التحديث التلقائي للبيانات على الـ Hook)
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activityId || !taskForm.title.trim() || !taskForm.due_time || !createTask) return;
@@ -101,10 +98,6 @@ export const ActivityDetailsPage: React.FC = () => {
           activity_id: activityId,
           committee_id: undefined,
         });
-
-        if (fetchActivityById) {
-          await fetchActivityById(activityId);
-        }
       }
     } catch (err) {
       console.error('❌ خطأ أثناء إنشاء المهمة:', err);
@@ -303,9 +296,10 @@ export const ActivityDetailsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700"
+                  disabled={loading}
+                  className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  حفظ اللجنة
+                  {loading ? 'جاري الحفظ...' : 'حفظ اللجنة'}
                 </button>
               </div>
             </form>
@@ -389,9 +383,10 @@ export const ActivityDetailsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700"
+                  disabled={loading}
+                  className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  إنشاء المهمة
+                  {loading ? 'جاري الإنشـاء...' : 'إنشاء المهمة'}
                 </button>
               </div>
             </form>
