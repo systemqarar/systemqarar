@@ -68,21 +68,22 @@ export const ActivityDetailsPage: React.FC = () => {
     }
   };
 
-  // 🎯 إنشاء مهمة جديدة (يعتمد التحديث التلقائي للبيانات على الـ Hook)
+  // 🎯 إنشاء مهمة جديدة (إصلاح مشكلة الـ committee_id بشكل حتمي)
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activityId || !taskForm.title.trim() || !taskForm.due_time || !createTask) return;
 
     try {
+      // تمرير الـ committee_id كما هو من الـ State دون شروط تفرغه
       const taskPayload: CreateTaskInput = {
         ...taskForm,
         activity_id: activityId,
-        committee_id: taskForm.committee_id ? taskForm.committee_id : undefined,
+        committee_id: taskForm.committee_id || undefined,
         max_volunteers: Number(taskForm.max_volunteers) || 1,
         due_time: new Date(taskForm.due_time).toISOString(),
       };
 
-      console.log('🚀 [ActivityDetailsPage] إرسال بيانات المهمة:', taskPayload);
+      console.log('🚀 [ActivityDetailsPage] إرسال بيانات المهمة المحدثة:', taskPayload);
 
       const success = await createTask(taskPayload);
 
