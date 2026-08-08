@@ -98,7 +98,7 @@ export class TasksEngineModel {
     return res.rows;
   }
 
-  // 🎯 جلب تفاصيل نشاط محدد بالكامل
+  // 🎯 جلب تفاصيل نشاط محدد بالكامل (تم إضافة JOIN لجلب اسم وصورة المتطوع)
   static async getActivityByIdWithTree(activityId: string) {
     const query = `
       SELECT 
@@ -135,10 +135,17 @@ export class TasksEngineModel {
                               json_build_object(
                                 'assignment_id', ta.id,
                                 'volunteer_id', ta.volunteer_id,
+                                'full_name', COALESCE(vp.full_name, u_vol.username, 'متطوع'),
+                                'volunteer_number', COALESCE(vp.volunteer_number, u_vol.volunteer_number, ''),
+                                'avatar_url', COALESCE(vp.photo_url, vp.secure_photo_url),
                                 'status', ta.status,
                                 'assigned_at', ta.assigned_at
                               )
-                            ) FROM task_assignments ta WHERE ta.task_id = t.id
+                            ) 
+                            FROM task_assignments ta 
+                            LEFT JOIN volunteer_profiles vp ON ta.volunteer_id = vp.user_id
+                            LEFT JOIN users u_vol ON ta.volunteer_id = u_vol.id
+                            WHERE ta.task_id = t.id
                           ), '[]'
                         )
                       )
@@ -174,48 +181,23 @@ export class TasksEngineModel {
                       json_build_object(
                         'assignment_id', ta.id,
                         'volunteer_id', ta.volunteer_id,
+                        'full_name', COALESCE(vp.full_name, u_vol.username, 'متطوع'),
+                        'volunteer_number', COALESCE(vp.volunteer_number, u_vol.volunteer_number, ''),
+                        'avatar_url', COALESCE(vp.photo_url, vp.secure_photo_url),
                         'status', ta.status,
                         'assigned_at', ta.assigned_at
                       )
-                    ) FROM task_assignments ta WHERE ta.task_id = dt.id
+                    ) 
+                    FROM task_assignments ta 
+                    LEFT JOIN volunteer_profiles vp ON ta.volunteer_id = vp.user_id
+                    LEFT JOIN users u_vol ON ta.volunteer_id = u_vol.id
+                    WHERE ta.task_id = dt.id
                   ), '[]'
                 )
               )
             ) FROM tasks dt WHERE dt.activity_id = a.id AND dt.committee_id IS NULL
           ), '[]'
-        ) as tasks,
-
-        COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'id', dt.id,
-                'activity_id', dt.activity_id,
-                'committee_id', dt.committee_id,
-                'title', dt.title,
-                'description', dt.description,
-                'action_type', dt.action_type,
-                'assignment_type', dt.assignment_type,
-                'max_volunteers', dt.max_volunteers,
-                'priority', dt.priority,
-                'status', dt.status,
-                'due_time', dt.due_time,
-                'assignments', COALESCE(
-                  (
-                    SELECT json_agg(
-                      json_build_object(
-                        'assignment_id', ta.id,
-                        'volunteer_id', ta.volunteer_id,
-                        'status', ta.status,
-                        'assigned_at', ta.assigned_at
-                      )
-                    ) FROM task_assignments ta WHERE ta.task_id = dt.id
-                  ), '[]'
-                )
-              )
-            ) FROM tasks dt WHERE dt.activity_id = a.id AND dt.committee_id IS NULL
-          ), '[]'
-        ) as direct_tasks
+        ) as tasks
 
       FROM activities a
       LEFT JOIN users u ON a.created_by = u.id
@@ -246,7 +228,6 @@ export class TasksEngineModel {
     const res = await pool.query(query, [data.name || null, data.leader_id || null, data.description || null, committeeId]);
     return res.rows[0];
   }
-
 
   // ==================== 2. إدارة المهام (المستقلة والتابعة) ====================
 
@@ -305,6 +286,7 @@ export class TasksEngineModel {
     }
   }
 
+  // 🎯 جلب قائمة المهام مع تفاصيل المتطوعين
   static async getTasks(filters: { activity_id?: string; committee_id?: string; is_standalone?: boolean; status?: string }) {
     let query = `
       SELECT 
@@ -315,6 +297,9 @@ export class TasksEngineModel {
             DISTINCT jsonb_build_object(
               'assignment_id', ta.id,
               'volunteer_id', ta.volunteer_id,
+              'full_name', COALESCE(vp.full_name, u_vol.username, 'متطوع'),
+              'volunteer_number', COALESCE(vp.volunteer_number, u_vol.volunteer_number, ''),
+              'avatar_url', COALESCE(vp.photo_url, vp.secure_photo_url),
               'status', ta.status,
               'assigned_at', ta.assigned_at
             )
@@ -323,6 +308,8 @@ export class TasksEngineModel {
       FROM tasks t
       LEFT JOIN users u ON t.created_by = u.id
       LEFT JOIN task_assignments ta ON t.id = ta.task_id
+      LEFT JOIN volunteer_profiles vp ON ta.volunteer_id = vp.user_id
+      LEFT JOIN users u_vol ON ta.volunteer_id = u_vol.id
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -372,7 +359,6 @@ export class TasksEngineModel {
     ]);
     return res.rows[0];
   }
-
 
   // ==================== 3. الانضمام، الاعتذار وإدارة المتطوعين ====================
 
@@ -424,13 +410,11 @@ export class TasksEngineModel {
     }
   }
 
-  // 🎯 إضافة دالة الإسناد المباشر للمتطوع بواسطة المشرف
   static async assignVolunteerToTask(taskId: string, targetVolunteerId: string, assignedByUserId: string) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      // التحقق من وجود المهمة والطاقة الاستيعابية
       const taskRes = await client.query(`SELECT max_volunteers, title FROM tasks WHERE id = $1`, [taskId]);
       if (taskRes.rows.length === 0) throw new Error('المهمة غير موجودة.');
 
@@ -443,7 +427,6 @@ export class TasksEngineModel {
         throw new Error('عذراً، المهمة مكتملة العدد بالفعل.');
       }
 
-      // التحقق مما إذا كان المتطوع مسنداً مسبقاً
       const existingAssign = await client.query(
         `SELECT id FROM task_assignments WHERE task_id = $1 AND volunteer_id = $2 AND status != 'excused'`,
         [taskId, targetVolunteerId]
