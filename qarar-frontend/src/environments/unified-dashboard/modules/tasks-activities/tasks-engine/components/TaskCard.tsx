@@ -5,10 +5,10 @@ import { UserPlus, Calendar, Users, CheckCircle2, User } from 'lucide-react';
 interface TaskCardProps {
   task: Task;
   currentUserId?: string;
-  committeeName?: string; // تم إضافته لتحديد اسم اللجنة
+  committeeName?: string;
   onApply?: (taskId: string) => void;
   onExcuse?: (assignmentId: string, reason: string) => void;
-  onAssignVolunteer?: (taskId: string) => void; // زر إضافة/تنسيق متطوع كأيقونة علوية
+  onAssignVolunteer?: (taskId: string) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -51,7 +51,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const handleExcuseSubmit = () => {
     if (!excuseReason.trim()) return alert('الرجاء كتابة سبب الاعتذار');
     if (myAssignment && onExcuse) {
-      onExcuse(myAssignment.id, excuseReason);
+      const assignmentId = (myAssignment as any).id || (myAssignment as any).assignment_id;
+      onExcuse(assignmentId, excuseReason);
       setShowExcuseModal(false);
       setExcuseReason('');
     }
@@ -132,13 +133,24 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           {/* صور/رموز المتطوعين المسندين */}
           <div className="flex items-center">
             <div className="flex -space-x-2 space-x-reverse overflow-hidden">
-              {activeAssignments.slice(0, 5).map((assign: TaskAssignment, idx: number) => {
-                const profile = assign.volunteer_profile;
-                const volunteerName = profile?.full_name || 'متطوع';
-                const avatarUrl = profile?.photo_url;
+              {activeAssignments.slice(0, 5).map((assign: any, idx: number) => {
+                // 🎯 تصحيح القراءة: ربط مرن يقرأ البيانات من الباكإند سواء مباشرة أو عبر الكائن الداخلي
+                const volunteerName = 
+                  assign.full_name || 
+                  assign.volunteer_profile?.full_name || 
+                  assign.volunteer_name || 
+                  'متطوع';
+
+                const avatarUrl = 
+                  assign.avatar_url || 
+                  assign.photo_url || 
+                  assign.volunteer_profile?.photo_url || 
+                  assign.volunteer_profile?.secure_photo_url;
+
+                const firstLetter = volunteerName.trim().charAt(0);
 
                 return (
-                  <div key={assign.id || assign.volunteer_id || idx} className="relative inline-block">
+                  <div key={assign.id || assign.assignment_id || assign.volunteer_id || idx} className="relative inline-block">
                     {avatarUrl ? (
                       <img
                         src={avatarUrl}
@@ -151,7 +163,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                         className="h-8 w-8 rounded-full ring-2 ring-white bg-[#7A1C2E] text-white text-[10px] font-bold flex items-center justify-center shadow-sm"
                         title={volunteerName}
                       >
-                        {volunteerName ? volunteerName.charAt(0) : <User className="w-4 h-4" />}
+                        {firstLetter ? firstLetter : <User className="w-4 h-4" />}
                       </div>
                     )}
                   </div>
