@@ -10,9 +10,10 @@ import {
 
 // واجهة تعريفية للمتطوع المسترجع في قائمة البحث (Autocomplete)
 export interface VolunteerSearchOption {
-  id: string; // uuid المقابل لـ user_id
+  id: string; // uuid المقابل لـ user_id (users.id)
   full_name: string;
   volunteer_number: string;
+  avatar_url?: string; // photo_url / secure_photo_url من volunteer_profiles
 }
 
 export const useTasksEngine = () => {
@@ -26,7 +27,7 @@ export const useTasksEngine = () => {
   const currentUserId = localStorage.getItem('user_id') || localStorage.getItem('userId') || undefined;
   const currentVolunteerNumber = localStorage.getItem('volunteer_number') || undefined;
 
-  // 🎯 المسار الموحد والمطابق للباكيند بدقة
+  // المسار الموحد للباكإند
   const API_BASE = '/api/tasks-activities/tasks-engine';
 
   // دالة جلب التوكن وترويسة الطلب
@@ -55,7 +56,6 @@ export const useTasksEngine = () => {
     const cleanQuery = query.trim();
 
     try {
-      // تجربة جلب البيانات من مسار Engine أولاً، ثم المسار المباشر كخيار بديل
       let res = await fetch(`${API_BASE}/volunteers/search?q=${encodeURIComponent(cleanQuery)}`, {
         headers: getAuthHeaders(),
       });
@@ -70,11 +70,12 @@ export const useTasksEngine = () => {
         const data = await parseResponse(res);
         const rawList = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
 
-        // توحيد تعيين الحقول لضمان المطابقة الكاملة بغض النظر عن طريقة إرجاع الباكإند للبيانات
+        // توحيد تعيين الحقول استناداً إلى أعمدة الجداول (users & volunteer_profiles)
         return rawList.map((item: any) => ({
-          id: item.id || item.user_id || item.volunteer_id || '',
+          id: item.id || item.user_id || '',
           full_name: item.full_name || item.name || item.displayName || 'متطوع',
           volunteer_number: item.volunteer_number || item.volunteerNo || item.users?.volunteer_number || '',
+          avatar_url: item.avatar_url || item.photo_url || item.secure_photo_url || item.avatar || undefined,
         }));
       }
       return [];

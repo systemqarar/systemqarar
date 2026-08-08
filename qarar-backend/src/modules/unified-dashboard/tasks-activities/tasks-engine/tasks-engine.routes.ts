@@ -7,6 +7,9 @@ const router = Router();
 // تطبيق الحماية والمصادقة على كافة مسارات الموديول
 router.use(requireAuth);
 
+// ==================== مسار البحث عن المتطوعين (Autocomplete) ====================
+router.get('/volunteers/search', TasksEngineController.searchVolunteers); // 🎯 سطر البحث عن المتطوعين
+
 // ==================== مسارات الأنشطة واللجان ====================
 router.post('/activities', TasksEngineController.createActivity);
 router.get('/activities', TasksEngineController.getActivities);

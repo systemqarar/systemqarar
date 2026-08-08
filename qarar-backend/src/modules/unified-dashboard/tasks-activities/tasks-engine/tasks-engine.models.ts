@@ -5,6 +5,29 @@ const pool = db.pool;
 
 export class TasksEngineModel {
 
+  // ==================== 0. البحث عن المتطوعين (Autocomplete) ====================
+
+  static async searchVolunteers(searchTerm: string) {
+    const query = `
+      SELECT 
+        u.id AS id,
+        COALESCE(vp.full_name, u.username, 'متطوع') AS full_name,
+        COALESCE(vp.volunteer_number, u.volunteer_number, '') AS volunteer_number,
+        COALESCE(vp.photo_url, vp.secure_photo_url) AS avatar_url
+      FROM users u
+      LEFT JOIN volunteer_profiles vp ON u.id = vp.user_id
+      WHERE 
+        vp.full_name ILIKE $1 
+        OR vp.volunteer_number ILIKE $1 
+        OR u.volunteer_number ILIKE $1
+        OR u.username ILIKE $1
+      LIMIT 20;
+    `;
+    const pattern = `%${searchTerm}%`;
+    const res = await pool.query(query, [pattern]);
+    return res.rows;
+  }
+
   // ==================== 1. إدارة الأنشطة البرامجية واللجان ====================
 
   static async createActivity(userId: string, data: CreateActivityDTO) {

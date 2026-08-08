@@ -9,6 +9,24 @@ export class TasksEngineController {
     return user.id || user.volunteer_id || user.userId || user.uuid || null;
   }
 
+  // ==================== البحث عن المتطوعين (Autocomplete) ====================
+
+  static async searchVolunteers(req: Request, res: Response) {
+    try {
+      const query = (req.query.q as string) || '';
+      
+      if (!query || !query.trim()) {
+        return res.status(200).json({ success: true, data: [] });
+      }
+
+      const volunteers = await TasksEngineModel.searchVolunteers(query.trim());
+      return res.status(200).json({ success: true, data: volunteers });
+    } catch (error: any) {
+      console.error('Error searching volunteers:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   // ==================== الأنشطة واللجان ====================
 
   static async createActivity(req: Request, res: Response) {
@@ -144,7 +162,7 @@ export class TasksEngineController {
     }
   }
 
-  // 🎯 إضافة دالة الإسناد المباشر للمتطوع لتغطية الـ Frontend Endpoint
+  // 🎯 إسناد مباشر للمتطوع
   static async assignVolunteer(req: Request, res: Response) {
     try {
       const currentUserId = TasksEngineController.getUserId(req);
@@ -153,14 +171,24 @@ export class TasksEngineController {
       }
 
       const taskId = req.params.id;
-      const { volunteer_id } = req.body;
+      const { volunteer_id, volunteer_ids } = req.body;
 
-      if (!volunteer_id) {
+      // دعم الإسناد الفردي أو الجماعي
+      const targetIds: string[] = volunteer_ids && Array.isArray(volunteer_ids) 
+        ? volunteer_ids 
+        : (volunteer_id ? [volunteer_id] : []);
+
+      if (targetIds.length === 0) {
         return res.status(400).json({ success: false, message: 'معرف المتطوع مطلوب.' });
       }
 
-      const assignment = await TasksEngineModel.assignVolunteerToTask(taskId, volunteer_id, currentUserId);
-      return res.status(200).json({ success: true, message: 'تم إسناد المهمة بنجاح', data: assignment });
+      const assignments = [];
+      for (const id of targetIds) {
+        const assignment = await TasksEngineModel.assignVolunteerToTask(taskId, id, currentUserId);
+        assignments.push(assignment);
+      }
+
+      return res.status(200).json({ success: true, message: 'تم إسناد المهمة بنجاح', data: assignments });
     } catch (error: any) {
       return res.status(400).json({ success: false, message: error.message });
     }
