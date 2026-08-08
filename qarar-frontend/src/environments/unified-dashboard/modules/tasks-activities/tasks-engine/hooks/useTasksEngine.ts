@@ -51,21 +51,38 @@ export const useTasksEngine = () => {
 
   // 🔍 البحث الفوري عن المتطوعين بالاسم أو الرقم للـ Autocomplete Selector
   const searchVolunteers = useCallback(async (query: string): Promise<VolunteerSearchOption[]> => {
-    if (!query.trim()) return [];
+    if (!query || !query.trim()) return [];
+    const cleanQuery = query.trim();
+
     try {
-      const res = await fetch(`/api/volunteers/search?q=${encodeURIComponent(query)}`, {
+      // تجربة جلب البيانات من مسار Engine أولاً، ثم المسار المباشر كخيار بديل
+      let res = await fetch(`${API_BASE}/volunteers/search?q=${encodeURIComponent(cleanQuery)}`, {
         headers: getAuthHeaders(),
       });
+
+      if (!res.ok) {
+        res = await fetch(`/api/volunteers/search?q=${encodeURIComponent(cleanQuery)}`, {
+          headers: getAuthHeaders(),
+        });
+      }
+
       if (res.ok) {
         const data = await parseResponse(res);
-        return Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+        const rawList = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+
+        // توحيد تعيين الحقول لضمان المطابقة الكاملة بغض النظر عن طريقة إرجاع الباكإند للبيانات
+        return rawList.map((item: any) => ({
+          id: item.id || item.user_id || item.volunteer_id || '',
+          full_name: item.full_name || item.name || item.displayName || 'متطوع',
+          volunteer_number: item.volunteer_number || item.volunteerNo || item.users?.volunteer_number || '',
+        }));
       }
       return [];
     } catch (err) {
       console.error('Error searching volunteers:', err);
       return [];
     }
-  }, []);
+  }, [API_BASE]);
 
   // 1. جلب الأنشطة البرامجية الرئيسية
   const fetchActivities = useCallback(async () => {
