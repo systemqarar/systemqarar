@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task, TaskAssignment } from '../types/tasks-engine.types';
-import { UserPlus, Calendar, Users, CheckCircle2, User, X, MessageSquareAlert } from 'lucide-react';
+import { UserPlus, Calendar, Users, CheckCircle2, User, X, MessageSquareWarning } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -343,7 +343,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             {excusedAssignments.length > 0 && (
               <div className="pt-4 border-t border-gray-100">
                 <h5 className="text-xs font-bold text-rose-700 mb-3 flex items-center gap-1.5">
-                  <MessageSquareAlert className="w-4 h-4 text-rose-600" /> المتطوعون المعتذرون ({excusedAssignments.length}):
+                  <MessageSquareWarning className="w-4 h-4 text-rose-600" /> المتطوعون المعتذرون ({excusedAssignments.length}):
                 </h5>
                 <div className="space-y-2">
                   {excusedAssignments.map((assign: any, idx: number) => {
