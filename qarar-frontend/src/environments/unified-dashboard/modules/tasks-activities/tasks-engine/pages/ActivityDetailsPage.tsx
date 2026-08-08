@@ -19,7 +19,8 @@ export const ActivityDetailsPage: React.FC = () => {
     createTask,
     applyForTask = () => {},
     submitExcuse = () => {},
-  } = engine;
+    currentUserId, // تم استخراجه لاستخدامه في TaskCard إذا توفر
+  } = engine as any;
 
   // حالات التحكم بالمودالات
   const [showAddCommitteeModal, setShowAddCommitteeModal] = useState(false);
@@ -212,20 +213,19 @@ export const ActivityDetailsPage: React.FC = () => {
                   </button>
                 </div>
 
-                {/* قائمة مهام اللجنة */}
+                {/* قائمة مهام اللجنة المحدثة بدون زر خارجي مكرر */}
                 {activeCommitteeTasks.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {activeCommitteeTasks.map((task: Task) => (
-                      <div key={task.id} className="bg-white border border-gray-100 rounded-2xl p-3 shadow-sm hover:shadow-md transition-shadow space-y-3 flex flex-col justify-between">
-                        <TaskCard task={task} onApply={applyForTask} onExcuse={submitExcuse} />
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTaskForAssign(task)}
-                          className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
-                        >
-                          <span>👤</span> تعيين وتنسيق المتطوعين
-                        </button>
-                      </div>
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        committeeName={activeCommittee.committee_name || activeCommittee.name}
+                        currentUserId={currentUserId}
+                        onApply={applyForTask}
+                        onExcuse={submitExcuse}
+                        onAssignVolunteer={() => setSelectedTaskForAssign(task)}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -316,7 +316,7 @@ export const ActivityDetailsPage: React.FC = () => {
         </div>
       )}
 
-      {/* مودال إنشاء مهمة جديدة للجنة المحدد */}
+      {/* مودال إنشاء مهمة جديدة للجنة المحددة */}
       {showAddTaskModal && activeCommittee && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-gray-100 max-h-[90vh] overflow-y-auto">
