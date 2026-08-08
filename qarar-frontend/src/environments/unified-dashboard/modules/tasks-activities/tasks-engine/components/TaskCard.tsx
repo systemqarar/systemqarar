@@ -117,7 +117,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <span className="text-gray-500 font-semibold">{assignedCount} / {maxVolunteers}</span>
           </div>
 
-          {/* شريط مكتملية العدد */}
+          {/* شريط اكتمال العدد */}
           <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-300 ${isFull ? 'bg-emerald-600' : 'bg-[#7A1C2E]'}`}
@@ -127,54 +127,59 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      {/* 4. المتطوعون المنضمون + تاريخ التسليم */}
+      {/* 4. المتطوعون المنضمون (صورة + اسم أفرادي) + تاريخ التسليم */}
       <div>
-        <div className="flex items-center justify-between pt-2 mb-4 border-t border-gray-100">
-          {/* صور/رموز المتطوعين المسندين */}
-          <div className="flex items-center">
-            <div className="flex -space-x-2 space-x-reverse overflow-hidden">
-              {activeAssignments.slice(0, 5).map((assign: any, idx: number) => {
-                // 🎯 تصحيح القراءة: ربط مرن يقرأ البيانات من الباكإند سواء مباشرة أو عبر الكائن الداخلي
-                const volunteerName = 
-                  assign.full_name || 
-                  assign.volunteer_profile?.full_name || 
-                  assign.volunteer_name || 
-                  'متطوع';
+        <div className="flex items-start justify-between pt-2 mb-4 border-t border-gray-100">
+          {/* عرض المتطوعين بشكل فردي (الصورة وأسفلها الاسم الأول) */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {activeAssignments.slice(0, 5).map((assign: any, idx: number) => {
+              const fullVolunteerName = 
+                assign.full_name || 
+                assign.volunteer_profile?.full_name || 
+                assign.volunteer_name || 
+                'متطوع';
 
-                const avatarUrl = 
-                  assign.avatar_url || 
-                  assign.photo_url || 
-                  assign.volunteer_profile?.photo_url || 
-                  assign.volunteer_profile?.secure_photo_url;
+              // استخراج الاسم الأول فقط (مثلاً: "لؤي", "عمر")
+              const firstName = fullVolunteerName.trim().split(' ')[0];
 
-                const firstLetter = volunteerName.trim().charAt(0);
+              const avatarUrl = 
+                assign.avatar_url || 
+                assign.photo_url || 
+                assign.volunteer_profile?.photo_url || 
+                assign.volunteer_profile?.secure_photo_url;
 
-                return (
-                  <div key={assign.id || assign.assignment_id || assign.volunteer_id || idx} className="relative inline-block">
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt={volunteerName}
-                        className="h-8 w-8 rounded-full ring-2 ring-white object-cover shadow-sm"
-                        title={volunteerName}
-                      />
-                    ) : (
-                      <div 
-                        className="h-8 w-8 rounded-full ring-2 ring-white bg-[#7A1C2E] text-white text-[10px] font-bold flex items-center justify-center shadow-sm"
-                        title={volunteerName}
-                      >
-                        {firstLetter ? firstLetter : <User className="w-4 h-4" />}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+              const firstLetter = firstName.charAt(0);
+
+              return (
+                <div key={assign.id || assign.assignment_id || assign.volunteer_id || idx} className="flex flex-col items-center gap-1">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={fullVolunteerName}
+                      className="h-9 w-9 rounded-full object-cover shadow-sm ring-2 ring-gray-100"
+                      title={fullVolunteerName}
+                    />
+                  ) : (
+                    <div 
+                      className="h-9 w-9 rounded-full bg-[#7A1C2E] text-white text-xs font-bold flex items-center justify-center shadow-sm ring-2 ring-gray-100"
+                      title={fullVolunteerName}
+                    >
+                      {firstLetter ? firstLetter : <User className="w-4 h-4" />}
+                    </div>
+                  )}
+                  
+                  {/* الاسم الأول فقط أسفل كل صورة */}
+                  <span className="text-[10px] font-bold text-gray-700 max-w-[55px] truncate text-center">
+                    {firstName}
+                  </span>
+                </div>
+              );
+            })}
 
             {activeAssignments.length > 5 && (
-              <span className="mr-2 text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+              <div className="flex flex-col items-center justify-center h-9 w-9 rounded-full bg-gray-100 text-gray-600 text-xs font-bold border border-gray-200">
                 +{activeAssignments.length - 5}
-              </span>
+              </div>
             )}
 
             {assignedCount === 0 && (
