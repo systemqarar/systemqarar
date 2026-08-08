@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
 import { Task, TaskAssignment } from '../types/tasks-engine.types';
-import { UserPlus, Calendar, Users, CheckCircle2, User } from 'lucide-react';
+import { UserPlus, Calendar, Users, CheckCircle2, User, X, MessageSquareAlert } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
   currentUserId?: string;
   committeeName?: string;
+  isCreatorOrAdmin?: boolean; // هل المستخدم الحالي هو منشئ المهمة/مشرف؟
   onApply?: (taskId: string) => void;
   onExcuse?: (assignmentId: string, reason: string) => void;
   onAssignVolunteer?: (taskId: string) => void;
+  onRemoveVolunteer?: (assignmentId: string) => void; // دالة حذف متطوع بواسطة المشرف
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   currentUserId,
   committeeName,
+  isCreatorOrAdmin = false,
   onApply,
   onExcuse,
   onAssignVolunteer,
+  onRemoveVolunteer,
 }) => {
   const [showExcuseModal, setShowExcuseModal] = useState<boolean>(false);
+  const [showManageModal, setShowManageModal] = useState<boolean>(false);
   const [excuseReason, setExcuseReason] = useState<string>('');
-  
-  // 🎯 حالة التحكم بفتح التمرير الأفقي لعرض جميع المتطوعين
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   // تحديد أولوية المهمة
@@ -39,14 +42,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     }
   };
 
+  // المتطوعون النشطون فقط (غير المعتذرين)
   const activeAssignments: TaskAssignment[] = (task.assignments || []).filter(
     (a: TaskAssignment) => a.status !== 'excused'
   );
+
+  // المتطوعون المعتذرون (للمشرف فقط)
+  const excusedAssignments: TaskAssignment[] = (task.assignments || []).filter(
+    (a: TaskAssignment) => a.status === 'excused'
+  );
+
   const assignedCount = activeAssignments.length;
   const maxVolunteers = task.max_volunteers || 1;
   const isFull = assignedCount >= maxVolunteers;
 
-  // تحديد الأشخاص المعروضين حسب حالة التوسع
   const displayedAssignments = isExpanded ? activeAssignments : activeAssignments.slice(0, 5);
   const remainingCount = activeAssignments.length - 5;
 
@@ -65,7 +74,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     }
   };
 
-  // تنسيق تاريخ التسليم
   const formattedDueDate = task.due_time
     ? new Date(task.due_time).toLocaleDateString('ar-SA', {
         year: 'numeric',
@@ -76,9 +84,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
   return (
     <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between mb-4 relative overflow-hidden" dir="rtl">
-      
+
       <div>
-        {/* 1. الشريط العلوي: شارة اللجنة + أولوية المهمة + أيقونة إضافة متطوع */}
+        {/* 1. الشريط العلوي */}
         <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-gray-100">
           <div className="flex items-center gap-2 flex-wrap">
             {committeeName ? (
@@ -93,15 +101,22 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             {getPriorityBadge(task.priority)}
           </div>
 
-          {/* أيقونة تعيين/إضافة متطوع في الأعلى */}
-          {onAssignVolunteer && (
+          {/* زر إدارة/إضافة المتطوعين لمنشئ المهمة */}
+          {(onAssignVolunteer || isCreatorOrAdmin) && (
             <button
-              onClick={() => onAssignVolunteer(task.id)}
-              title="إضافة أو تنسيق المتطوعين"
-              className="p-2.5 text-[#7A1C2E] hover:bg-red-50 rounded-2xl transition-all border border-red-100 flex items-center gap-1.5 text-xs font-bold shadow-sm"
+              onClick={() => {
+                if (onAssignVolunteer) onAssignVolunteer(task.id);
+                else setShowManageModal(true);
+              }}
+              title="إدارة وتنسيق المتطوعين"
+              className="p-2.5 text-[#7A1C2E] hover:bg-red-50 rounded-2xl transition-all border border-red-100 flex items-center gap-1.5 text-xs font-bold shadow-sm relative"
             >
               <UserPlus className="w-4 h-4" />
-              <span className="hidden sm:inline">إضافة متطوع</span>
+              <span className="hidden sm:inline">إدارة المتطوعين</span>
+              {/* شارة تنبيه إذا كان هناك اعتذارات جديدة للمشرف */}
+              {isCreatorOrAdmin && excusedAssignments.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full ring-2 ring-white animate-pulse" />
+              )}
             </button>
           )}
         </div>
@@ -114,7 +129,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </p>
         </div>
 
-        {/* 3. صندوق الاحتياج الصريح لعدد المتطوعين */}
+        {/* 3. شريط الاحتياج */}
         <div className="bg-slate-50 rounded-2xl p-3.5 mb-4 border border-slate-100">
           <div className="flex items-center justify-between text-xs text-gray-800 mb-2 font-bold">
             <span className="flex items-center gap-1.5">
@@ -124,7 +139,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <span className="text-gray-500 font-semibold">{assignedCount} / {maxVolunteers}</span>
           </div>
 
-          {/* شريط اكتمال العدد */}
           <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-300 ${isFull ? 'bg-emerald-600' : 'bg-[#7A1C2E]'}`}
@@ -134,11 +148,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      {/* 4. المتطوعون المنضمون (دعم التمرير الأفقي عند النقر على الزيادة) + تاريخ التسليم */}
+      {/* 4. قائمة المتطوعين المنضمين */}
       <div>
         <div className="flex items-start justify-between pt-2 mb-4 border-t border-gray-100 gap-2">
-          
-          {/* حاوية المتطوعين: تتحول للتمرير الأفقي overflow-x-auto فور التوسع */}
+
           <div className={`flex items-center gap-3 transition-all duration-300 ${
             isExpanded ? 'overflow-x-auto pb-2 max-w-[70%] scrollbar-thin' : 'flex-wrap max-w-[70%]'
           }`}>
@@ -176,7 +189,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                       {firstLetter ? firstLetter : <User className="w-4 h-4" />}
                     </div>
                   )}
-                  
+
                   <span className="text-[10px] font-bold text-gray-700 max-w-[55px] truncate text-center">
                     {firstName}
                   </span>
@@ -184,7 +197,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               );
             })}
 
-            {/* 🎯 بطاقة +X: عند الضغط عليها يفعل التمرير الأفقي لجميع المتطوعين */}
             {!isExpanded && remainingCount > 0 && (
               <button
                 onClick={() => setIsExpanded(true)}
@@ -195,7 +207,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               </button>
             )}
 
-            {/* زر إعادة الإغلاق/الطي عند فتح قائمة طويلة */}
             {isExpanded && remainingCount > 0 && (
               <button
                 onClick={() => setIsExpanded(false)}
@@ -211,21 +222,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             )}
           </div>
 
-          {/* موعد التسليم */}
           <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium flex-shrink-0 pt-2">
             <Calendar className="w-3.5 h-3.5 text-gray-400" />
             <span>التسليم: <strong className="text-gray-700">{formattedDueDate}</strong></span>
           </div>
         </div>
 
-        {/* منشئ المهمة */}
         {task.creator_name && (
           <div className="text-[11px] text-gray-400 mb-3">
             👤 بواسطة: <span className="font-semibold text-gray-600">{task.creator_name}</span>
           </div>
         )}
 
-        {/* 5. حالة الإسناد والتقديم */}
+        {/* 5. حالة التقديم / الاعتذار للمتطوع */}
         <div className="border-t border-gray-100 pt-3">
           {task.assignment_type === 'open_announcement' && !isAssignedToMe && onApply && (
             <button
@@ -259,17 +268,17 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      {/* نافذة الاعتذار */}
+      {/* modal تقديم اعتذار المتطوع */}
       {showExcuseModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" dir="rtl">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-gray-100">
             <h4 className="text-base font-bold text-gray-900 mb-2">طلب اعتذار عن المهمة</h4>
-            <p className="text-xs text-gray-500 mb-4">يرجى توضيح سبب الاعتذار لإتاحة الفرصة لمتطوع آخر.</p>
+            <p className="text-xs text-gray-500 mb-4">يرجى توضيح سبب الاعتذار (سيصل سبب الاعتذار لمنشئ المهمة فقط للحفاظ على الخصوصية).</p>
             <textarea
               value={excuseReason}
               onChange={(e) => setExcuseReason(e.target.value)}
               placeholder="اكتب سبب الاعتذار هنا..."
-              className="w-full border border-gray-200 rounded-2xl p-3 text-sm mb-4 focus:ring-2 focus:ring-[#7A1C2E] focus:border-transparent outline-none transition-all"
+              className="w-full border border-gray-200 rounded-2xl p-3 text-sm mb-4 focus:ring-2 focus:ring-[#7A1C2E] outline-none transition-all"
               rows={3}
             />
             <div className="flex justify-end gap-2 border-t border-gray-100 pt-3">
@@ -289,6 +298,73 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </div>
         </div>
       )}
+
+      {/* modal إدارة المتطوعين (عرض المعتذرين وحذف المنضمين للمشرف فقط) */}
+      {showManageModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" dir="rtl">
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-gray-100 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+              <h4 className="text-base font-bold text-gray-900">إدارة متطوعي المهمة</h4>
+              <button onClick={() => setShowManageModal(false)} className="p-1 hover:bg-gray-100 rounded-full">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* المتطوعون الحاليون */}
+            <div className="mb-6">
+              <h5 className="text-xs font-bold text-gray-700 mb-3">المتطوعون المقبولون ({activeAssignments.length}):</h5>
+              <div className="space-y-2">
+                {activeAssignments.map((assign: any) => {
+                  const name = assign.full_name || assign.volunteer_profile?.full_name || 'متطوع';
+                  const assignId = assign.id || assign.assignment_id;
+                  return (
+                    <div key={assignId} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-2xl border border-slate-100">
+                      <span className="text-xs font-bold text-gray-800">{name}</span>
+                      {onRemoveVolunteer && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`هل أنت تأكد من إزالة المتطوع (${name}) من المهمة؟`)) {
+                              onRemoveVolunteer(assignId);
+                            }
+                          }}
+                          className="px-2.5 py-1 text-[11px] bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl font-bold border border-rose-200 transition-colors flex items-center gap-1"
+                        >
+                          <X className="w-3 h-3" /> إزالة
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                {activeAssignments.length === 0 && <p className="text-xs text-gray-400 italic">لا يوجد متطوعون حالياً</p>}
+              </div>
+            </div>
+
+            {/* سجل الاعتذارات الخاص بالمشرف فقط */}
+            {excusedAssignments.length > 0 && (
+              <div className="pt-4 border-t border-gray-100">
+                <h5 className="text-xs font-bold text-rose-700 mb-3 flex items-center gap-1.5">
+                  <MessageSquareAlert className="w-4 h-4 text-rose-600" /> المتطوعون المعتذرون ({excusedAssignments.length}):
+                </h5>
+                <div className="space-y-2">
+                  {excusedAssignments.map((assign: any, idx: number) => {
+                    const name = assign.full_name || assign.volunteer_profile?.full_name || 'متطوع';
+                    const reason = assign.excuse_reason || 'لم يتم ذكر سبب';
+                    return (
+                      <div key={idx} className="p-3 bg-rose-50/50 rounded-2xl border border-rose-100">
+                        <div className="text-xs font-bold text-gray-800 mb-1">{name}</div>
+                        <div className="text-[11px] text-rose-900 bg-white/80 p-2 rounded-xl border border-rose-100">
+                          <strong>سبب الاعتذار:</strong> {reason}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
