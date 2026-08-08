@@ -54,13 +54,15 @@ export class TasksEngineController {
   static async addCommittee(req: Request, res: Response) {
     try {
       const { id: activityId } = req.params;
-      const { name, leader_id, description } = req.body;
+      // 🎯 مرونة استقبال الاسم للتوافق مع شاشات الإدخال
+      const name = req.body.committee_name || req.body.name;
+      const { leader_id, description } = req.body;
 
-      if (!name) {
+      if (!name || !String(name).trim()) {
         return res.status(400).json({ success: false, message: 'اسم اللجنة مطلوب' });
       }
 
-      const committee = await TasksEngineModel.addCommittee(activityId, name, leader_id, description);
+      const committee = await TasksEngineModel.addCommittee(activityId, String(name).trim(), leader_id, description);
       return res.status(201).json({ success: true, data: committee });
     } catch (error: any) {
       return res.status(400).json({ success: false, message: error.message });
@@ -142,6 +144,28 @@ export class TasksEngineController {
     }
   }
 
+  // 🎯 إضافة دالة الإسناد المباشر للمتطوع لتغطية الـ Frontend Endpoint
+  static async assignVolunteer(req: Request, res: Response) {
+    try {
+      const currentUserId = TasksEngineController.getUserId(req);
+      if (!currentUserId) {
+        return res.status(401).json({ success: false, message: 'تعذر التثبت من هوية المستخدم.' });
+      }
+
+      const taskId = req.params.id;
+      const { volunteer_id } = req.body;
+
+      if (!volunteer_id) {
+        return res.status(400).json({ success: false, message: 'معرف المتطوع مطلوب.' });
+      }
+
+      const assignment = await TasksEngineModel.assignVolunteerToTask(taskId, volunteer_id, currentUserId);
+      return res.status(200).json({ success: true, message: 'تم إسناد المهمة بنجاح', data: assignment });
+    } catch (error: any) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
   static async submitExcuse(req: Request, res: Response) {
     try {
       const userId = TasksEngineController.getUserId(req);
@@ -166,7 +190,6 @@ export class TasksEngineController {
     }
   }
 
-  // 🎯 الدالة المطلوبة لملف المسارات (تُحيل إلى removeVolunteerFromTask مباشرة)
   static async removeVolunteer(req: Request, res: Response) {
     return TasksEngineController.removeVolunteerFromTask(req, res);
   }

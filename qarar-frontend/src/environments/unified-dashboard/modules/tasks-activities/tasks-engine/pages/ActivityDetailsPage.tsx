@@ -1,410 +1,219 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTasksEngine } from '../hooks/useTasksEngine';
 import { TaskCard } from '../components/TaskCard';
-import { CreateCommitteeInput, CreateTaskInput, Task } from '../types/tasks-engine.types';
+import { Activity, Task } from '../types/tasks-engine.types';
 
-export const ActivityDetailsPage: React.FC = () => {
-  const { id: activityId } = useParams<{ id: string }>();
+export const TasksActivitiesPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // حماية استدعاء الـ Hook
+  // استدعاء محرك المهام مع الحماية
   const engine = useTasksEngine() || {};
   const {
-    currentActivity = null,
+    tasks = [],
+    activities = [],
     loading = false,
     error = null,
-    fetchActivityById,
-    addCommittee,
-    createTask,
+    fetchTasks,
+    fetchActivities,
     applyForTask = () => {},
     submitExcuse = () => {},
+    currentUserId,
   } = engine;
 
-  // حالات فتح/إغلاق النوافذ المنبثقة
-  const [showAddCommitteeModal, setShowAddCommitteeModal] = useState(false);
-  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
-  
-  // 🎯 متغير مؤسسي مستقل لحفظ معرف اللجنة النشطة لضمان عدم ضياعه
-  const [activeCommitteeId, setActiveCommitteeId] = useState<string | undefined>(undefined);
+  // التبويب النشط: my_tasks (مهامي) | market (سوق الفرص) | activities (الأنشطة)
+  const [activeTab, setActiveTab] = useState<'my_tasks' | 'market' | 'activities'>('my_tasks');
 
-  // نماذج الإدخال
-  const [committeeForm, setCommitteeForm] = useState<CreateCommitteeInput>({
-    committee_name: '',
-    name: '',
-    description: '',
-  });
-
-  const [taskForm, setTaskForm] = useState<Omit<CreateTaskInput, 'activity_id' | 'committee_id'>>({
-    title: '',
-    description: '',
-    due_time: '',
-    max_volunteers: 1,
-    priority: 'normal',
-    assignment_type: 'open_announcement',
-  });
-
-  // 🎯 طلب بيانات النشاط والمهام بشكل مستقل لضمان الحسم القطعي والالتفاف على مشكلة الباكيند
+  // جلب البيانات عند التحميل الأول
   useEffect(() => {
-    if (activityId) {
-      console.log('📡 [ActivityDetailsPage] جاري جلب النشاط والمهام للـ ID:', activityId);
-      
-      // 1. جلب النشاط عشان اللجان والعناوين تظهر
-      if (fetchActivityById) {
-        fetchActivityById(activityId);
-      }
-      
-      // 2. الحل الجذري: جلب المهام التابعة للنشاط مباشرة من جدول المهام الموحد
-      if (engine.fetchTasks) {
-        engine.fetchTasks({ activity_id: activityId });
-      }
-    }
-  }, [activityId, fetchActivityById, engine.fetchTasks]);
+    if (fetchTasks) fetchTasks();
+    if (fetchActivities) fetchActivities();
+  }, [fetchTasks, fetchActivities]);
 
-  // إنشاء لجنة جديدة
-  const handleCreateCommittee = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = committeeForm.committee_name || committeeForm.name || '';
-    if (!activityId || !name.trim() || !addCommittee) return;
+  // تصنيف المهام
+  const safeTasks: Task[] = Array.isArray(tasks) ? tasks : [];
+  const safeActivities: Activity[] = Array.isArray(activities) ? activities : [];
 
-    try {
-      const success = await addCommittee(activityId, committeeForm);
-      if (success) {
-        setShowAddCommitteeModal(false);
-        setCommitteeForm({ committee_name: '', name: '', description: '' });
-      }
-    } catch (err) {
-      console.error('❌ خطأ أثناء إضافة اللجنة:', err);
-    }
-  };
+  // 1. مهامي المسندة
+  const myTasks = safeTasks.filter((task) =>
+    task.assignments?.some((a) => a.volunteer_id === currentUserId)
+  );
 
-  // 🎯 إنشاء مهمة جديدة بربط حتمي ومضمون
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activityId || !taskForm.title.trim() || !taskForm.due_time || !createTask) return;
-
-    try {
-      // بناء الـ Payload المؤسسي الحتمي بدمج المعرفات مباشرة عند الإرسال
-      const taskPayload: CreateTaskInput = {
-        ...taskForm,
-        activity_id: activityId,
-        committee_id: activeCommitteeId ? activeCommitteeId : undefined,
-        max_volunteers: Number(taskForm.max_volunteers) || 1,
-        due_time: new Date(taskForm.due_time).toISOString(),
-      };
-
-      console.log('🚀 [ActivityDetailsPage] إرسال بيانات المهمة الحتمية:', taskPayload);
-
-      const success = await createTask(taskPayload);
-
-      if (success) {
-        setShowAddTaskModal(false);
-        setActiveCommitteeId(undefined); // تصفير معرف اللجنة بأمان
-        setTaskForm({
-          title: '',
-          description: '',
-          due_time: '',
-          max_volunteers: 1,
-          priority: 'normal',
-          assignment_type: 'open_announcement',
-        });
-      }
-    } catch (err) {
-      console.error('❌ خطأ أثناء إنشاء المهمة:', err);
-    }
-  };
-
-  // 🎯 التعديل الجوهري: القراءة مباشرة من مصفوفة المهام العامة المضمونة في الـ Hook
-  const allTasks: Task[] = Array.isArray(engine.tasks) ? engine.tasks : [];
-  const standaloneTasks = allTasks.filter((t: Task) => t && !t.committee_id);
-  const committees = Array.isArray(currentActivity?.committees) ? currentActivity.committees : [];
+  // 2. سوق الفرص (المهام المفتوحة للانضمام)
+  const openMarketTasks = safeTasks.filter(
+    (task) =>
+      task.assignment_type === 'open_announcement' &&
+      !task.assignments?.some((a) => a.volunteer_id === currentUserId)
+  );
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-8 dir-rtl" dir="rtl">
-      
-      {/* شريط التشخيص العلوي */}
-      <div className="bg-slate-900 text-emerald-400 p-3 rounded-xl text-xs font-mono flex flex-wrap justify-between items-center gap-2">
-        <div>🆔 المعرف: <span className="text-white">{activityId || 'غير محدد'}</span></div>
-        <div>⏳ التحميل: <span className="text-white">{loading ? 'جاري التحميل...' : 'مكتمل'}</span></div>
-        <div>📦 البيانات: <span className="text-white">{currentActivity ? 'متوفرة ✅' : 'غير متوفرة ❌'}</span></div>
-        {error && <div className="text-rose-400">🚨 الخطأ: {String(error)}</div>}
-      </div>
-
-      {/* زر العودة العلوي */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => navigate('/dashboard/tasks-activities')}
-          className="flex items-center gap-2 text-xs font-bold text-gray-600 hover:text-emerald-600 transition-colors"
-        >
-          <span>→</span> العودة إلى قائمة المهام والأنشطة
-        </button>
-      </div>
-
-      {/* هيدر النشاط */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4 mb-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl p-2 bg-emerald-50 rounded-xl">{currentActivity?.icon || '🎯'}</span>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {currentActivity?.title || (loading ? 'جاري تحميل العنوان...' : 'نشاط بدون عنوان')}
-              </h1>
-              <span className="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                {currentActivity?.status === 'active' ? 'نشط الآن' : (currentActivity?.status || 'غير محدد')}
-              </span>
-            </div>
-            {currentActivity?.description && (
-              <p className="text-gray-600 text-sm mt-2">{currentActivity.description}</p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setShowAddCommitteeModal(true)}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-bold transition-colors"
-            >
-              + إضافة لجنة جديدة
-            </button>
-            <button
-              onClick={() => {
-                setActiveCommitteeId(undefined); // مهمة عامة مباشرة
-                setShowAddTaskModal(true);
-              }}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
-            >
-              + إضافة مهمة للنشاط
-            </button>
-          </div>
+      {/* شريط العناوين الرئيسي */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border border-gray-200 rounded-3xl p-6 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="p-2 bg-red-50 text-[#7A1C2E] rounded-2xl text-2xl">📋</span>
+            مركز المهام والأنشطة البرامجية
+          </h1>
+          <p className="text-gray-500 text-xs mt-1">
+            متابعة المهام المباشرة، الانضمام لسوق الفرص التطوعية، وإدارة الأنشطة واللجان التنفيذية.
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs text-gray-500">
-          <div>🗓 البداية: {currentActivity?.start_date ? new Date(currentActivity.start_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
-          <div>🏁 النهاية: {currentActivity?.end_date ? new Date(currentActivity.end_date).toLocaleDateString('ar-SA') : 'غير محدد'}</div>
-          <div>👥 عدد اللجان: {committees.length}</div>
-          <div>📋 إجمالي المهام: {allTasks.length}</div>
+        {/* أزرار التبويبات */}
+        <div className="flex items-center gap-1.5 bg-gray-100/80 p-1.5 rounded-2xl w-full md:w-auto">
+          <button
+            onClick={() => setActiveTab('my_tasks')}
+            className={`flex-1 md:flex-none px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+              activeTab === 'my_tasks'
+                ? 'bg-[#7A1C2E] text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🎯 مهامي ({myTasks.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('market')}
+            className={`flex-1 md:flex-none px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+              activeTab === 'market'
+                ? 'bg-[#7A1C2E] text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🏪 سوق الفرص ({openMarketTasks.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('activities')}
+            className={`flex-1 md:flex-none px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+              activeTab === 'activities'
+                ? 'bg-[#7A1C2E] text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🎪 الأنشطة ({safeActivities.length})
+          </button>
         </div>
       </div>
 
-      {/* قسم اللجان */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          <span>🏛️</span> اللجان الفرعية للنشاط
-        </h2>
-
-        {committees.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {committees.map((committee) => {
-              if (!committee) return null;
-              const committeeTasks = allTasks.filter((t: Task) => t && t.committee_id === committee.id);
-              const committeeName = committee.committee_name || committee.name || 'لجنة بدون اسم';
-
-              return (
-                <div key={committee.id} className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-base font-bold text-gray-800">{committeeName}</h3>
-                      {committee.description && (
-                        <p className="text-xs text-gray-500 mt-1">{committee.description}</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => {
-                        setActiveCommitteeId(committee.id); // 🎯 قفل وحفظ المعرف حتمياً للجنة المحددة
-                        setShowAddTaskModal(true);
-                      }}
-                      className="px-3 py-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-xs rounded-xl text-gray-700 font-bold"
-                    >
-                      + إضافة مهمة للجنة
-                    </button>
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    {committeeTasks.length > 0 ? (
-                      committeeTasks.map((task: Task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onApply={applyForTask}
-                          onExcuse={submitExcuse}
-                        />
-                      ))
-                    ) : (
-                      <div className="text-center py-4 bg-white rounded-xl border border-dashed border-gray-200 text-xs text-gray-400">
-                        لا توجد مهام داخل هذه اللجنة حالياً
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-8 text-center text-gray-500 text-sm">
-            لم يتم إنشاء أي لجان لهذا النشاط بعد. يمكنك إضافة لجنة لتنظيم فريق العمل.
-          </div>
-        )}
-      </section>
-
-      {/* قسم المهام العامة */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          <span>📌</span> المهام العامة / المباشرة للنشاط
-        </h2>
-
-        {standaloneTasks.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {standaloneTasks.map((task: Task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onApply={applyForTask}
-                onExcuse={submitExcuse}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-8 text-center text-gray-500 text-sm">
-            لا توجد مهام عامة مباشرة للنشاط.
-          </div>
-        )}
-      </section>
-
-      {/* مودال إنشاء لجنة */}
-      {showAddCommitteeModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة لجنة فرعية جديدة</h3>
-            <form onSubmit={handleCreateCommittee} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">اسم اللجنة *</label>
-                <input
-                  type="text"
-                  required
-                  value={committeeForm.committee_name || committeeForm.name || ''}
-                  onChange={(e) => setCommitteeForm({ ...committeeForm, committee_name: e.target.value, name: e.target.value })}
-                  placeholder="مثال: لجنة التنظيم واللوجستيات"
-                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">وصف اللجنة</label>
-                <textarea
-                  rows={3}
-                  value={committeeForm.description || ''}
-                  onChange={(e) => setCommitteeForm({ ...committeeForm, description: e.target.value })}
-                  placeholder="مهام واختصاصات هذه اللجنة..."
-                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <button
-                  type="button"
-                  onClick={() => setShowAddCommitteeModal(false)}
-                  className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  {loading ? 'جاري الحفظ...' : 'حفظ اللجنة'}
-                </button>
-              </div>
-            </form>
-          </div>
+      {/* تنبيه الخطأ أو جاري التحميل */}
+      {error && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl font-bold">
+          🚨 تعذر جلب البيانات: {String(error)}
         </div>
       )}
 
-      {/* مودال إنشاء مهمة */}
-      {showAddTaskModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              {activeCommitteeId ? 'إضافة مهمة جديدة للجنة' : 'إضافة مهمة جديدة للنشاط'}
-            </h3>
-            <form onSubmit={handleCreateTask} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">عنوان المهمة *</label>
-                <input
-                  type="text"
-                  required
-                  value={taskForm.title}
-                  onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-                  placeholder="مثال: تجهيز الهدايا والتوزيع"
-                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">وصف المهمة</label>
-                <textarea
-                  rows={2}
-                  value={taskForm.description || ''}
-                  onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
-                  placeholder="تفاصيل المتطلبات أو رابط المجلدات..."
-                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ ووقت التسليم *</label>
-                  <input
-                    type="datetime-local"
-                    required
-                    value={taskForm.due_time}
-                    onChange={(e) => setTaskForm({ ...taskForm, due_time: e.target.value })}
-                    className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">عدد المتطوعين *</label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={taskForm.max_volunteers}
-                    onChange={(e) => setTaskForm({ ...taskForm, max_volunteers: Number(e.target.value) })}
-                    className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">الأولوية</label>
-                <select
-                  value={taskForm.priority}
-                  onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value as any })}
-                  className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                >
-                  <option value="normal">عادي</option>
-                  <option value="high">عالي الأهمية</option>
-                  <option value="urgent">عاجل طارئ</option>
-                  <option value="low">منخفض</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddTaskModal(false);
-                    setActiveCommitteeId(undefined);
-                  }}
-                  className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  {loading ? 'جاري الإنشـاء...' : 'إنشاء المهمة'}
-                </button>
-              </div>
-            </form>
-          </div>
+      {/* محتوى التبويبات */}
+      {loading ? (
+        <div className="text-center py-16 bg-white border border-gray-100 rounded-3xl text-gray-400 text-sm font-bold animate-pulse">
+          ⏳ جاري جلب المهام والأنشطة...
         </div>
+      ) : (
+        <>
+          {/* 1. تبويب مهامي */}
+          {activeTab === 'my_tasks' && (
+            <section className="space-y-4">
+              <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#7A1C2E]"></span>
+                المهام المسندة إليك حالياً
+              </h2>
+
+              {myTasks.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {myTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      currentUserId={currentUserId}
+                      onApply={applyForTask}
+                      onExcuse={submitExcuse}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white border border-dashed border-gray-300 rounded-3xl p-12 text-center text-gray-500 text-sm">
+                  لا توجد مهام مسندة إليك في الوقت الحالي. يمكنك استكشاف سوق الفرص المتاحة للتطوع!
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* 2. تبويب سوق الفرص */}
+          {activeTab === 'market' && (
+            <section className="space-y-4">
+              <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#7A1C2E]"></span>
+                الفرص التطوعية المتاحة للتقديم المباشر
+              </h2>
+
+              {openMarketTasks.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {openMarketTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      currentUserId={currentUserId}
+                      onApply={applyForTask}
+                      onExcuse={submitExcuse}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white border border-dashed border-gray-300 rounded-3xl p-12 text-center text-gray-500 text-sm">
+                  لا توجد فرص تطوعية عامة معلنة حالياً.
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* 3. تبويب الأنشطة البرامجية */}
+          {activeTab === 'activities' && (
+            <section className="space-y-4">
+              <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#7A1C2E]"></span>
+                قائمة الأنشطة والفعاليات
+              </h2>
+
+              {safeActivities.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {safeActivities.map((activity) => (
+                    <div
+                      key={activity.id}
+                      onClick={() => navigate(`/dashboard/activities/${activity.id}`)}
+                      className="bg-white border border-gray-200 rounded-3xl p-5 shadow-sm hover:shadow-md hover:border-[#7A1C2E]/40 transition-all cursor-pointer flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-2xl p-2 bg-red-50 text-[#7A1C2E] rounded-2xl">
+                            {activity.icon || '🎯'}
+                          </span>
+                          <span className="px-3 py-1 text-[11px] font-bold rounded-full bg-red-50 text-[#7A1C2E] border border-red-100">
+                            {activity.status === 'active' ? 'نشط' : activity.status || 'مخطط'}
+                          </span>
+                        </div>
+
+                        <h3 className="text-base font-bold text-gray-900 mb-2">{activity.title}</h3>
+                        {activity.description && (
+                          <p className="text-gray-500 text-xs line-clamp-2 leading-relaxed mb-4">
+                            {activity.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="border-t border-gray-100 pt-3 flex items-center justify-between text-xs text-[#7A1C2E] font-bold">
+                        <span>عرض التفاصيل واللجان</span>
+                        <span>←</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white border border-dashed border-gray-300 rounded-3xl p-12 text-center text-gray-500 text-sm">
+                  لم يتم إضافة أي أنشطة أو برامج بعد.
+                </div>
+              )}
+            </section>
+          )}
+        </>
       )}
     </div>
   );

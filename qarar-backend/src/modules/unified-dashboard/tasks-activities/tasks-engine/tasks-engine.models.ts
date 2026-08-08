@@ -75,7 +75,7 @@ export class TasksEngineModel {
     return res.rows;
   }
 
-  // 🎯 جلب تفاصيل نشاط محدد بالكامل (تصحيح آمن لمعاملات الـ UUID)
+  // 🎯 جلب تفاصيل نشاط محدد بالكامل
   static async getActivityByIdWithTree(activityId: string) {
     const query = `
       SELECT 
@@ -129,7 +129,7 @@ export class TasksEngineModel {
           ), '[]'
         ) as committees,
 
-        -- 🎯 المهام المباشرة التابعة للنشاط (استخدام IS NULL حصرياً لتجنب خطأ UUID)
+        -- 🎯 المهام المباشرة التابعة للنشاط
         COALESCE(
           (
             SELECT json_agg(
@@ -389,6 +389,56 @@ export class TasksEngineModel {
         `INSERT INTO task_activity_logs (task_id, performed_by, action_type, details)
          VALUES ($1, $2, 'assigned', 'انضمام ذاتي للمهمة عبر سوق الفرص')`,
         [taskId, volunteerId]
+      );
+
+      await client.query('COMMIT');
+      return assignRes.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  // 🎯 إضافة دالة الإسناد المباشر للمتطوع بواسطة المشرف
+  static async assignVolunteerToTask(taskId: string, targetVolunteerId: string, assignedByUserId: string) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // التحقق من وجود المهمة والطاقة الاستيعابية
+      const taskRes = await client.query(`SELECT max_volunteers, title FROM tasks WHERE id = $1`, [taskId]);
+      if (taskRes.rows.length === 0) throw new Error('المهمة غير موجودة.');
+
+      const currentAssigned = await client.query(
+        `SELECT COUNT(*) FROM task_assignments WHERE task_id = $1 AND status != 'excused'`,
+        [taskId]
+      );
+
+      if (parseInt(currentAssigned.rows[0].count) >= taskRes.rows[0].max_volunteers) {
+        throw new Error('عذراً، المهمة مكتملة العدد بالفعل.');
+      }
+
+      // التحقق مما إذا كان المتطوع مسنداً مسبقاً
+      const existingAssign = await client.query(
+        `SELECT id FROM task_assignments WHERE task_id = $1 AND volunteer_id = $2 AND status != 'excused'`,
+        [taskId, targetVolunteerId]
+      );
+      if (existingAssign.rows.length > 0) {
+        throw new Error('هذا المتطوع مسند مسبقاً لهذه المهمة.');
+      }
+
+      const assignRes = await client.query(
+        `INSERT INTO task_assignments (task_id, volunteer_id, assigned_by, assignment_mode, status)
+         VALUES ($1, $2, $3, 'direct', 'accepted') RETURNING *`,
+        [taskId, targetVolunteerId, assignedByUserId]
+      );
+
+      await client.query(
+        `INSERT INTO task_activity_logs (task_id, performed_by, action_type, details)
+         VALUES ($1, $2, 'assigned', $3)`,
+        [taskId, assignedByUserId, `تم إسناد المهمة للمتطوع ${targetVolunteerId} بواسطة المشرف`]
       );
 
       await client.query('COMMIT');

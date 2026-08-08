@@ -8,6 +8,13 @@ import {
   CreateCommitteeInput 
 } from '../types/tasks-engine.types';
 
+// واجهة تعريفية للمتطوع المسترجع في قائمة البحث (Autocomplete)
+export interface VolunteerSearchOption {
+  id: string; // uuid المقابل لـ user_id
+  full_name: string;
+  volunteer_number: string;
+}
+
 export const useTasksEngine = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -15,10 +22,14 @@ export const useTasksEngine = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // استخراج معرّفات المستخدم الحالي من التخزين المحلي
+  const currentUserId = localStorage.getItem('user_id') || localStorage.getItem('userId') || undefined;
+  const currentVolunteerNumber = localStorage.getItem('volunteer_number') || undefined;
+
   // 🎯 المسار الموحد والمطابق للباكيند بدقة
   const API_BASE = '/api/tasks-activities/tasks-engine';
 
-  // دالة جلب التوكن
+  // دالة جلب التوكن وترويسة الطلب
   const getAuthHeaders = () => {
     const token = localStorage.getItem('qarar_token') || localStorage.getItem('token');
     return {
@@ -38,6 +49,24 @@ export const useTasksEngine = () => {
     throw new Error(`خطأ في الاتصال بالسيرفر (${res.status})`);
   };
 
+  // 🔍 البحث الفوري عن المتطوعين بالاسم أو الرقم للـ Autocomplete Selector
+  const searchVolunteers = useCallback(async (query: string): Promise<VolunteerSearchOption[]> => {
+    if (!query.trim()) return [];
+    try {
+      const res = await fetch(`/api/volunteers/search?q=${encodeURIComponent(query)}`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const data = await parseResponse(res);
+        return Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+      }
+      return [];
+    } catch (err) {
+      console.error('Error searching volunteers:', err);
+      return [];
+    }
+  }, []);
+
   // 1. جلب الأنشطة البرامجية الرئيسية
   const fetchActivities = useCallback(async () => {
     try {
@@ -54,30 +83,25 @@ export const useTasksEngine = () => {
     }
   }, [API_BASE]);
 
-  // 2. جلب تفاصيل نشاط محدد مع تسجيل التفاصيل في الكونسول
+  // 2. جلب تفاصيل نشاط محدد
   const fetchActivityById = useCallback(async (activityId: string) => {
     if (!activityId) return null;
     
     setLoading(true);
     setError(null);
-    console.log(`📡 [useTasksEngine] جاري طلب النشاط بالمعرف: ${activityId}`);
 
     try {
       const res = await fetch(`${API_BASE}/activities/${activityId}`, {
         headers: getAuthHeaders(),
       });
 
-      console.log(`📥 [useTasksEngine] حالة استجابة النشاط (${activityId}):`, res.status, res.statusText);
-
       const data = await parseResponse(res);
-      console.log(`📦 [useTasksEngine] محتوى استجابة النشاط:`, data);
 
       if (res.ok && (data.success || data.id || data.data)) {
         const activityData = data.data !== undefined ? data.data : data;
         
         if (activityData) {
           setCurrentActivity(activityData);
-          console.log(`✅ [useTasksEngine] تم تحديث currentActivity بنجاح:`, activityData);
           return activityData as Activity;
         } else {
           setError('لم يتم العثور على بيانات هذا النشاط في قاعدة البيانات.');
@@ -175,13 +199,11 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 🎯 6. إنشاء مهمة (محدثة ومضمونة الربط والتتبع)
+  // 6. إنشاء مهمة
   const createTask = async (taskInput: CreateTaskInput): Promise<boolean> => {
     setLoading(true);
-    console.log('📡 [useTasksEngine] جاري إرسال طلب إنشاء المهمة:', taskInput);
 
     try {
-      // تنظيف البيانات لضمان عدم إهمال الحقول عند التحويل لـ JSON
       const cleanPayload = {
         ...taskInput,
         committee_id: taskInput.committee_id || null,
@@ -193,27 +215,20 @@ export const useTasksEngine = () => {
         body: JSON.stringify(cleanPayload),
       });
 
-      console.log(`📥 [useTasksEngine] حالة استجابة إنشاء المهمة:`, res.status);
       const data = await parseResponse(res);
-      console.log(`📦 [useTasksEngine] محتوى استجابة إنشاء المهمة:`, data);
 
       if (res.ok && (data.success || data.id || !data.error)) {
-        console.log('✅ [useTasksEngine] تم إنشاء المهمة بنجاح، جاري تحديث البيانات...');
-        
         if (taskInput.activity_id) {
           await fetchActivityById(taskInput.activity_id);
-        } else {
-          await fetchTasks({ is_standalone: true });
         }
+        await fetchTasks();
         return true;
       } else {
         const errMsg = data.error || data.message || 'فشلت عملية إنشاء المهمة';
-        console.error('❌ [useTasksEngine]', errMsg);
         alert(errMsg);
         return false;
       }
     } catch (err: any) {
-      console.error('❌ [useTasksEngine] خطأ في الشبكة/السيرفر أثناء إنشاء المهمة:', err);
       alert(err.message || 'تعذر إنشاء المهمة');
       return false;
     } finally {
@@ -235,9 +250,8 @@ export const useTasksEngine = () => {
       if (res.ok && (data.success || !data.error)) {
         if (activityId) {
           await fetchActivityById(activityId);
-        } else {
-          await fetchTasks({ is_standalone: true });
         }
+        await fetchTasks();
         return true;
       } else {
         alert(data.error || data.message || 'فشلت عملية تحديث المهمة');
@@ -262,6 +276,9 @@ export const useTasksEngine = () => {
       if (res.ok && (data.success || !data.error)) {
         alert('تم الانضمام للفرصة بنجاح!');
         await fetchTasks();
+        if (currentActivity?.id) {
+          await fetchActivityById(currentActivity.id);
+        }
         return true;
       } else {
         alert(data.error || data.message || 'تعذر التقديم');
@@ -273,7 +290,7 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 9. تقديم اعتذار
+  // 9. تقديم اعتذار عن مهمة
   const submitExcuse = async (assignmentId: string, reason: string): Promise<boolean> => {
     try {
       const res = await fetch(`${API_BASE}/assignments/${assignmentId}/excuse`, {
@@ -285,6 +302,9 @@ export const useTasksEngine = () => {
       if (res.ok && (data.success || !data.error)) {
         alert('تم تقديم الاعتذار بنجاح');
         await fetchTasks();
+        if (currentActivity?.id) {
+          await fetchActivityById(currentActivity.id);
+        }
         return true;
       } else {
         alert(data.error || data.message || 'تعذر تقديم الاعتذار');
@@ -296,7 +316,36 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 10. إزالة متطوع
+  // 10. إسناد متطوع يدوي لمهمة
+  const assignVolunteer = async (taskId: string, volunteerId: string): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${taskId}/assign`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ volunteer_id: volunteerId }),
+      });
+      const data = await parseResponse(res);
+      if (res.ok && (data.success || !data.error)) {
+        alert('تم إسناد المتطوع بنجاح');
+        await fetchTasks();
+        if (currentActivity?.id) {
+          await fetchActivityById(currentActivity.id);
+        }
+        return true;
+      } else {
+        alert(data.error || data.message || 'تعذر إسناد المتطوع');
+        return false;
+      }
+    } catch (err: any) {
+      alert(err.message || 'حدث خطأ أثناء الإسناد');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 11. إزالة متطوع
   const removeVolunteer = async (assignmentId: string, activityId?: string): Promise<boolean> => {
     setLoading(true);
     try {
@@ -309,9 +358,8 @@ export const useTasksEngine = () => {
         alert('تم إزالة المتطوع بنجاح');
         if (activityId) {
           await fetchActivityById(activityId);
-        } else {
-          await fetchTasks();
         }
+        await fetchTasks();
         return true;
       } else {
         alert(data.error || data.message || 'تعذر إزالة المتطوع');
@@ -325,7 +373,7 @@ export const useTasksEngine = () => {
     }
   };
 
-  // جلب البيانات الأولية مرة واحدة عند التهيئة بدون منافسة على حالة التحميل
+  // جلب البيانات الأولية عند التهيئة
   useEffect(() => {
     fetchTasks();
     fetchActivities();
@@ -337,6 +385,8 @@ export const useTasksEngine = () => {
     currentActivity,
     loading,
     error,
+    currentUserId,
+    currentVolunteerNumber,
     fetchTasks,
     fetchActivities,
     fetchActivityById,
@@ -346,6 +396,8 @@ export const useTasksEngine = () => {
     updateTask,
     applyForTask,
     submitExcuse,
+    assignVolunteer,
     removeVolunteer,
+    searchVolunteers,
   };
 };

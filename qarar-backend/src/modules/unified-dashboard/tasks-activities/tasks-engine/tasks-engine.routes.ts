@@ -10,8 +10,6 @@ router.use(requireAuth);
 // ==================== مسارات الأنشطة واللجان ====================
 router.post('/activities', TasksEngineController.createActivity);
 router.get('/activities', TasksEngineController.getActivities);
-
-// 🎯 المسار الذي كان مفقوداً وتسبب في خطأ 404 والطرد:
 router.get('/activities/:id', TasksEngineController.getActivityById);
 router.post('/activities/:id/committees', TasksEngineController.addCommittee);
 
@@ -22,6 +20,7 @@ router.patch('/tasks/:id', TasksEngineController.updateTask);
 
 // ==================== سوق الفرص، الاعتذارات، وإدارة التكليفات ====================
 router.post('/tasks/:id/apply', TasksEngineController.applyForTask);
+router.post('/tasks/:id/assign', TasksEngineController.assignVolunteer); // 🎯 إضافة مسار الإسناد المباشر للمتطوع
 router.post('/assignments/:assignmentId/excuse', TasksEngineController.submitExcuse);
 router.delete('/assignments/:assignmentId', TasksEngineController.removeVolunteer);
 
