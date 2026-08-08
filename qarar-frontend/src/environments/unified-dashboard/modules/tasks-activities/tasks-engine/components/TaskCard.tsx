@@ -21,6 +21,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const [showExcuseModal, setShowExcuseModal] = useState<boolean>(false);
   const [excuseReason, setExcuseReason] = useState<string>('');
+  
+  // 🎯 حالة التحكم بفتح التمرير الأفقي لعرض جميع المتطوعين
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   // تحديد أولوية المهمة
   const getPriorityBadge = (priority: string) => {
@@ -42,6 +45,10 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const assignedCount = activeAssignments.length;
   const maxVolunteers = task.max_volunteers || 1;
   const isFull = assignedCount >= maxVolunteers;
+
+  // تحديد الأشخاص المعروضين حسب حالة التوسع
+  const displayedAssignments = isExpanded ? activeAssignments : activeAssignments.slice(0, 5);
+  const remainingCount = activeAssignments.length - 5;
 
   const myAssignment = task.assignments?.find(
     (a: TaskAssignment) => a.volunteer_id === currentUserId && a.status !== 'excused'
@@ -127,19 +134,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      {/* 4. المتطوعون المنضمون (صورة + اسم أفرادي) + تاريخ التسليم */}
+      {/* 4. المتطوعون المنضمون (دعم التمرير الأفقي عند النقر على الزيادة) + تاريخ التسليم */}
       <div>
-        <div className="flex items-start justify-between pt-2 mb-4 border-t border-gray-100">
-          {/* عرض المتطوعين بشكل فردي (الصورة وأسفلها الاسم الأول) */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {activeAssignments.slice(0, 5).map((assign: any, idx: number) => {
+        <div className="flex items-start justify-between pt-2 mb-4 border-t border-gray-100 gap-2">
+          
+          {/* حاوية المتطوعين: تتحول للتمرير الأفقي overflow-x-auto فور التوسع */}
+          <div className={`flex items-center gap-3 transition-all duration-300 ${
+            isExpanded ? 'overflow-x-auto pb-2 max-w-[70%] scrollbar-thin' : 'flex-wrap max-w-[70%]'
+          }`}>
+            {displayedAssignments.map((assign: any, idx: number) => {
               const fullVolunteerName = 
                 assign.full_name || 
                 assign.volunteer_profile?.full_name || 
                 assign.volunteer_name || 
                 'متطوع';
 
-              // استخراج الاسم الأول فقط (مثلاً: "لؤي", "عمر")
               const firstName = fullVolunteerName.trim().split(' ')[0];
 
               const avatarUrl = 
@@ -151,7 +160,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               const firstLetter = firstName.charAt(0);
 
               return (
-                <div key={assign.id || assign.assignment_id || assign.volunteer_id || idx} className="flex flex-col items-center gap-1">
+                <div key={assign.id || assign.assignment_id || assign.volunteer_id || idx} className="flex flex-col items-center gap-1 flex-shrink-0">
                   {avatarUrl ? (
                     <img
                       src={avatarUrl}
@@ -168,7 +177,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                     </div>
                   )}
                   
-                  {/* الاسم الأول فقط أسفل كل صورة */}
                   <span className="text-[10px] font-bold text-gray-700 max-w-[55px] truncate text-center">
                     {firstName}
                   </span>
@@ -176,10 +184,26 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               );
             })}
 
-            {activeAssignments.length > 5 && (
-              <div className="flex flex-col items-center justify-center h-9 w-9 rounded-full bg-gray-100 text-gray-600 text-xs font-bold border border-gray-200">
-                +{activeAssignments.length - 5}
-              </div>
+            {/* 🎯 بطاقة +X: عند الضغط عليها يفعل التمرير الأفقي لجميع المتطوعين */}
+            {!isExpanded && remainingCount > 0 && (
+              <button
+                onClick={() => setIsExpanded(true)}
+                title="عرض باقي المتطوعين بالتمرير"
+                className="flex flex-col items-center justify-center h-9 w-9 rounded-full bg-[#7A1C2E]/10 hover:bg-[#7A1C2E]/20 text-[#7A1C2E] text-xs font-extrabold border border-[#7A1C2E]/20 transition-all shadow-sm flex-shrink-0"
+              >
+                +{remainingCount}
+              </button>
+            )}
+
+            {/* زر إعادة الإغلاق/الطي عند فتح قائمة طويلة */}
+            {isExpanded && remainingCount > 0 && (
+              <button
+                onClick={() => setIsExpanded(false)}
+                title="طَي القائمة"
+                className="text-[10px] text-gray-500 hover:text-[#7A1C2E] font-bold underline px-1 flex-shrink-0 self-center"
+              >
+                إغلاق
+              </button>
             )}
 
             {assignedCount === 0 && (
@@ -188,7 +212,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </div>
 
           {/* موعد التسليم */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium flex-shrink-0 pt-2">
             <Calendar className="w-3.5 h-3.5 text-gray-400" />
             <span>التسليم: <strong className="text-gray-700">{formattedDueDate}</strong></span>
           </div>
