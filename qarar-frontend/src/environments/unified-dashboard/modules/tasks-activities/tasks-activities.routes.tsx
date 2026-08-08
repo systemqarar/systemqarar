@@ -1,6 +1,6 @@
 import { RouteObject } from 'react-router-dom';
-import { TasksEnginePage } from './tasks-engine/pages/TasksEnginePage';
-import { ActivityDetailsPage } from './tasks-engine/pages/ActivityDetailsPage';
+import TasksEnginePage from './tasks-engine/pages/TasksEnginePage';
+import ActivityDetailsPage from './tasks-engine/pages/ActivityDetailsPage';
 
 export const tasksActivitiesRoutes: RouteObject[] = [
   {
@@ -12,3 +12,5 @@ export const tasksActivitiesRoutes: RouteObject[] = [
     element: <ActivityDetailsPage />,
   },
 ];
+
+export default tasksActivitiesRoutes;

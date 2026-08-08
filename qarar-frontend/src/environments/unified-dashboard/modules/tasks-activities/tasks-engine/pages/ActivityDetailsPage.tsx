@@ -7,7 +7,7 @@ import { Activity, Task } from '../types/tasks-engine.types';
 export const TasksActivitiesPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // استدعاء محرك المهام مع الحماية
+  // استدعاء محرك المهام مع الحماية المطلقة
   const engine = useTasksEngine() || {};
   const {
     tasks = [],
@@ -16,9 +16,9 @@ export const TasksActivitiesPage: React.FC = () => {
     error = null,
     fetchTasks,
     fetchActivities,
-    applyForTask = () => {},
-    submitExcuse = () => {},
-    currentUserId,
+    applyForTask = async () => false,
+    submitExcuse = async () => false,
+    currentUserId = undefined,
   } = engine;
 
   // التبويب النشط: my_tasks (مهامي) | market (سوق الفرص) | activities (الأنشطة)
@@ -30,7 +30,7 @@ export const TasksActivitiesPage: React.FC = () => {
     if (fetchActivities) fetchActivities();
   }, [fetchTasks, fetchActivities]);
 
-  // تصنيف المهام
+  // تصنيف المهام مع الحماية من القيم الفارغة
   const safeTasks: Task[] = Array.isArray(tasks) ? tasks : [];
   const safeActivities: Activity[] = Array.isArray(activities) ? activities : [];
 
@@ -63,6 +63,7 @@ export const TasksActivitiesPage: React.FC = () => {
         {/* أزرار التبويبات */}
         <div className="flex items-center gap-1.5 bg-gray-100/80 p-1.5 rounded-2xl w-full md:w-auto">
           <button
+            type="button"
             onClick={() => setActiveTab('my_tasks')}
             className={`flex-1 md:flex-none px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
               activeTab === 'my_tasks'
@@ -73,6 +74,7 @@ export const TasksActivitiesPage: React.FC = () => {
             🎯 مهامي ({myTasks.length})
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('market')}
             className={`flex-1 md:flex-none px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
               activeTab === 'market'
@@ -83,6 +85,7 @@ export const TasksActivitiesPage: React.FC = () => {
             🏪 سوق الفرص ({openMarketTasks.length})
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('activities')}
             className={`flex-1 md:flex-none px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 ${
               activeTab === 'activities'
@@ -178,7 +181,7 @@ export const TasksActivitiesPage: React.FC = () => {
                   {safeActivities.map((activity) => (
                     <div
                       key={activity.id}
-                      onClick={() => navigate(`/dashboard/activities/${activity.id}`)}
+                      onClick={() => navigate(`/dashboard/tasks-activities/activities/${activity.id}`)}
                       className="bg-white border border-gray-200 rounded-3xl p-5 shadow-sm hover:shadow-md hover:border-[#7A1C2E]/40 transition-all cursor-pointer flex flex-col justify-between"
                     >
                       <div>
@@ -218,3 +221,5 @@ export const TasksActivitiesPage: React.FC = () => {
     </div>
   );
 };
+
+export default TasksActivitiesPage;

@@ -15,8 +15,8 @@ export const TasksEnginePage: React.FC = () => {
     error = null,
     createActivity,
     createTask,
-    applyForTask = () => {},
-    submitExcuse = () => {},
+    applyForTask = async () => false,
+    submitExcuse = async () => false,
   } = engine;
 
   // التبويب الحالي: الأنشطة البرامجية أم المهام المستقلة
@@ -113,12 +113,14 @@ export const TasksEnginePage: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-3">
           <button
+            type="button"
             onClick={() => setShowTaskModal(true)}
             className="px-4 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl text-xs font-bold transition-colors"
           >
             + إضافة مهمة مستقلة
           </button>
           <button
+            type="button"
             onClick={() => setShowActivityModal(true)}
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
           >
@@ -130,6 +132,7 @@ export const TasksEnginePage: React.FC = () => {
       {/* شريط التبويبات */}
       <div className="flex border-b border-gray-200">
         <button
+          type="button"
           onClick={() => setActiveTab('activities')}
           className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${
             activeTab === 'activities'
@@ -140,6 +143,7 @@ export const TasksEnginePage: React.FC = () => {
           🎯 الأنشطة البرامجية ({safeActivities.length})
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('standalone_tasks')}
           className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${
             activeTab === 'standalone_tasks'
@@ -168,7 +172,6 @@ export const TasksEnginePage: React.FC = () => {
               {safeActivities.map((activity: Activity) => (
                 <div
                   key={activity.id}
-                  /* 🎯 المسار المصلح بالكامل مع سابقة /dashboard */
                   onClick={() => navigate(`/dashboard/tasks-activities/activities/${activity.id}`)}
                   className="bg-white border border-gray-200 hover:border-emerald-500 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group"
                 >
@@ -176,7 +179,7 @@ export const TasksEnginePage: React.FC = () => {
                     <div className="flex justify-between items-start mb-3">
                       <span className="text-3xl p-2 bg-emerald-50 rounded-xl">{activity.icon || '🎯'}</span>
                       <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700">
-                        {activity.status === 'active' ? 'نشط' : activity.status}
+                        {activity.status === 'active' ? 'نشط' : activity.status || 'مخطط'}
                       </span>
                     </div>
                     <h3 className="text-base font-bold text-gray-900 group-hover:text-emerald-600 transition-colors mb-2">
@@ -241,7 +244,7 @@ export const TasksEnginePage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  value={activityForm.title}
+                  value={activityForm.title ?? ""}
                   onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
                   placeholder="مثال: ملتقى المتطوعين السنوي"
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -251,7 +254,7 @@ export const TasksEnginePage: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-700 mb-1">وصف النشاط</label>
                 <textarea
                   rows={2}
-                  value={activityForm.description || ''}
+                  value={activityForm.description ?? ""}
                   onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
                   placeholder="وصف المختصر وأهداف النشاط..."
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -263,7 +266,7 @@ export const TasksEnginePage: React.FC = () => {
                   <input
                     type="date"
                     required
-                    value={activityForm.start_date}
+                    value={activityForm.start_date ?? ""}
                     onChange={(e) => setActivityForm({ ...activityForm, start_date: e.target.value })}
                     className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
@@ -273,7 +276,7 @@ export const TasksEnginePage: React.FC = () => {
                   <input
                     type="date"
                     required
-                    value={activityForm.end_date}
+                    value={activityForm.end_date ?? ""}
                     onChange={(e) => setActivityForm({ ...activityForm, end_date: e.target.value })}
                     className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
@@ -310,7 +313,7 @@ export const TasksEnginePage: React.FC = () => {
                 <input
                   type="text"
                   required
-                  value={taskForm.title}
+                  value={taskForm.title ?? ""}
                   onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
                   placeholder="مثال: إعداد تقرير المصروفات"
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -320,7 +323,7 @@ export const TasksEnginePage: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-700 mb-1">التفاصيل ومتطلبات المهمة</label>
                 <textarea
                   rows={2}
-                  value={taskForm.description || ''}
+                  value={taskForm.description ?? ""}
                   onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
                   placeholder="شرح المطلوب تنفيذه..."
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -332,7 +335,7 @@ export const TasksEnginePage: React.FC = () => {
                   <input
                     type="datetime-local"
                     required
-                    value={taskForm.due_time}
+                    value={taskForm.due_time ?? ""}
                     onChange={(e) => setTaskForm({ ...taskForm, due_time: e.target.value })}
                     className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
@@ -343,7 +346,7 @@ export const TasksEnginePage: React.FC = () => {
                     type="number"
                     min={1}
                     required
-                    value={taskForm.max_volunteers}
+                    value={taskForm.max_volunteers ?? 1}
                     onChange={(e) => setTaskForm({ ...taskForm, max_volunteers: Number(e.target.value) })}
                     className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
@@ -352,7 +355,7 @@ export const TasksEnginePage: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">الأولوية</label>
                 <select
-                  value={taskForm.priority}
+                  value={taskForm.priority ?? "normal"}
                   onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value as any })}
                   className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                 >
@@ -385,3 +388,5 @@ export const TasksEnginePage: React.FC = () => {
     </div>
   );
 };
+
+export default TasksEnginePage;
