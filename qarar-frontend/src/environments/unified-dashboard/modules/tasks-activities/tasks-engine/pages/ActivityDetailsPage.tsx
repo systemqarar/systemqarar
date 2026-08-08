@@ -15,11 +15,14 @@ export const ActivityDetailsPage: React.FC = () => {
     loading = false,
     error = null,
     fetchActivityById,
+    fetchTasks,
     addCommittee,
     createTask,
-    applyForTask = () => {},
-    submitExcuse = () => {},
+    applyForTask,
+    submitExcuse,
+    removeVolunteer,
     currentUserId,
+    currentVolunteerNumber,
   } = engine as any;
 
   // حالات التحكم بالمودالات
@@ -46,20 +49,20 @@ export const ActivityDetailsPage: React.FC = () => {
     assignment_type: 'open_announcement',
   });
 
+  // جلب بيانات النشاط والمهام عند تحميل الصفحة
   useEffect(() => {
     if (activityId) {
       if (fetchActivityById) fetchActivityById(activityId);
-      if (engine.fetchTasks) engine.fetchTasks({ activity_id: activityId });
+      if (fetchTasks) fetchTasks({ activity_id: activityId });
     }
-  }, [activityId, fetchActivityById, engine.fetchTasks]);
+  }, [activityId, fetchActivityById, fetchTasks]);
 
-  // استخدام Committee المستوردة رسمياً من ملف الأنواع الموحد
   const committees: Committee[] = Array.isArray(currentActivity?.committees)
     ? currentActivity.committees
     : [];
   const allTasks: Task[] = Array.isArray(engine.tasks) ? engine.tasks : [];
 
-  // تحديد أول لجنة تلقائياً عند تحميل البيانات لأول مرة
+  // تحديد أول لجنة تلقائياً
   useEffect(() => {
     if (committees.length > 0 && !selectedCommitteeId) {
       setSelectedCommitteeId(committees[0].id);
@@ -76,6 +79,7 @@ export const ActivityDetailsPage: React.FC = () => {
     if (success) {
       setShowAddCommitteeModal(false);
       setCommitteeForm({ committee_name: '', name: '', description: '' });
+      if (fetchActivityById) fetchActivityById(activityId);
     }
   };
 
@@ -103,6 +107,37 @@ export const ActivityDetailsPage: React.FC = () => {
         priority: 'normal',
         assignment_type: 'open_announcement',
       });
+      if (fetchActivityById) fetchActivityById(activityId);
+    }
+  };
+
+  // التقديم على المهمة مع إعادة تنشيط الشاشة
+  const handleApply = async (taskId: string) => {
+    if (applyForTask) {
+      const ok = await applyForTask(taskId, activityId);
+      if (ok && activityId && fetchActivityById) {
+        fetchActivityById(activityId);
+      }
+    }
+  };
+
+  // تقديم الاعتذار مع إعادة تنشيط الشاشة
+  const handleExcuse = async (assignmentId: string, reason: string) => {
+    if (submitExcuse) {
+      const ok = await submitExcuse(assignmentId, reason, activityId);
+      if (ok && activityId && fetchActivityById) {
+        fetchActivityById(activityId);
+      }
+    }
+  };
+
+  // إزالة متطوع مع إعادة تنشيط الشاشة
+  const handleRemoveVolunteer = async (assignmentId: string) => {
+    if (removeVolunteer) {
+      const ok = await removeVolunteer(assignmentId, activityId);
+      if (ok && activityId && fetchActivityById) {
+        fetchActivityById(activityId);
+      }
     }
   };
 
@@ -225,8 +260,11 @@ export const ActivityDetailsPage: React.FC = () => {
                         task={task}
                         committeeName={activeCommittee.committee_name || activeCommittee.name}
                         currentUserId={currentUserId}
-                        onApply={applyForTask}
-                        onExcuse={submitExcuse}
+                        currentVolunteerNumber={currentVolunteerNumber}
+                        isCreatorOrAdmin={true}
+                        onApply={handleApply}
+                        onExcuse={handleExcuse}
+                        onRemoveVolunteer={handleRemoveVolunteer}
                         onAssignVolunteer={() => setSelectedTaskForAssign(task)}
                       />
                     ))}

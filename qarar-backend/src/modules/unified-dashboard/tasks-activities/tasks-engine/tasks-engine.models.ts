@@ -1,5 +1,5 @@
 import db from '../../../../config/db';
-import { CreateActivityDTO, CreateTaskDTO, Task, TaskAssignment } from './tasks-engine.types';
+import { CreateActivityDTO, CreateTaskDTO } from './tasks-engine.types';
 
 const pool = db.pool;
 
@@ -98,13 +98,12 @@ export class TasksEngineModel {
     return res.rows;
   }
 
-  // 🎯 جلب تفاصيل نشاط محدد بالكامل (تم إضافة JOIN لجلب اسم وصورة المتطوع)
+  // 🎯 جلب تفاصيل نشاط محدد بالكامل مع تضمين excuse_reason و id المعياري
   static async getActivityByIdWithTree(activityId: string) {
     const query = `
       SELECT 
         a.*,
         u.username as creator_name,
-        -- اللجان التابعة للنشاط مع قادتها ومهامهم
         COALESCE(
           (
             SELECT json_agg(
@@ -129,16 +128,19 @@ export class TasksEngineModel {
                         'priority', t.priority,
                         'status', t.status,
                         'due_time', t.due_time,
+                        'created_by', t.created_by,
                         'assignments', COALESCE(
                           (
                             SELECT json_agg(
                               json_build_object(
+                                'id', ta.id,
                                 'assignment_id', ta.id,
                                 'volunteer_id', ta.volunteer_id,
                                 'full_name', COALESCE(vp.full_name, u_vol.username, 'متطوع'),
                                 'volunteer_number', COALESCE(vp.volunteer_number, u_vol.volunteer_number, ''),
                                 'avatar_url', COALESCE(vp.photo_url, vp.secure_photo_url),
                                 'status', ta.status,
+                                'excuse_reason', ta.excuse_reason,
                                 'assigned_at', ta.assigned_at
                               )
                             ) 
@@ -159,7 +161,6 @@ export class TasksEngineModel {
           ), '[]'
         ) as committees,
 
-        -- 🎯 المهام المباشرة التابعة للنشاط
         COALESCE(
           (
             SELECT json_agg(
@@ -175,16 +176,19 @@ export class TasksEngineModel {
                 'priority', dt.priority,
                 'status', dt.status,
                 'due_time', dt.due_time,
+                'created_by', dt.created_by,
                 'assignments', COALESCE(
                   (
                     SELECT json_agg(
                       json_build_object(
+                        'id', ta.id,
                         'assignment_id', ta.id,
                         'volunteer_id', ta.volunteer_id,
                         'full_name', COALESCE(vp.full_name, u_vol.username, 'متطوع'),
                         'volunteer_number', COALESCE(vp.volunteer_number, u_vol.volunteer_number, ''),
                         'avatar_url', COALESCE(vp.photo_url, vp.secure_photo_url),
                         'status', ta.status,
+                        'excuse_reason', ta.excuse_reason,
                         'assigned_at', ta.assigned_at
                       )
                     ) 
@@ -269,8 +273,8 @@ export class TasksEngineModel {
       if (data.assignee_ids && data.assignee_ids.length > 0) {
         for (const volId of data.assignee_ids) {
           await client.query(
-            `INSERT INTO task_assignments (task_id, volunteer_id, assigned_by, assignment_mode)
-             VALUES ($1, $2, $3, 'direct')`,
+            `INSERT INTO task_assignments (task_id, volunteer_id, assigned_by, assignment_mode, status)
+             VALUES ($1, $2, $3, 'direct', 'accepted')`,
             [task.id, volId, userId]
           );
         }
@@ -286,7 +290,7 @@ export class TasksEngineModel {
     }
   }
 
-  // 🎯 جلب قائمة المهام مع تفاصيل المتطوعين
+  // 🎯 جلب المهام مع إرجاع excuse_reason والأسماء الكاملة
   static async getTasks(filters: { activity_id?: string; committee_id?: string; is_standalone?: boolean; status?: string }) {
     let query = `
       SELECT 
@@ -295,12 +299,14 @@ export class TasksEngineModel {
         COALESCE(
           json_agg(
             DISTINCT jsonb_build_object(
+              'id', ta.id,
               'assignment_id', ta.id,
               'volunteer_id', ta.volunteer_id,
               'full_name', COALESCE(vp.full_name, u_vol.username, 'متطوع'),
               'volunteer_number', COALESCE(vp.volunteer_number, u_vol.volunteer_number, ''),
               'avatar_url', COALESCE(vp.photo_url, vp.secure_photo_url),
               'status', ta.status,
+              'excuse_reason', ta.excuse_reason,
               'assigned_at', ta.assigned_at
             )
           ) FILTER (WHERE ta.id IS NOT NULL), '[]'
@@ -457,20 +463,23 @@ export class TasksEngineModel {
     }
   }
 
+  // 🎯 تصحيح التحديث لتقديم الاعتذار بشرط مرن لمالك التكليف
   static async submitExcuse(assignmentId: string, volunteerId: string, reason: string) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
+      // تحديث الحالة بحسب معرف التعيين والتحقق من هوية المتطوع
       const assignRes = await client.query(
         `UPDATE task_assignments 
          SET status = 'excused', excuse_reason = $1 
-         WHERE id = $2 AND volunteer_id = $3 RETURNING *`,
+         WHERE id = $2 AND (volunteer_id = $3 OR volunteer_id IN (SELECT user_id FROM volunteer_profiles WHERE id = $3))
+         RETURNING *`,
         [reason, assignmentId, volunteerId]
       );
 
       if (assignRes.rowCount === 0) {
-        throw new Error('لم يتم العثور على التكليف، أو لا تملك الصلاحية.');
+        throw new Error('لم يتم العثور على التكليف، أو لا تملك صلاحية الاعتذار لهذا التكليف.');
       }
 
       const taskAssignment = assignRes.rows[0];

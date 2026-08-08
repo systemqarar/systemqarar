@@ -279,8 +279,9 @@ export const useTasksEngine = () => {
 
       const data = await parseResponse(res);
       if (res.ok && (data.success || !data.error)) {
-        if (activityId) {
-          await fetchActivityById(activityId);
+        const targetActId = activityId || currentActivity?.id;
+        if (targetActId) {
+          await fetchActivityById(targetActId);
         }
         await fetchTasks();
         return true;
@@ -298,7 +299,7 @@ export const useTasksEngine = () => {
   };
 
   // 8. التقديم على فرصة
-  const applyForTask = async (taskId: string): Promise<boolean> => {
+  const applyForTask = async (taskId: string, activityId?: string): Promise<boolean> => {
     try {
       const res = await fetch(`${API_BASE}/tasks/${taskId}/apply`, {
         method: 'POST',
@@ -308,8 +309,9 @@ export const useTasksEngine = () => {
       if (res.ok && (data.success || !data.error)) {
         alert('تم الانضمام للفرصة بنجاح!');
         await fetchTasks();
-        if (currentActivity?.id) {
-          await fetchActivityById(currentActivity.id);
+        const targetActId = activityId || currentActivity?.id;
+        if (targetActId) {
+          await fetchActivityById(targetActId);
         }
         return true;
       } else {
@@ -323,20 +325,29 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 9. تقديم اعتذار عن مهمة
-  const submitExcuse = async (assignmentId: string, reason: string): Promise<boolean> => {
+  // 9. تقديم اعتذار عن مهمة (تحديث لمرونة المسميات)
+  const submitExcuse = async (assignmentId: string, reason: string, activityId?: string): Promise<boolean> => {
+    if (!assignmentId) {
+      alert('عذراً، معرّف التكليف غير متوفر.');
+      return false;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/assignments/${assignmentId}/excuse`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ excuse_reason: reason }),
+        body: JSON.stringify({ 
+          excuse_reason: reason,
+          reason: reason 
+        }),
       });
       const data = await parseResponse(res);
       if (res.ok && (data.success || !data.error)) {
         alert('تم تقديم الاعتذار بنجاح');
         await fetchTasks();
-        if (currentActivity?.id) {
-          await fetchActivityById(currentActivity.id);
+        const targetActId = activityId || currentActivity?.id;
+        if (targetActId) {
+          await fetchActivityById(targetActId);
         }
         return true;
       } else {
@@ -351,7 +362,7 @@ export const useTasksEngine = () => {
   };
 
   // 10. إسناد متطوع يدوي لمهمة (فردي)
-  const assignVolunteer = async (taskId: string, volunteerId: string): Promise<boolean> => {
+  const assignVolunteer = async (taskId: string, volunteerId: string, activityId?: string): Promise<boolean> => {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/tasks/${taskId}/assign`, {
@@ -363,8 +374,9 @@ export const useTasksEngine = () => {
       if (res.ok && (data.success || !data.error)) {
         alert('تم إسناد المتطوع بنجاح');
         await fetchTasks();
-        if (currentActivity?.id) {
-          await fetchActivityById(currentActivity.id);
+        const targetActId = activityId || currentActivity?.id;
+        if (targetActId) {
+          await fetchActivityById(targetActId);
         }
         return true;
       } else {
@@ -381,7 +393,7 @@ export const useTasksEngine = () => {
   };
 
   // 11. إسناد مجموعة متطوعين لمهمة (جماعي)
-  const assignVolunteers = async (taskId: string, volunteerIds: string[]): Promise<boolean> => {
+  const assignVolunteers = async (taskId: string, volunteerIds: string[], activityId?: string): Promise<boolean> => {
     if (!volunteerIds || volunteerIds.length === 0) return false;
     setLoading(true);
     try {
@@ -397,8 +409,9 @@ export const useTasksEngine = () => {
       if (res.ok && (data.success || !data.error)) {
         alert('تم إسناد المتطوعين بنجاح');
         await fetchTasks();
-        if (currentActivity?.id) {
-          await fetchActivityById(currentActivity.id);
+        const targetActId = activityId || currentActivity?.id;
+        if (targetActId) {
+          await fetchActivityById(targetActId);
         }
         return true;
       } else {
@@ -425,8 +438,9 @@ export const useTasksEngine = () => {
       const data = await parseResponse(res);
       if (res.ok && (data.success || !data.error)) {
         alert('تم إزالة المتطوع بنجاح');
-        if (activityId) {
-          await fetchActivityById(activityId);
+        const targetActId = activityId || currentActivity?.id;
+        if (targetActId) {
+          await fetchActivityById(targetActId);
         }
         await fetchTasks();
         return true;

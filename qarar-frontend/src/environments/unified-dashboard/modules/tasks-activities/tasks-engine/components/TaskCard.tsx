@@ -5,6 +5,7 @@ import { UserPlus, Calendar, Users, CheckCircle2, User, X, MessageSquareWarning 
 interface TaskCardProps {
   task: Task;
   currentUserId?: string;
+  currentVolunteerNumber?: string;
   committeeName?: string;
   isCreatorOrAdmin?: boolean; // هل المستخدم الحالي هو منشئ المهمة/مشرف؟
   onApply?: (taskId: string) => void;
@@ -16,6 +17,7 @@ interface TaskCardProps {
 export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   currentUserId,
+  currentVolunteerNumber,
   committeeName,
   isCreatorOrAdmin = false,
   onApply,
@@ -47,7 +49,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     (a: TaskAssignment) => a.status !== 'excused'
   );
 
-  // المتطوعون المعتذرون (للمشرف فقط)
+  // المتطوعون المعتذرون (للمشرف/المنشئ فقط)
   const excusedAssignments: TaskAssignment[] = (task.assignments || []).filter(
     (a: TaskAssignment) => a.status === 'excused'
   );
@@ -59,9 +61,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const displayedAssignments = isExpanded ? activeAssignments : activeAssignments.slice(0, 5);
   const remainingCount = activeAssignments.length - 5;
 
-  const myAssignment = task.assignments?.find(
-    (a: TaskAssignment) => a.volunteer_id === currentUserId && a.status !== 'excused'
-  );
+  // مطابقة هوية المتطوع الحالي بشكل دقيق مرن
+  const myAssignment = (task.assignments || []).find((a: any) => {
+    if (a.status === 'excused') return false;
+    const volId = String(a.volunteer_id || a.user_id || '');
+    const targetUserId = String(currentUserId || '');
+    const volNum = String(a.volunteer_number || '');
+    const targetVolNum = String(currentVolunteerNumber || '');
+
+    return (
+      (targetUserId && volId === targetUserId) ||
+      (targetVolNum && volNum === targetVolNum)
+    );
+  });
+
   const isAssignedToMe = Boolean(myAssignment);
 
   const handleExcuseSubmit = () => {
@@ -95,18 +108,18 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               </span>
             ) : (
               <span className="text-xs font-bold bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
-                مهمة لجنة
+                مهمة
               </span>
             )}
             {getPriorityBadge(task.priority)}
           </div>
 
-          {/* زر إدارة/إضافة المتطوعين لمنشئ المهمة */}
+          {/* زر إدارة/إضافة المتطوعين لمنشئ المهمة أو المشرف */}
           {(onAssignVolunteer || isCreatorOrAdmin) && (
             <button
               onClick={() => {
                 if (onAssignVolunteer) onAssignVolunteer(task.id);
-                else setShowManageModal(true);
+                setShowManageModal(true);
               }}
               title="إدارة وتنسيق المتطوعين"
               className="p-2.5 text-[#7A1C2E] hover:bg-red-50 rounded-2xl transition-all border border-red-100 flex items-center gap-1.5 text-xs font-bold shadow-sm relative"
@@ -115,7 +128,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               <span className="hidden sm:inline">إدارة المتطوعين</span>
               {/* شارة تنبيه إذا كان هناك اعتذارات جديدة للمشرف */}
               {isCreatorOrAdmin && excusedAssignments.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full ring-2 ring-white animate-pulse" />
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
+                  {excusedAssignments.length}
+                </span>
               )}
             </button>
           )}
@@ -339,7 +354,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               </div>
             </div>
 
-            {/* سجل الاعتذارات الخاص بالمشرف فقط */}
+            {/* سجل الاعتذارات الخاص بالمشرف/المنشئ فقط */}
             {excusedAssignments.length > 0 && (
               <div className="pt-4 border-t border-gray-100">
                 <h5 className="text-xs font-bold text-rose-700 mb-3 flex items-center gap-1.5">
