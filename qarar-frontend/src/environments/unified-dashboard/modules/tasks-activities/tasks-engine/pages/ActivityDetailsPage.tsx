@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTasksEngine } from '../hooks/useTasksEngine';
 import { TaskCard } from '../components/TaskCard';
-import { AssignVolunteerModal } from '../components/AssignVolunteerModal';
+import { AssignVolunteersModal } from '../components/AssignVolunteersModal';
 import { CreateCommitteeInput, CreateTaskInput, Task } from '../types/tasks-engine.types';
 
 export const ActivityDetailsPage: React.FC = () => {
@@ -334,15 +334,19 @@ export const ActivityDetailsPage: React.FC = () => {
         </div>
       )}
 
-      {/* مودال إسناد متطوع للمهمة */}
-      <AssignVolunteerModal
+      {/* مودال إسناد متطوعين للمهمة (التعديل الجديد) */}
+      <AssignVolunteersModal
         task={selectedTaskForAssign}
         isOpen={!!selectedTaskForAssign}
         onClose={() => setSelectedTaskForAssign(null)}
+        onSuccess={() => {
+          if (activityId && fetchActivityById) {
+            fetchActivityById(activityId);
+          }
+        }}
       />
     </div>
   );
 };
 
-// حل مشكلة الاستيراد المباشر والافتراضي (TS2613)
 export default ActivityDetailsPage;

@@ -316,7 +316,7 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 10. إسناد متطوع يدوي لمهمة
+  // 10. إسناد متطوع يدوي لمهمة (فردي)
   const assignVolunteer = async (taskId: string, volunteerId: string): Promise<boolean> => {
     setLoading(true);
     try {
@@ -345,7 +345,40 @@ export const useTasksEngine = () => {
     }
   };
 
-  // 11. إزالة متطوع
+  // 11. إسناد مجموعة متطوعين لمهمة (جماعي)
+  const assignVolunteers = async (taskId: string, volunteerIds: string[]): Promise<boolean> => {
+    if (!volunteerIds || volunteerIds.length === 0) return false;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/tasks/${taskId}/assign`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ 
+          volunteer_ids: volunteerIds,
+          volunteer_id: volunteerIds[0]
+        }),
+      });
+      const data = await parseResponse(res);
+      if (res.ok && (data.success || !data.error)) {
+        alert('تم إسناد المتطوعين بنجاح');
+        await fetchTasks();
+        if (currentActivity?.id) {
+          await fetchActivityById(currentActivity.id);
+        }
+        return true;
+      } else {
+        alert(data.error || data.message || 'تعذر إسناد المتطوعين');
+        return false;
+      }
+    } catch (err: any) {
+      alert(err.message || 'حدث خطأ أثناء إسناد المتطوعين');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 12. إزالة متطوع
   const removeVolunteer = async (assignmentId: string, activityId?: string): Promise<boolean> => {
     setLoading(true);
     try {
@@ -397,6 +430,7 @@ export const useTasksEngine = () => {
     applyForTask,
     submitExcuse,
     assignVolunteer,
+    assignVolunteers,
     removeVolunteer,
     searchVolunteers,
   };

@@ -2,39 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { useTasksEngine, VolunteerSearchOption } from '../hooks/useTasksEngine';
 import { Task } from '../types/tasks-engine.types';
 
-interface AssignVolunteerModalProps {
+interface AssignVolunteersModalProps {
   task: Task | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
-export const AssignVolunteerModal: React.FC<AssignVolunteerModalProps> = ({
+export const AssignVolunteersModal: React.FC<AssignVolunteersModalProps> = ({
   task,
   isOpen,
   onClose,
   onSuccess,
 }) => {
   const engine = useTasksEngine() || {};
-  const { searchVolunteers, assignVolunteer, loading } = engine;
+  const { searchVolunteers, assignVolunteers, loading } = engine;
 
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<VolunteerSearchOption[]>([]);
-  const [selectedVolunteer, setSelectedVolunteer] = useState<VolunteerSearchOption | null>(null);
+  const [searchResults, setSearchResults] = useState<VolunteerSearchOption[]>([]);
+  const [selectedVolunteers, setSelectedVolunteers] = useState<VolunteerSearchOption[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // بحث فوري (Debounced Search)
+  // حساب المقاعد المتاحة بناءً على الحد الأقصى والمُسند حالياً
+  const maxAllowed = task?.max_volunteers || 1;
+  const currentAssignedCount = task?.assigned_count || 0;
+  const remainingSlots = Math.max(0, maxAllowed - currentAssignedCount);
+
+  // البحث الفوري مع التوقف المؤقت (Debounce 300ms)
   useEffect(() => {
     if (!query.trim() || !searchVolunteers) {
-      setResults([]);
+      setSearchResults([]);
       return;
     }
 
     const timer = setTimeout(async () => {
       setIsSearching(true);
-      const res = await searchVolunteers(query);
-      setResults(res || []);
-      setIsSearching(false);
+      try {
+        const results = await searchVolunteers(query.trim());
+        setSearchResults(results || []);
+      } catch (err) {
+        console.error("خطأ أثناء البحث عن المتطوعين:", err);
+      } finally {
+        setIsSearching(false);
+      }
     }, 300);
 
     return () => clearTimeout(timer);
@@ -42,11 +52,29 @@ export const AssignVolunteerModal: React.FC<AssignVolunteerModalProps> = ({
 
   if (!isOpen || !task) return null;
 
+  // اختيار متطوع وإضافته لقائمة الإسناد
+  const handleSelect = (volunteer: VolunteerSearchOption) => {
+    if (selectedVolunteers.some((v) => v.id === volunteer.id)) return;
+    if (selectedVolunteers.length >= remainingSlots) return;
+
+    setSelectedVolunteers([...selectedVolunteers, volunteer]);
+    setQuery('');
+    setSearchResults([]);
+  };
+
+  // حذف متطوع من القائمة
+  const handleRemove = (volunteerId: string) => {
+    setSelectedVolunteers(selectedVolunteers.filter((v) => v.id !== volunteerId));
+  };
+
+  // إرسال طلب الإسناد الجماعي
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedVolunteer || !assignVolunteer) return;
+    if (selectedVolunteers.length === 0 || !assignVolunteers) return;
 
-    const success = await assignVolunteer(task.id, selectedVolunteer.id);
+    const volunteerIds = selectedVolunteers.map((v) => v.id);
+    const success = await assignVolunteers(task.id, volunteerIds);
+
     if (success) {
       handleClose();
       if (onSuccess) onSuccess();
@@ -54,99 +82,136 @@ export const AssignVolunteerModal: React.FC<AssignVolunteerModalProps> = ({
   };
 
   const handleClose = () => {
-    setSelectedVolunteer(null);
+    setSelectedVolunteers([]);
     setQuery('');
-    setResults([]);
+    setSearchResults([]);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl dir-rtl" dir="rtl">
-        <h3 className="text-lg font-bold text-gray-900 mb-1">إسناد متطوع للمهمة</h3>
-        <p className="text-xs text-gray-500 mb-4">
-          المهمة: <span className="font-bold text-emerald-700">{task.title}</span>
-        </p>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm" dir="rtl">
+      <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl">
+        
+        {/* رأس النافذة */}
+        <div className="border-b pb-3 mb-4">
+          <h3 className="text-lg font-bold text-gray-900">إسناد متطوعين للمهمة</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            المهمة: <span className="font-bold text-emerald-700">{task.title}</span> | 
+            المقاعد المتاحة: <span className="font-bold text-emerald-600">{remainingSlots - selectedVolunteers.length}</span> من أصل <span className="font-bold">{maxAllowed}</span>
+          </p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* حقل البحث */}
           <div className="relative">
             <label className="block text-xs font-bold text-gray-700 mb-1">
-              ابحث عن المتطوع بالاسم أو الرقم *
+              ابحث عن المتطوع بالاسم أو بالرقم التعريفي (مثل SRCS-...) *
             </label>
             <input
               type="text"
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                if (selectedVolunteer) setSelectedVolunteer(null);
-              }}
-              placeholder="اكتب الاسم أو رقم المتطوع..."
-              className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+              disabled={selectedVolunteers.length >= remainingSlots}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={
+                selectedVolunteers.length >= remainingSlots
+                  ? "وصلت للحد الأقصى المتاح لهذه المهمة"
+                  : "اكتب الاسم أو الرقم..."
+              }
+              className="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
+
             {isSearching && (
-              <span className="text-xs text-gray-400 mt-1 block">جاري البحث...</span>
+              <div className="absolute left-3 top-9 text-xs text-emerald-600 font-bold">جاري البحث...</div>
             )}
 
             {/* القائمة المنسدلة للنتائج */}
-            {results.length > 0 && !selectedVolunteer && (
-              <ul className="absolute z-10 right-0 left-0 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1 divide-y">
-                {results.map((vol) => (
-                  <li
-                    key={vol.id}
-                    onClick={() => {
-                      setSelectedVolunteer(vol);
-                      setQuery(vol.full_name);
-                      setResults([]);
-                    }}
-                    className="p-2.5 text-xs hover:bg-emerald-50 cursor-pointer flex justify-between items-center"
-                  >
-                    <span className="font-bold text-gray-800">{vol.full_name}</span>
-                    <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                      #{vol.volunteer_number}
-                    </span>
-                  </li>
-                ))}
+            {searchResults.length > 0 && (
+              <ul className="absolute z-30 right-0 left-0 bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto mt-1 divide-y">
+                {searchResults.map((vol) => {
+                  const isAlreadySelected = selectedVolunteers.some((v) => v.id === vol.id);
+                  return (
+                    <li
+                      key={vol.id}
+                      onClick={() => !isAlreadySelected && handleSelect(vol)}
+                      className={`p-3 text-xs flex justify-between items-center transition-colors ${
+                        isAlreadySelected
+                          ? 'bg-gray-50 opacity-50 cursor-not-allowed'
+                          : 'hover:bg-emerald-50 cursor-pointer'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-bold text-gray-800">{vol.full_name}</div>
+                        <div className="text-gray-400 text-[10px]">{vol.volunteer_number}</div>
+                      </div>
+                      {isAlreadySelected ? (
+                        <span className="text-emerald-600 font-bold">تم اختياره</span>
+                      ) : (
+                        <span className="text-gray-400 font-bold">+ إضافة</span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
+            )}
+
+            {query.trim() && !isSearching && searchResults.length === 0 && (
+              <div className="absolute z-30 right-0 left-0 bg-white border p-3 rounded-xl shadow-lg mt-1 text-xs text-center text-gray-500">
+                لا توجد نتائج مطابقة لـ "{query}"
+              </div>
             )}
           </div>
 
-          {/* المتطوع المختار */}
-          {selectedVolunteer && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
-              <div>
-                <span className="font-bold text-emerald-900 block">{selectedVolunteer.full_name}</span>
-                <span className="text-emerald-700">رقم المتطوع: #{selectedVolunteer.volunteer_number}</span>
+          {/* المتطوعون المختارون */}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-2">
+              المتطوعون المختارون للإسناد ({selectedVolunteers.length}):
+            </label>
+            {selectedVolunteers.length > 0 ? (
+              <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-2 bg-gray-50 rounded-xl border">
+                {selectedVolunteers.map((vol) => (
+                  <div
+                    key={vol.id}
+                    className="flex items-center gap-2 bg-emerald-100 text-emerald-900 px-3 py-1.5 rounded-lg text-xs font-bold border border-emerald-300"
+                  >
+                    <span>{vol.full_name}</span>
+                    <span className="text-[10px] opacity-75">({vol.volunteer_number})</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemove(vol.id)}
+                      className="text-rose-600 hover:text-rose-800 mr-1 font-extrabold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedVolunteer(null);
-                  setQuery('');
-                }}
-                className="text-rose-600 hover:underline font-bold"
-              >
-                تغيير
-              </button>
-            </div>
-          )}
+            ) : (
+              <div className="p-4 border border-dashed rounded-xl text-center text-xs text-gray-400">
+                لم يتم اختيار أي متطوع بعد. ابحث أعلاه لاختيار المتطوعين.
+              </div>
+            )}
+          </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t">
+          {/* الأزرار السفليّة */}
+          <div className="flex justify-end gap-2 pt-3 border-t">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-lg"
+              className="px-4 py-2 text-xs text-gray-600 hover:bg-gray-100 rounded-xl font-bold"
             >
               إلغاء
             </button>
             <button
               type="submit"
-              disabled={loading || !selectedVolunteer}
-              className="px-4 py-2 text-xs bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 disabled:opacity-50"
+              disabled={loading || selectedVolunteers.length === 0}
+              className="px-5 py-2 text-xs bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50 transition-all"
             >
-              {loading ? 'جاري الإسناد...' : 'إسناد المتطوع'}
+              {loading ? 'جاري الإسناد...' : `إسناد (${selectedVolunteers.length}) متطوعين`}
             </button>
           </div>
         </form>
+
       </div>
     </div>
   );
