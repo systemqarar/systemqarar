@@ -60,13 +60,19 @@ export interface Task {
 // مطابق تماماً لجدول activity_committees في قاعدة البيانات
 export interface ActivityCommittee {
   id: string; // uuid بقيمة افتراضية gen_random_uuid()
-  activity_id: string; // uuid لا يقبل فارغ
-  name: string; // character varying لا يقبل فارغ (اسم اللجنة الفعلي بالداتابيز)
+  activity_id?: string; // uuid
+  name?: string; // character varying (اسم اللجنة الفعلي بالداتابيز)
   committee_name?: string; // توافق مرن مع أشكال المخرجات المختلفة بالواجهة
   leader_id?: string | null; // uuid يقبل فارغ لربطه بقائد اللجنة
   description?: string | null; // text يقبل فارغ
-  created_at: string; // timestamp with time zone بقيمة افتراضية now()
+  created_at?: string; // timestamp with time zone بقيمة افتراضية now()
 }
+
+/**
+ * التصدير المباشر لـ Committee كاسم مرادف موحد لـ ActivityCommittee 
+ * لضمان متانة البنية البرمجية والتوافق بين كافة مكونات الواجهة (Clean Architecture).
+ */
+export type Committee = ActivityCommittee;
 
 // --- 5. Main Activity Entity ---
 // مطابق تماماً لجدول activities في قاعدة البيانات
@@ -82,7 +88,7 @@ export interface Activity {
   start_date?: string | null; // timestamp with time zone يقبل فارغ
   end_date?: string | null; // timestamp with time zone يقبل فارغ
   created_at: string; // timestamp with time zone بقيمة افتراضية now()
-  committees?: ActivityCommittee[]; // ربط هرمي للجان التابعة للنشاط
+  committees?: Committee[]; // ربط هرمي للجان التابعة للنشاط
   tasks?: Task[]; // ربط هرمي مباشر للمهام التابعة للنشاط
 }
 
@@ -113,7 +119,7 @@ export interface UpdateTaskInput extends Partial<CreateTaskInput> {
 
 /** مدخلات إنشاء لجنة فرعية داخل نشاط */
 export interface CreateCommitteeInput {
-  name: string; // الحقل الأساسي المقابل لـ name بالداتابيز
+  name?: string; // الحقل الأساسي المقابل لـ name بالداتابيز
   committee_name?: string;
   description?: string;
   leader_id?: string | null;

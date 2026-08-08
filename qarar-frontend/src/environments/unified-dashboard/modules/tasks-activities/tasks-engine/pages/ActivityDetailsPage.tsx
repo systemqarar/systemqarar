@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTasksEngine } from '../hooks/useTasksEngine';
 import { TaskCard } from '../components/TaskCard';
 import { AssignVolunteersModal } from '../components/AssignVolunteersModal';
-import { CreateCommitteeInput, CreateTaskInput, Task, Committee } from '../types/tasks-engine.types';
+import { Committee, CreateCommitteeInput, CreateTaskInput, Task } from '../types/tasks-engine.types';
 
 export const ActivityDetailsPage: React.FC = () => {
   const { id: activityId } = useParams<{ id: string }>();
@@ -53,8 +53,10 @@ export const ActivityDetailsPage: React.FC = () => {
     }
   }, [activityId, fetchActivityById, engine.fetchTasks]);
 
-  // تحديد نوع مصفوفة اللجان بوضوح لمنع خطأ Implicit Any
-  const committees: Committee[] = Array.isArray(currentActivity?.committees) ? currentActivity.committees : [];
+  // استخدام Committee المستوردة رسمياً من ملف الأنواع الموحد
+  const committees: Committee[] = Array.isArray(currentActivity?.committees)
+    ? currentActivity.committees
+    : [];
   const allTasks: Task[] = Array.isArray(engine.tasks) ? engine.tasks : [];
 
   // تحديد أول لجنة تلقائياً عند تحميل البيانات لأول مرة
@@ -104,7 +106,7 @@ export const ActivityDetailsPage: React.FC = () => {
     }
   };
 
-  // اللجنة النشطة حالياً - إضافة نمط صريح للمعامل c
+  // اللجنة النشطة حالياً
   const activeCommittee = committees.find((c: Committee) => c.id === selectedCommitteeId);
   const activeCommitteeTasks = allTasks.filter((t: Task) => t && t.committee_id === selectedCommitteeId);
 
@@ -163,7 +165,7 @@ export const ActivityDetailsPage: React.FC = () => {
 
         {committees.length > 0 ? (
           <>
-            {/* أزرار التبويبات - إضافة نمط صريح للمعامل committee */}
+            {/* أزرار التبويبات */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
               {committees.map((committee: Committee) => {
                 if (!committee) return null;
@@ -307,7 +309,7 @@ export const ActivityDetailsPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2 text-xs bg-emerald-600 text-[#ffffff] rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-sm"
+                  className="px-5 py-2 text-xs bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-sm"
                 >
                   حفظ اللجنة
                 </button>
