@@ -24,15 +24,21 @@ export const useTasksEngine = () => {
   const [error, setError] = useState<string | null>(null);
 
   // استخراج معرّفات المستخدم الحالي من التخزين المحلي
-  const currentUserId = localStorage.getItem('user_id') || localStorage.getItem('userId') || undefined;
-  const currentVolunteerNumber = localStorage.getItem('volunteer_number') || undefined;
+  const currentUserId = typeof window !== 'undefined' 
+    ? (localStorage.getItem('user_id') || localStorage.getItem('userId') || undefined) 
+    : undefined;
+  const currentVolunteerNumber = typeof window !== 'undefined' 
+    ? (localStorage.getItem('volunteer_number') || undefined) 
+    : undefined;
 
   // المسار الموحد للباكإند
   const API_BASE = '/api/tasks-activities/tasks-engine';
 
   // دالة جلب التوكن وترويسة الطلب
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('qarar_token') || localStorage.getItem('token');
+    const token = typeof window !== 'undefined' 
+      ? (localStorage.getItem('qarar_token') || localStorage.getItem('token')) 
+      : null;
     return {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -71,12 +77,15 @@ export const useTasksEngine = () => {
         const rawList = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
 
         // توحيد تعيين الحقول استناداً إلى أعمدة الجداول (users & volunteer_profiles)
-        return rawList.map((item: any) => ({
-          id: item.id || item.user_id || '',
-          full_name: item.full_name || item.name || item.displayName || 'متطوع',
-          volunteer_number: item.volunteer_number || item.volunteerNo || item.users?.volunteer_number || '',
-          avatar_url: item.avatar_url || item.photo_url || item.secure_photo_url || item.avatar || undefined,
-        }));
+        return rawList.map((item: Record<string, unknown>) => {
+          const usersObj = item.users as Record<string, unknown> | undefined;
+          return {
+            id: String(item.id || item.user_id || ''),
+            full_name: String(item.full_name || item.name || item.displayName || 'متطوع'),
+            volunteer_number: String(item.volunteer_number || item.volunteerNo || usersObj?.volunteer_number || ''),
+            avatar_url: (item.avatar_url || item.photo_url || item.secure_photo_url || item.avatar) as string | undefined,
+          };
+        });
       }
       return [];
     } catch (err) {
@@ -96,7 +105,7 @@ export const useTasksEngine = () => {
         const activitiesList = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
         setActivities(activitiesList);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching activities:', err);
     }
   }, [API_BASE]);
@@ -132,9 +141,10 @@ export const useTasksEngine = () => {
         setCurrentActivity(null);
         return null;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ أثناء جلب تفاصيل النشاط';
       console.error(`❌ [useTasksEngine] خطأ أثناء جلب النشاط:`, err);
-      setError(err.message || 'حدث خطأ أثناء جلب تفاصيل النشاط');
+      setError(message);
       setCurrentActivity(null);
       return null;
     } finally {
@@ -160,7 +170,7 @@ export const useTasksEngine = () => {
         const tasksList = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
         setTasks(tasksList);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching tasks:', err);
     }
   }, [API_BASE]);
@@ -183,8 +193,9 @@ export const useTasksEngine = () => {
         alert(data.error || data.message || 'فشلت عملية إنشاء النشاط');
         return false;
       }
-    } catch (err: any) {
-      alert(err.message || 'تعذر إنشاء النشاط البرامجي');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر إنشاء النشاط البرامجي';
+      alert(message);
       return false;
     } finally {
       setLoading(false);
@@ -209,8 +220,9 @@ export const useTasksEngine = () => {
         alert(data.error || data.message || 'فشلت عملية إضافة اللجنة');
         return false;
       }
-    } catch (err: any) {
-      alert(err.message || 'تعذر إضافة اللجنة');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر إضافة اللجنة';
+      alert(message);
       return false;
     } finally {
       setLoading(false);
@@ -246,8 +258,9 @@ export const useTasksEngine = () => {
         alert(errMsg);
         return false;
       }
-    } catch (err: any) {
-      alert(err.message || 'تعذر إنشاء المهمة');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر إنشاء المهمة';
+      alert(message);
       return false;
     } finally {
       setLoading(false);
@@ -275,8 +288,9 @@ export const useTasksEngine = () => {
         alert(data.error || data.message || 'فشلت عملية تحديث المهمة');
         return false;
       }
-    } catch (err: any) {
-      alert(err.message || 'تعذر تحديث المهمة');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر تحديث المهمة';
+      alert(message);
       return false;
     } finally {
       setLoading(false);
@@ -302,8 +316,9 @@ export const useTasksEngine = () => {
         alert(data.error || data.message || 'تعذر التقديم');
         return false;
       }
-    } catch (err: any) {
-      alert(err.message || 'حدث خطأ أثناء التقديم');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ أثناء التقديم';
+      alert(message);
       return false;
     }
   };
@@ -328,8 +343,9 @@ export const useTasksEngine = () => {
         alert(data.error || data.message || 'تعذر تقديم الاعتذار');
         return false;
       }
-    } catch (err: any) {
-      alert(err.message || 'حدث خطأ أثناء تقديم الاعتذار');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ أثناء تقديم الاعتذار';
+      alert(message);
       return false;
     }
   };
@@ -355,8 +371,9 @@ export const useTasksEngine = () => {
         alert(data.error || data.message || 'تعذر إسناد المتطوع');
         return false;
       }
-    } catch (err: any) {
-      alert(err.message || 'حدث خطأ أثناء الإسناد');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ أثناء الإسناد';
+      alert(message);
       return false;
     } finally {
       setLoading(false);
@@ -388,8 +405,9 @@ export const useTasksEngine = () => {
         alert(data.error || data.message || 'تعذر إسناد المتطوعين');
         return false;
       }
-    } catch (err: any) {
-      alert(err.message || 'حدث خطأ أثناء إسناد المتطوعين');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ أثناء إسناد المتطوعين';
+      alert(message);
       return false;
     } finally {
       setLoading(false);
@@ -416,8 +434,9 @@ export const useTasksEngine = () => {
         alert(data.error || data.message || 'تعذر إزالة المتطوع');
         return false;
       }
-    } catch (err: any) {
-      alert(err.message || 'حدث خطأ أثناء إزالة المتطوع');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ أثناء إزالة المتطوع';
+      alert(message);
       return false;
     } finally {
       setLoading(false);

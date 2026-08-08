@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Task } from '../types/tasks-engine.types';
+import { Task, TaskAssignment } from '../types/tasks-engine.types';
 import { UserPlus, Calendar, Users, CheckCircle2, User } from 'lucide-react';
 
 interface TaskCardProps {
@@ -19,8 +19,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onExcuse,
   onAssignVolunteer,
 }) => {
-  const [showExcuseModal, setShowExcuseModal] = useState(false);
-  const [excuseReason, setExcuseReason] = useState('');
+  const [showExcuseModal, setShowExcuseModal] = useState<boolean>(false);
+  const [excuseReason, setExcuseReason] = useState<string>('');
 
   // تحديد أولوية المهمة
   const getPriorityBadge = (priority: string) => {
@@ -36,12 +36,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     }
   };
 
-  const activeAssignments = task.assignments?.filter(a => a.status !== 'excused') || [];
+  const activeAssignments: TaskAssignment[] = (task.assignments || []).filter(
+    (a: TaskAssignment) => a.status !== 'excused'
+  );
   const assignedCount = activeAssignments.length;
   const maxVolunteers = task.max_volunteers || 1;
   const isFull = assignedCount >= maxVolunteers;
 
-  const myAssignment = task.assignments?.find(a => a.volunteer_id === currentUserId && a.status !== 'excused');
+  const myAssignment = task.assignments?.find(
+    (a: TaskAssignment) => a.volunteer_id === currentUserId && a.status !== 'excused'
+  );
   const isAssignedToMe = Boolean(myAssignment);
 
   const handleExcuseSubmit = () => {
@@ -128,25 +132,31 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           {/* صور/رموز المتطوعين المسندين */}
           <div className="flex items-center">
             <div className="flex -space-x-2 space-x-reverse overflow-hidden">
-              {activeAssignments.slice(0, 5).map((assign: any, idx: number) => (
-                <div key={assign.id || assign.volunteer_id || idx} className="relative inline-block">
-                  {assign.avatar_url ? (
-                    <img
-                      src={assign.avatar_url}
-                      alt={assign.volunteer_name || 'متطوع'}
-                      className="h-8 w-8 rounded-full ring-2 ring-white object-cover shadow-sm"
-                      title={assign.volunteer_name || 'متطوع'}
-                    />
-                  ) : (
-                    <div 
-                      className="h-8 w-8 rounded-full ring-2 ring-white bg-[#7A1C2E] text-white text-[10px] font-bold flex items-center justify-center shadow-sm"
-                      title={assign.volunteer_name || 'متطوع'}
-                    >
-                      {assign.volunteer_name ? assign.volunteer_name.charAt(0) : <User className="w-4 h-4" />}
-                    </div>
-                  )}
-                </div>
-              ))}
+              {activeAssignments.slice(0, 5).map((assign: TaskAssignment, idx: number) => {
+                const profile = assign.volunteer_profile;
+                const volunteerName = profile?.full_name || 'متطوع';
+                const avatarUrl = profile?.photo_url;
+
+                return (
+                  <div key={assign.id || assign.volunteer_id || idx} className="relative inline-block">
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt={volunteerName}
+                        className="h-8 w-8 rounded-full ring-2 ring-white object-cover shadow-sm"
+                        title={volunteerName}
+                      />
+                    ) : (
+                      <div 
+                        className="h-8 w-8 rounded-full ring-2 ring-white bg-[#7A1C2E] text-white text-[10px] font-bold flex items-center justify-center shadow-sm"
+                        title={volunteerName}
+                      >
+                        {volunteerName ? volunteerName.charAt(0) : <User className="w-4 h-4" />}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {activeAssignments.length > 5 && (
