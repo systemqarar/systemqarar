@@ -47,6 +47,7 @@ export interface Task {
   target_form_id?: string | null; // character varying يقبل فارغ
   assignment_type: AssignmentType; // character varying بقيمة افتراضية 'direct'
   max_volunteers: number; // integer بقيمة افتراضية 1
+  assigned_count?: number; // عدد المتطوعين المسندين حالياً للمهمة
   priority: TaskPriority; // character varying بقيمة افتراضية 'normal'
   status: TaskStatus; // character varying بقيمة افتراضية 'open'
   start_time?: string | null; // timestamp with time zone يقبل فارغ

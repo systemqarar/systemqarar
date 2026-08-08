@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useTasksEngine, VolunteerSearchOption } from '../hooks/useTasksEngine';
+import { useTasksEngine } from '../hooks/useTasksEngine';
 import { Task } from '../types/tasks-engine.types';
+
+export interface VolunteerOption {
+  id: string;
+  full_name: string;
+  volunteer_number: string;
+  avatar_url?: string;
+}
 
 interface AssignVolunteersModalProps {
   task: Task | null;
@@ -19,13 +26,13 @@ export const AssignVolunteersModal: React.FC<AssignVolunteersModalProps> = ({
   const { searchVolunteers, assignVolunteers, loading } = engine;
 
   const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<VolunteerSearchOption[]>([]);
-  const [selectedVolunteers, setSelectedVolunteers] = useState<VolunteerSearchOption[]>([]);
+  const [searchResults, setSearchResults] = useState<VolunteerOption[]>([]);
+  const [selectedVolunteers, setSelectedVolunteers] = useState<VolunteerOption[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // حساب المقاعد المتاحة بناءً على الحد الأقصى والمُسند حالياً
+  // حساب المقاعد المتبقية بشكل مؤسسي بدون استخدام (as any)
   const maxAllowed = task?.max_volunteers || 1;
-  const currentAssignedCount = task?.assigned_count || 0;
+  const currentAssignedCount = task?.assigned_count ?? task?.assignments?.length ?? 0;
   const remainingSlots = Math.max(0, maxAllowed - currentAssignedCount);
 
   // البحث الفوري مع التوقف المؤقت (Debounce 300ms)
@@ -52,8 +59,8 @@ export const AssignVolunteersModal: React.FC<AssignVolunteersModalProps> = ({
 
   if (!isOpen || !task) return null;
 
-  // اختيار متطوع وإضافته لقائمة الإسناد
-  const handleSelect = (volunteer: VolunteerSearchOption) => {
+  // إضافة متطوع للقائمة المحددة
+  const handleSelect = (volunteer: VolunteerOption) => {
     if (selectedVolunteers.some((v) => v.id === volunteer.id)) return;
     if (selectedVolunteers.length >= remainingSlots) return;
 
@@ -62,12 +69,12 @@ export const AssignVolunteersModal: React.FC<AssignVolunteersModalProps> = ({
     setSearchResults([]);
   };
 
-  // حذف متطوع من القائمة
+  // إزالة متطوع من القائمة المحددة
   const handleRemove = (volunteerId: string) => {
     setSelectedVolunteers(selectedVolunteers.filter((v) => v.id !== volunteerId));
   };
 
-  // إرسال طلب الإسناد الجماعي
+  // حفظ الإسناد الجماعي
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedVolunteers.length === 0 || !assignVolunteers) return;
@@ -92,7 +99,7 @@ export const AssignVolunteersModal: React.FC<AssignVolunteersModalProps> = ({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm" dir="rtl">
       <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl">
         
-        {/* رأس النافذة */}
+        {/* الهيدر */}
         <div className="border-b pb-3 mb-4">
           <h3 className="text-lg font-bold text-gray-900">إسناد متطوعين للمهمة</h3>
           <p className="text-xs text-gray-500 mt-1">
@@ -125,7 +132,7 @@ export const AssignVolunteersModal: React.FC<AssignVolunteersModalProps> = ({
               <div className="absolute left-3 top-9 text-xs text-emerald-600 font-bold">جاري البحث...</div>
             )}
 
-            {/* القائمة المنسدلة للنتائج */}
+            {/* قائمة نتائج البحث (Dropdown) */}
             {searchResults.length > 0 && (
               <ul className="absolute z-30 right-0 left-0 bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto mt-1 divide-y">
                 {searchResults.map((vol) => {
@@ -162,7 +169,7 @@ export const AssignVolunteersModal: React.FC<AssignVolunteersModalProps> = ({
             )}
           </div>
 
-          {/* المتطوعون المختارون */}
+          {/* المتطوعون المحددون (Selected Chips) */}
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-2">
               المتطوعون المختارون للإسناد ({selectedVolunteers.length}):
@@ -193,7 +200,7 @@ export const AssignVolunteersModal: React.FC<AssignVolunteersModalProps> = ({
             )}
           </div>
 
-          {/* الأزرار السفليّة */}
+          {/* الأزرار */}
           <div className="flex justify-end gap-2 pt-3 border-t">
             <button
               type="button"
