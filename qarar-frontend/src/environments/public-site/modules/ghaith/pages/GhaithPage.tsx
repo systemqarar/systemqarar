@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, FormEvent } from 'react';
 import { Paperclip, Image as ImageIcon, Mic, Send, RotateCcw } from 'lucide-react';
 
-// تعريف نوع الرسالة
 interface Message {
   id: number;
   sender: 'user' | 'bot';
@@ -9,7 +8,6 @@ interface Message {
   time: string;
 }
 
-// مكون فرعي لعرض النص بتأثير الكتابة التدريجية (Typewriter Effect)
 function BotMessageContent({ 
   text, 
   isLatest, 
@@ -155,10 +153,11 @@ export default function GhaithPage() {
   };
 
   return (
-    <div className="flex justify-center items-center h-[100dvh] bg-slate-100 p-0 sm:p-4 overflow-hidden" dir="rtl">
+    // استخدام fixed inset-0 لمنع الصفحة من الصعود أو التمرير تماماً مع الكيبورد
+    <div className="fixed inset-0 w-full h-full flex justify-center items-center bg-slate-100 p-0 sm:p-4 overflow-hidden z-50" dir="rtl">
       <div className="w-full sm:max-w-xl h-full sm:h-[92vh] bg-white sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 relative">
 
-        {/* الهيدر */}
+        {/* الهيدر الثابت */}
         <div className="bg-[#7a1528] text-white p-3.5 sm:p-4 flex items-center justify-between shadow-md flex-shrink-0 z-10">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -201,7 +200,7 @@ export default function GhaithPage() {
           </div>
         </div>
 
-        {/* منطقة الرسائل */}
+        {/* منطقة الرسائل القابلة للتمرير الداخلي */}
         <div className="flex-1 min-h-0 p-4 overflow-y-auto bg-slate-50 space-y-4 relative">
 
           {messages.length === 0 && (
@@ -266,7 +265,7 @@ export default function GhaithPage() {
           <div ref={chatEndRef} />
         </div>
 
-        {/* شريط الإدخال بأيقونات Lucide الاحترافية */}
+        {/* شريط الإدخال الثابت أسفل الشاشة وفوق الكيبورد مباشرة */}
         <form onSubmit={handleAsk} className="p-3 bg-white border-t border-slate-200 flex items-end gap-2 flex-shrink-0 relative z-10">
           
           <div className="flex items-center gap-1 text-slate-400 pb-2.5">
