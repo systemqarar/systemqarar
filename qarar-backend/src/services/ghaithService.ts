@@ -57,10 +57,10 @@ interface GlobalKeyStatus {
 
 // 🎯 القائمة الذهبية المأخوذة من حسابك (مُرتبة بالبدء بالموديلات الخفيفة لمنع استهلاك TPM)
 const DEFAULT_MODELS_FALLBACK = [
-  'gemini-3.5-flash-lite',
-  'gemini-3.1-flash-lite',
   'gemini-3.6-flash',
   'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
   'gemini-3.1-pro-preview',
   'gemini-2.5-flash',
   'gemini-2.5-pro'
