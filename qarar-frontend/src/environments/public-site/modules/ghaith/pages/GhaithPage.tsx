@@ -10,6 +10,7 @@ interface Message {
 
 export default function GhaithPage() {
   const [prompt, setPrompt] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string | null>(null); // 🔑 تعريف جلسة غيث لحفظ وتتبع السياق
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -19,7 +20,7 @@ export default function GhaithPage() {
     },
   ]);
   const [loading, setLoading] = useState<boolean>(false);
-  
+
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   // التمرير التلقائي لآخر رسالة
@@ -78,10 +79,18 @@ export default function GhaithPage() {
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: currentPrompt }),
+        body: JSON.stringify({ 
+          prompt: currentPrompt,
+          sessionId: sessionId // 🔑 تمرير معرف الجلسة للسيرفر ليحتفظ بالسياق
+        }),
       });
 
       const data = await response.json();
+
+      // 🔑 حفظ معرف الجلسة الجديد الوارد من الخادم
+      if (data.success && data.sessionId) {
+        setSessionId(data.sessionId);
+      }
 
       const botMessage: Message = {
         id: Date.now() + 1,
@@ -113,8 +122,7 @@ export default function GhaithPage() {
         {/* 1. هيدر منظومة قرار وغيث */}
         <div className="bg-[#7a1528] text-white p-4 flex items-center justify-between shadow-md relative z-10">
           <div className="flex items-center gap-3">
-            
-            {/* استبدال حرف غ بشعار قرار المباشر */}
+
             <div className="relative">
               <div className="w-12 h-12 rounded-2xl bg-white p-1 flex items-center justify-center shadow-inner border border-amber-300/40 overflow-hidden">
                 <img 
