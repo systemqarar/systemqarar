@@ -8,20 +8,20 @@ import { askGhaith } from './ghaithService';
 // المتغيرات والذاكرة المؤقتة (In-Memory State)
 // ==========================================
 let globalIsActive = true;
-let currentStatusContext = "لؤي غير متاح حالياً وسيتواصل معك فور فرغته.";
+let currentStatusContext = "لؤي مشغولاتو ضاغطة شوية هسي وراجِع ليك أول ما يفرغ ..";
 
 // 1. خريطة الدردشات المتوقفة مؤقتاً (JID -> Timestamp)
 const pausedChats = new Map<string, number>();
 
-// 2. ذاكرة تتبع رسائل غيث الذاتية لمنع تعليق الشات
+// 2. ذاكرة تتبع رسائل غيث الذاتية
 const ghaithSentMessageIds = new Set<string>();
 
 // 3. قفل تتابع الرسائل لمنع معالجة أكثر من رسالة لنفس الشخص في نفس اللحظة
 const activeProcessingLocks = new Set<string>();
 
-// 4. خريطة لتتبع آخر رقم كان يراسل لسهولة التوجيه من الأدمن (JID -> Timestamp)
-let lastActiveUserJid: string | null = null;
-const pendingAdminUnpause = new Map<string, boolean>(); // لتتبع حالة انتظار تحديد الرقم المطلوب فكه
+// 4. تتبع آخر شخص كان يتحدث لسهولة التوجيه والتوصيل بينك وبينه
+let lastUrgentUserJid: string | null = null;
+const pendingAdminUnpause = new Map<string, boolean>();
 
 const ADMIN_PHONE = process.env.ADMIN_PHONE || ""; // الرقم السعودي الأدمن
 
@@ -79,7 +79,7 @@ export async function handlePrivateChatMessage(
         return;
       }
 
-      // إذا رد لؤي يدوياً من جوال MTN -> إيقاف غيث لمدة ساعتين في الشات
+      // إذا رد لؤي يدوياً من جوال MTN -> إيقاف غيث لمدة ساعتين
       const pauseUntil = Date.now() + 2 * 60 * 60 * 1000;
       pausedChats.set(senderJid, pauseUntil);
       console.log(`[غيث] تم إيقاف غيث أوتوماتيكياً في الدردشة ${senderJid} لمدة ساعتين بسبب رد لؤي اليدوي.`);
@@ -89,14 +89,14 @@ export async function handlePrivateChatMessage(
     const cleanSenderPhone = senderJid.replace('@s.whatsapp.net', '').replace('@lid', '');
     const cleanAdminPhone = ADMIN_PHONE.replace('@s.whatsapp.net', '').replace('@lid', '');
 
-    // 2️⃣ التحكم الشامل والتفاعل مع الأدمن (الرقم السعودي)
+    // 2️⃣ التفاعل الإداري والربط التفاعلي مع رقمك السعودي
     if (cleanAdminPhone && cleanSenderPhone === cleanAdminPhone) {
       await handleAdminInteraction(sock, senderJid, messageText, dbPool);
       return;
     }
 
-    // حفظ آخر محادثة نشطة مع مستخدم
-    lastActiveUserJid = senderJid;
+    // حفظ آخر محادثة استقبالاً
+    lastUrgentUserJid = senderJid;
 
     // 3️⃣ فحص الإيقاف العام
     if (!globalIsActive) return;
@@ -122,26 +122,10 @@ export async function handlePrivateChatMessage(
       return;
     }
 
-    // ✍️️ إظهار حالة "جاري الكتابة..." فوراً
+    // ✍ إظهار حالة "جاري الكتابة..." فوراً
     await sock.sendPresenceUpdate('composing', senderJid);
 
-    // 7️⃣ التنبيه العاجل لرقم الأدمن إذا ذكر "ضروري" أو "عاجل"
-    const lowerText = messageText.toLowerCase();
-    const isUrgent = lowerText.includes("ضروري") || lowerText.includes("عاجل") || lowerText.includes("مستعجل") || lowerText.includes("هام");
-
-    if (isUrgent && ADMIN_PHONE) {
-      const cleanNumber = ADMIN_PHONE.trim().replace(/[^0-9]/g, '');
-      const adminJid = cleanNumber.includes('@s.whatsapp.net') ? cleanNumber : `${cleanNumber}@s.whatsapp.net`;
-
-      const alertMsg = `🚨 *تنبيه عاجل يا باشمهندس لؤي*\n\n` +
-        `👤 *من الرقم:* ${cleanSenderPhone}\n` +
-        `📝 *الرسالة:* "${messageText}"\n\n` +
-        `💡 يطلب التواصل معك لأمر هام جداً.`;
-
-      await sock.sendMessage(adminJid, { text: alertMsg });
-    }
-
-    // 8️⃣ جلب اسم الشخص إن وجد
+    // 7️⃣ جلب اسم الشخص إن وجد
     let senderName = "";
     const profileRes = await dbPool.query(
       'SELECT full_name FROM volunteer_profiles WHERE whatsapp LIKE $1 OR phone LIKE $2 LIMIT 1',
@@ -151,21 +135,24 @@ export async function handlePrivateChatMessage(
       senderName = profileRes.rows[0].full_name;
     }
 
-    // 9️⃣ جلب السجل
+    // 8️⃣ جلب السجل
     const historyText = await getFormattedHistoryAndManageMemory(dbPool, senderJid);
 
-    // 🎯 البرومبت المحسن باللهجة السودانية العفوية وبدون علامات ترقيم رسمية
+    // 9️⃣ تقييم الذكاء الاصطناعي لحالة الإشعار والإجابة (AI Urgency Evaluation)
     const systemInstruction = `
-أنت "غيث" .. المساعد الرقمي الشخصي لـ "لؤي" .. 
+أنت "غيث" .. المساعد الرقمي الذكي الخاص بـ "لؤي" (لؤي جعفر) ..
 
-[أسلوب النبرة والكتابة - قواعد صارمة جدًا]:
-1. اتكلم بلهجة سودانية محبوبة .. لطيفة .. وبسيطة جداً بدون تكلف أو رسميات زائدة .. 
-2. ممنوع نهائياً استخدام أسلوب الذكاء الاصطناعي الرتيب مثل ("كيف يمكنني مساعدتك؟" أو "هل لديك أي استفسارات أخرى؟") .. 
-3. بطل استخدام علامات الترقيم الرسمية والشولة (الفصلات) تماماً .. بدلاً عنها استخدم النقطتين المزدوجة بين الجمل (..) بنفس هذه الطريقة ..
-4. ما تكرر اسم "لؤي" كتير مع كل كلمة ورسالة .. اتكلم في الموضوع مباشرة وبدون إطالة ..
-5. إذا الشخص قال كلامه أو تحيته .. رد عليه بإيجاز وبشكل مفهوم وفاهِم ..
-6. إذا الشخص أرسل وقال عايز لؤي "ضروري" أو "مستعجل" .. رد عليه فوراً بالعبارة دي بنفس النص والأسلوب:
-   "أبشر .. هسي وصلت ليهو الرسالة وحشوفو فاضي متين .. وحأرجع ليك"
+[قواعد اللهجة والأسلوب]:
+- اتكلم بلهجة سودانية محبوبة .. لطيفة .. وبسيطة جداً بدون تكلف ..
+- ممنوع نهائياً أسلوب الذكاء الاصطناعي الرتيب مثل ("كيف يمكنني مساعدتك؟" أو "هل لديك أي استفسار آخر؟") ..
+- ممنوع استخدام الشولة وعلامات الترقيم الرسمية .. استخدم النقطتين المزدوجة بين الجمل (..) ..
+- ممنوع تفبرك أسباب أو تؤلف تفاصيل من عندك عن شغل لؤي (مثل اجتمعات أو مشاريع مع التيم) ..
+- ما تكرر اسم "لؤي" كتير .. اتكلم في الموضوع المباشر ..
+
+[قواعد تقييم أهمية الرسالة والرد]:
+1. إذا لاحظت أن المتحدث أمه، أبوه، زول مستعجل، عنده موضوع مهم، أو أصر على التواصل العاجل:
+   - يجب أن تتعهد له بلطافة وبدون كذب صريح: "أبشر .. هسي كلمت لؤي ونبهتو لموضوعك .. أول ما يفرغ أو يرد علي حأرجع أوريك طوالي حيتصل بيك متين .."
+   - أضف الكود المرجعي [NOTIFY_ADMIN] في أقصى نهاية الرد حتى أرسل التنبيه للؤي فوراً.
 
 [معلومات الشات]:
 - اسم الشخص: "${senderName}"
@@ -175,9 +162,27 @@ export async function handlePrivateChatMessage(
 ${historyText}
 `;
 
-    const replyFromGemini = await askGhaith(messageText, {
+    let replyFromGemini = await askGhaith(messageText, {
       systemInstruction: systemInstruction
     });
+
+    // إذا قرر النموذج إخطار الأدمن
+    const shouldNotifyAdmin = replyFromGemini.includes('[NOTIFY_ADMIN]');
+    replyFromGemini = replyFromGemini.replace('[NOTIFY_ADMIN]', '').trim();
+
+    // إرسال التنبيه الفعلي للأدمن فقط إذا تقرر ذلك بذكاء
+    if (shouldNotifyAdmin && ADMIN_PHONE) {
+      const cleanNumber = ADMIN_PHONE.trim().replace(/[^0-9]/g, '');
+      const adminJid = cleanNumber.includes('@s.whatsapp.net') ? cleanNumber : `${cleanNumber}@s.whatsapp.net`;
+
+      const alertMsg = `🚨 *تنبيه عاجل يا باشمهندس لؤي*\n\n` +
+        `👤 *من:* ${senderName || cleanSenderPhone} (${cleanSenderPhone})\n` +
+        `📝 *الرسالة:* "${messageText}"\n\n` +
+        `💡 *ملاحظة:* تم تقييم الموضوع كأمر هام جداً .. بانتظار توجيهك بالرد ..`;
+
+      await sock.sendMessage(adminJid, { text: alertMsg });
+      console.log(`✅ [غيث]: تم إرسال إشعار عاجل حقيقي للباشمهندس عبر الرقم السعودي.`);
+    }
 
     const sentMsg = await sock.sendMessage(senderJid, { text: replyFromGemini });
 
@@ -215,7 +220,6 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
       await sock.sendMessage(adminJid, { text: "أبشر يا باشمهندس .. تم فك وتفعيل التعليق عن كل الأرقام والمحادثات هسي .." });
       return;
     } else {
-      // افتراض إدخال رقم معين
       const cleanTargetPhone = command.replace(/[^0-9]/g, '');
       let foundJid = "";
       for (const [jid] of pausedChats.entries()) {
@@ -229,7 +233,6 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
         pausedChats.delete(foundJid);
         await sock.sendMessage(adminJid, { text: `أبشر يا باشمهندس .. تم فك التعليق عن الرقم (${cleanTargetPhone}) وجاهز للرد ..` });
       } else {
-        // فك الشات الأخير افتراضياً أو فك الرقم مباشرة
         const targetJid = cleanTargetPhone.includes('@s.whatsapp.net') ? cleanTargetPhone : `${cleanTargetPhone}@s.whatsapp.net`;
         pausedChats.delete(targetJid);
         await sock.sendMessage(adminJid, { text: `أبشر يا باشمهندس .. تم فك التعليق عن الرقم (${cleanTargetPhone}) ..` });
@@ -269,33 +272,39 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
     return;
   }
 
-  // 4️⃣ إذا أرسل لؤي توجيهاً بالرد على الشخص (مثلاً: "لؤي قال حيخش يرسل ليك هسي" أو "قول ليهو لؤي جاي")
-  if (lastActiveUserJid && (command.includes("حيخش") || command.includes("يرسل") || command.includes("قول") || command.includes("وصلت"))) {
-    const targetUserJid = lastActiveUserJid;
+  // 4️⃣ ربط وتمرير ردك الإداري المباشر للشخص المعني
+  if (lastUrgentUserJid) {
+    const targetUserJid = lastUrgentUserJid;
     
-    // إرسال الرد المباشر للشخص
-    const formattedReply = `${command} ..`;
-    const sentMsg = await sock.sendMessage(targetUserJid, { text: formattedReply });
+    // صياغة الرد المار للشخص بناءً على ما كتبته
+    const forwardPrompt = `
+أنت "غيث" .. قام الباشمهندس لؤي بالتواصل معك للرد على الشخص المعني هسي ..
+رسالة الباشمهندس لؤي لك هي: "${command}"
+
+قم بنقل فحوى كلام لؤي للشخص باللهجة السودانية اللطيفة ووضح له متى أو كيف سيتواصل معه لؤي ..
+استخدم النقاط (..) وبدون علامات ترقيم .. وبدون إطالة ..
+`;
+
+    const userReply = await askGhaith(command, { systemInstruction: forwardPrompt });
+    const sentMsg = await sock.sendMessage(targetUserJid, { text: userReply });
     
     if (sentMsg?.key?.id) {
       ghaithSentMessageIds.add(sentMsg.key.id);
     }
     
-    // فك التعليق عن هذا الشخص ليعود للتفاعل
+    // فك التعليق عن الشخص
     pausedChats.delete(targetUserJid);
 
-    await logChatMessage(db, targetUserJid, 'assistant', formattedReply);
-    await sock.sendMessage(adminJid, { text: `أبشر يا باشمهندس .. تم نقل رسالتك للشخص فوراً وفك التعليق عن محادثته ..` });
+    await logChatMessage(db, targetUserJid, 'assistant', userReply);
+    await sock.sendMessage(adminJid, { text: `أبشر يا باشمهندس .. تم إبلاغ الشخص بالرد التالي:\n\n"${userReply}"` });
     return;
   }
 
-  // 5️⃣ الرد النقاشي الافتراضي مع الإدارة
+  // 5️⃣ النقاش العادي مع الأدمن
   const adminPrompt = `
-أنت "غيث" التابع لـ "باشمهندس لؤي" .. 
-أنت تتحدث الآن مع رئيسك الإداري المباشر (باشمهندس لؤي) عبر رقمه الخاص ..
-خاطبه دائماً بـ "يا باشمهندس" .. وناقشه بلهجة سودانية إدارية محترمة ولطيفة .. 
-استخدم النقاط (..) بدلاً عن علامات الترقيم .. ولا تستخدم الفواصل والشولة ..
-رسالة الباشمهندس لؤي: "${command}"
+أنت "غيث" .. تتحدث مع رئيسك الإداري (باشمهندس لؤي) ..
+خاطبه بـ "يا باشمهندس" .. بلهجة سودانية محترمة ولطيفة واستخدم النقاط (..) بدلاً من علامات الترقيم ..
+رسالة الباشمهندس: "${command}"
 `;
 
   const adminReply = await askGhaith(command, { systemInstruction: adminPrompt });
