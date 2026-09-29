@@ -10,6 +10,7 @@ import pino from 'pino';
 import path from 'path';
 import fs from 'fs';
 import { handleGroupMessage } from './ghaithGroupHandler';
+import { handlePrivateChatMessage, loadGhaithSettings } from './ghaithPrivateService';
 import db from '../config/db';
 
 const { pool } = db;
@@ -79,7 +80,6 @@ async function saveSessionToDb() {
 class WhatsappService {
   private sock: any = null;
   private isInitializing = false;
-  // ⏱️ تسجيل وقت بدء تشغيل السيرفر لمنع معالجة الرسائل القديمة أثناء الـ Restart
   private startTime: number = Math.floor(Date.now() / 1000);
 
   public getSocket() {
@@ -98,10 +98,11 @@ class WhatsappService {
 
     if (this.isInitializing) return;
     this.isInitializing = true;
-    this.startTime = Math.floor(Date.now() / 1000); // تحديث توقيت التشغيل
+    this.startTime = Math.floor(Date.now() / 1000);
 
     try {
       await restoreSessionFromDb();
+      await loadGhaithSettings(pool); // تحميل إعدادات غيث من الداتابيز
 
       console.log('📡 جاري جلب أحدث إصدار لواتساب ويب...');
       const { version, isLatest } = await fetchLatestBaileysVersion();
@@ -120,22 +121,19 @@ class WhatsappService {
         getMessage: async () => ({ conversation: '' })
       });
 
-      // حفظ الجلسة فور كل تحديث
       this.sock.ev.on('creds.update', async () => {
         await saveCreds();
         await saveSessionToDb();
       });
 
-      // 🟢 الاستماع للرسائل الواردة والصادرة وتمريرها لمُعالج القروبات
+      // 🟢 استقبال وتوجيه الرسائل
       this.sock.ev.on('messages.upsert', async (m: any) => {
         try {
           if (!m.messages || m.messages.length === 0) return;
 
           for (const msg of m.messages) {
-            // 1️⃣ إهمال الرسائل الخالية من المحتوى النصي/الوسائط
             if (!msg.message) continue;
 
-            // 2️⃣ 🔥 فحص التوقيت: إهمال أي رسالة أُرسلت قبل تشغيل السيرفر الحالي
             const msgTimestamp = typeof msg.messageTimestamp === 'number' 
               ? msg.messageTimestamp 
               : (msg.messageTimestamp?.low || 0);
@@ -144,7 +142,6 @@ class WhatsappService {
               continue;
             }
 
-            // 3️⃣ 🛡️ فحص التكرار: منع معالجة نفس الرسالة مرتين
             const msgId = msg.key.id;
             if (msgId) {
               if (processedMessageIds.has(msgId)) continue;
@@ -156,14 +153,22 @@ class WhatsappService {
               }
             }
 
-            // 🚀 تمرير الرسالة لمُعالج القروبات
-            await handleGroupMessage(this.sock, msg);
+            const remoteJid = msg.key.remoteJid || '';
+
+            // 👥 التوجيه للقروبات
+            if (remoteJid.endsWith('@g.us')) {
+              await handleGroupMessage(this.sock, msg);
+            } 
+            // 👤 التوجيه للدردشات الخاصة
+            else if (remoteJid.endsWith('@s.whatsapp.net')) {
+              await handlePrivateChatMessage(this.sock, msg, pool);
+            }
           }
         } catch (err: any) {
           if (err?.message?.includes('Bad MAC') || err?.message?.includes('Session error')) {
-            console.warn('⚠️ [تشفير الواتساب]: تم استلام رسالة بمفتاح قديم جارٍ تحديثه تلقائياً...');
+            console.warn('⚠️ [تشفير الواتساب]: جاري تحديث المفتاح تلقائياً...');
           } else {
-            console.error('❌ خطأ أثناء استقبال وتمرير رسالة القروب:', err?.message || err);
+            console.error('❌ خطأ أثناء معالجة الرسالة:', err?.message || err);
           }
         }
       });
@@ -175,18 +180,18 @@ class WhatsappService {
           const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
           const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-          console.log(`🔴 انقطع اتصال الواتساب المبدئي. كود: ${statusCode}`);
+          console.log(`🔴 انقطع الاتصال. كود: ${statusCode}`);
 
           this.isInitializing = false;
           if (shouldReconnect) {
-            console.log('🔄 جاري إعادة الاتصال بالواتساب خلال 10 ثوانٍ...');
+            console.log('🔄 جاري إعادة الاتصال خلال 10 ثوانٍ...');
             await delay(10000);
             this.initialize();
           } else {
-            console.error('❌ تم تسجيل الخروج من جلسة الواتساب. يُرجى إعادة مسح كود QR أو طلب كود ربط جديد.');
+            console.error('❌ تم تسجيل الخروج. يرجى مسح كود QR جديد.');
           }
         } else if (connection === 'open') {
-          console.log('🟢 تم ربط الواتساب بنجاح! نظام قرار الآن جاهز لإرسال واستقبال الرسائل 🎉');
+          console.log('🟢 تم ربط الواتساب بنجاح! غيث جاهز للرد 🎉');
           this.isInitializing = false;
           await saveSessionToDb();
         }
@@ -209,41 +214,34 @@ class WhatsappService {
   }
 
   /**
-   * 🟢 دالة إرسال الرسائل الخاصة مع إعادة المحاولة
+   * 🟢 دالة إرسال الرسائل
    */
   async sendMessage(targetPhone: string, messageText: string, retries = 2): Promise<boolean> {
     try {
       if (!this.isConnected()) {
-        console.error('❌ [قرار - خطأ]: سيرفر الواتساب غير متصل حالياً.');
+        console.error('❌ [خطأ]: السيرفر غير متصل.');
         return false;
       }
 
       let formattedNumber = targetPhone.trim().replace(/[\s+]+/g, '');
-      if (formattedNumber.startsWith('0')) {
-        formattedNumber = '249' + formattedNumber.substring(1);
-      } else if (!formattedNumber.startsWith('249')) {
-        formattedNumber = '249' + formattedNumber;
-      }
+      const jid = formattedNumber.includes('@s.whatsapp.net') 
+        ? formattedNumber 
+        : `${formattedNumber}@s.whatsapp.net`;
 
-      const jid = `${formattedNumber}@s.whatsapp.net`;
-
-      const randomSeconds = Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000;
-      console.log(`⏱️ [تمويه أمني]: الانتظار لمدة ${randomSeconds / 1000} ثوانٍ...`);
+      const randomSeconds = Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000;
       await delay(randomSeconds);
 
-      console.log(`📡 جاري إرسال الرسالة الآن إلى: ${jid}...`);
-
+      console.log(`📡 جاري إرسال الرسالة إلى: ${jid}...`);
       await this.sock.sendMessage(jid, { text: messageText });
 
-      console.log(`✅ تم إرسال الرسالة بنجاح للرقم: ${formattedNumber}`);
+      console.log(`✅ تم الإرسال بنجاح إلى: ${formattedNumber}`);
       return true;
 
     } catch (error: any) {
-      console.error(`❌ فشل إرسال الرسالة إلى ${targetPhone}:`, error?.message || error);
+      console.error(`❌ فشل الإرسال إلى ${targetPhone}:`, error?.message || error);
       
       if (retries > 0) {
-        console.log(`🔄 إعادة محاولة الإرسال لـ ${targetPhone}... (المحاولات المتبقية: ${retries})`);
-        await delay(3000);
+        await delay(2000);
         return this.sendMessage(targetPhone, messageText, retries - 1);
       }
       return false;
