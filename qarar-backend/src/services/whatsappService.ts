@@ -117,8 +117,7 @@ class WhatsappService {
         printQRInTerminal: false,
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
-        keepAliveIntervalMs: 25000,
-        getMessage: async () => ({ conversation: '' })
+        keepAliveIntervalMs: 25000
       });
 
       this.sock.ev.on('creds.update', async () => {
@@ -132,16 +131,24 @@ class WhatsappService {
           if (!m.messages || m.messages.length === 0) return;
 
           for (const msg of m.messages) {
+            // تجاهل الرسائل الفارغة أو رسائل النظام الأوتوماتيكية
             if (!msg.message) continue;
 
-            const msgTimestamp = typeof msg.messageTimestamp === 'number' 
-              ? msg.messageTimestamp 
-              : (msg.messageTimestamp?.low || 0);
+            const remoteJid = msg.key.remoteJid || '';
 
-            if (msgTimestamp < this.startTime - 5) {
+            // 1. معالجة حساب الوقت بمرونة دون تجاهل الرسائل
+            let rawTime = msg.messageTimestamp;
+            if (typeof rawTime === 'object' && rawTime !== null) {
+              rawTime = rawTime.low || rawTime.unsigned || 0;
+            }
+            const msgTimestamp = Number(rawTime) || 0;
+
+            // إذا كانت الرسالة قديمة جداً (أكثر من 5 دقائق قبل تشغيل السيرفر)، نتجاهلها
+            if (msgTimestamp > 0 && msgTimestamp < (this.startTime - 300)) {
               continue;
             }
 
+            // 2. منع تكرار معالجة نفس المعرف
             const msgId = msg.key.id;
             if (msgId) {
               if (processedMessageIds.has(msgId)) continue;
@@ -153,14 +160,15 @@ class WhatsappService {
               }
             }
 
-            const remoteJid = msg.key.remoteJid || '';
+            console.log(`📩 [رسالة واردة جديدة] من: ${remoteJid}`);
 
             // 👥 التوجيه للقروبات
             if (remoteJid.endsWith('@g.us')) {
               await handleGroupMessage(this.sock, msg);
             } 
-            // 👤 التوجيه للدردشات الخاصة
-            else if (remoteJid.endsWith('@s.whatsapp.net')) {
+            // 👤 التوجيه للدردشات الخاصة (تدعم @s.whatsapp.net و @lid)
+            else if (remoteJid.endsWith('@s.whatsapp.net') || remoteJid.endsWith('@lid')) {
+              console.log(`🤖 جاري تحويل الرسالة للخدمة الخاصة بغيث...`);
               await handlePrivateChatMessage(this.sock, msg, pool);
             }
           }
@@ -168,7 +176,7 @@ class WhatsappService {
           if (err?.message?.includes('Bad MAC') || err?.message?.includes('Session error')) {
             console.warn('⚠️ [تشفير الواتساب]: جاري تحديث المفتاح تلقائياً...');
           } else {
-            console.error('❌ خطأ أثناء معالجة الرسالة:', err?.message || err);
+            console.error('❌ خطأ أثناء معالجة الرسالة في whatsappService:', err?.message || err);
           }
         }
       });
