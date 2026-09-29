@@ -7,25 +7,26 @@ import { askGhaith } from './ghaithService';
 // ==========================================
 // المتغيرات والذاكرة المؤقتة (In-Memory State)
 // ==========================================
-let globalIsActive = true; // حالة التشغيل العامة لغيث
+let globalIsActive = true;
 let currentStatusContext = "لؤي غير متاح حالياً وسيتواصل معك فور فرغته.";
 
-// 1. خريطة الدردشات المتوقفة مؤقتاً بسبب رد لؤي اليدوي (JID -> Timestamp)
+// 1. خريطة الدردشات المتوقفة مؤقتاً (JID -> Timestamp)
 const pausedChats = new Map<string, number>();
 
-// 2. ذاكرة تتبع رسائل غيث الذاتية لمنع تعليق الشات عن طريق الخطأ
+// 2. ذاكرة تتبع رسائل غيث الذاتية لمنع تعليق الشات
 const ghaithSentMessageIds = new Set<string>();
 
-// 3. قفل تتابع الرسائل لمنع معالجة أكثر من رسالة لنفس الشخص في نفس اللحظة (Race Condition)
+// 3. قفل تتابع الرسائل لمنع معالجة أكثر من رسالة لنفس الشخص في نفس اللحظة
 const activeProcessingLocks = new Set<string>();
 
-// 4. حساب عدد رسائل الشخص
-const chatMessageCounts = new Map<string, number>();
+// 4. خريطة لتتبع آخر رقم كان يراسل لسهولة التوجيه من الأدمن (JID -> Timestamp)
+let lastActiveUserJid: string | null = null;
+const pendingAdminUnpause = new Map<string, boolean>(); // لتتبع حالة انتظار تحديد الرقم المطلوب فكه
 
-const ADMIN_PHONE = process.env.ADMIN_PHONE || ""; // رقم التحكم (الأدمن)
+const ADMIN_PHONE = process.env.ADMIN_PHONE || ""; // الرقم السعودي الأدمن
 
 /**
- * 🟢 استرجاع الإعدادات الحفظية لغيث عند تشغيل السيرفر
+ * 🟢 استرجاع الإعدادات الحفظية عند تشغيل السيرفر
  */
 export async function loadGhaithSettings(dbPool: Pool) {
   try {
@@ -40,7 +41,7 @@ export async function loadGhaithSettings(dbPool: Pool) {
     }
     console.log(`🤖 [غيث]: تم تحميل الإعدادات بنجاح (الحالة العامة: ${globalIsActive ? 'نشط' : 'متوقف'}).`);
   } catch (err) {
-    console.error('⚠️ [غيث]: لم يتم العثور على إعدادات سابقة، سيتم الاعتماد على الافتراضي.');
+    console.error('⚠️ [غيث]: اعتمد الإعدادات الافتراضية.');
   }
 }
 
@@ -70,16 +71,15 @@ export async function handlePrivateChatMessage(
 
     if (!messageText.trim()) return;
 
-    // 1️⃣ معالجة الرسائل الصادرة (fromMe = true)
+    // 1️⃣ معالجة الرسائل الصادرة من نفس رقم MTN (fromMe = true)
     if (isFromMe) {
       const msgId = msg.key.id;
-      // إذا كانت الرسالة أُرسلت أوتوماتيكياً بواسطة غيث نفسه -> تجاهل بدون تعليق الشات
       if (msgId && ghaithSentMessageIds.has(msgId)) {
         ghaithSentMessageIds.delete(msgId);
         return;
       }
 
-      // إذا كانت الرسالة أُرسلت يدويًا من لؤي من الجوال -> إيقاف غيث لمدة ساعتين
+      // إذا رد لؤي يدوياً من جوال MTN -> إيقاف غيث لمدة ساعتين في الشات
       const pauseUntil = Date.now() + 2 * 60 * 60 * 1000;
       pausedChats.set(senderJid, pauseUntil);
       console.log(`[غيث] تم إيقاف غيث أوتوماتيكياً في الدردشة ${senderJid} لمدة ساعتين بسبب رد لؤي اليدوي.`);
@@ -89,34 +89,27 @@ export async function handlePrivateChatMessage(
     const cleanSenderPhone = senderJid.replace('@s.whatsapp.net', '').replace('@lid', '');
     const cleanAdminPhone = ADMIN_PHONE.replace('@s.whatsapp.net', '').replace('@lid', '');
 
-    // 2️⃣ التحكم الشامل عبر رقمك الأدمن (الرقم السعودي)
+    // 2️⃣ التحكم الشامل والتفاعل مع الأدمن (الرقم السعودي)
     if (cleanAdminPhone && cleanSenderPhone === cleanAdminPhone) {
-      await handleAdminCommands(sock, senderJid, messageText, dbPool);
+      await handleAdminInteraction(sock, senderJid, messageText, dbPool);
       return;
     }
+
+    // حفظ آخر محادثة نشطة مع مستخدم
+    lastActiveUserJid = senderJid;
 
     // 3️⃣ فحص الإيقاف العام
-    if (!globalIsActive) {
-      console.log(`[غيث] البوت متوقف عاماً. تم تجاهل الرسالة من ${senderJid}`);
-      return;
-    }
+    if (!globalIsActive) return;
 
-    // 4️⃣ فحص الإيقاف المؤقت للدردشة الفردية (الساعتين)
+    // 4️⃣ فحص الإيقاف المؤقت للشات الفردي
     const pauseTime = pausedChats.get(senderJid);
     if (pauseTime) {
-      if (Date.now() < pauseTime) {
-        console.log(`[غيث] الدردشة مع ${senderJid} متوقفة مؤقتاً بسبب رد لؤي اليدوي السابق.`);
-        return;
-      } else {
-        pausedChats.delete(senderJid); // انتهاء مدة الإيقاف
-      }
+      if (Date.now() < pauseTime) return;
+      pausedChats.delete(senderJid);
     }
 
-    // 5️⃣ منع سباق العمليات (Race Condition Lock) للرسائل المتتالية
-    if (activeProcessingLocks.has(senderJid)) {
-      console.log(`[غيث] يجرى معالجة رسالة أخرى للشات ${senderJid} حالياً، تم تجاوز الرسالة لمنع التكرار.`);
-      return;
-    }
+    // 5️⃣ منع سباق العمليات للرسائل المتتالية
+    if (activeProcessingLocks.has(senderJid)) return;
     activeProcessingLocks.add(senderJid);
 
     // 6️⃣ فحص قائمة الاستثناءات (Blacklist)
@@ -124,31 +117,32 @@ export async function handlePrivateChatMessage(
       'SELECT phone_number FROM ghaith_blacklist WHERE phone_number = $1 OR phone_number = $2',
       [cleanSenderPhone, senderJid]
     );
-
     if (blacklistRes.rowCount && blacklistRes.rowCount > 0) {
-      console.log(`[غيث] الرقم ${cleanSenderPhone} مستثنى من الرد.`);
       activeProcessingLocks.delete(senderJid);
       return;
     }
 
-    // 7️⃣ التنبيه العاجل لرقم الأدمن
-    const lowerText = messageText.toLowerCase();
-    if (lowerText.includes("ضروري") || lowerText.includes("عاجل") || lowerText.includes("مستعجل")) {
-      if (ADMIN_PHONE) {
-        const alertMsg = `⚠️ *تنبيه عاجل من غيث*\n\nالرقم: ${cleanSenderPhone}\nطلب التواصل بك لأمر ضروري!\n\n*الرسالة:* "${messageText}"`;
-        await sock.sendMessage(ADMIN_PHONE, { text: alertMsg });
-      }
-    }
-
-    // 8️⃣ حساب عدد الرسائل وإظهار حالة "جاري الكتابة..." فوراً
-    const currentCount = (chatMessageCounts.get(senderJid) || 0) + 1;
-    chatMessageCounts.set(senderJid, currentCount);
-
-    // ✍️ إرسال إشارة "جاري الكتابة..." للمتحدث
+    // ✍️️ إظهار حالة "جاري الكتابة..." فوراً
     await sock.sendPresenceUpdate('composing', senderJid);
 
-    // 9️⃣ جلب اسم الشخص من الداتابيز
-    let senderName = "الصديق/الزائر";
+    // 7️⃣ التنبيه العاجل لرقم الأدمن إذا ذكر "ضروري" أو "عاجل"
+    const lowerText = messageText.toLowerCase();
+    const isUrgent = lowerText.includes("ضروري") || lowerText.includes("عاجل") || lowerText.includes("مستعجل") || lowerText.includes("هام");
+
+    if (isUrgent && ADMIN_PHONE) {
+      const cleanNumber = ADMIN_PHONE.trim().replace(/[^0-9]/g, '');
+      const adminJid = cleanNumber.includes('@s.whatsapp.net') ? cleanNumber : `${cleanNumber}@s.whatsapp.net`;
+
+      const alertMsg = `🚨 *تنبيه عاجل يا باشمهندس لؤي*\n\n` +
+        `👤 *من الرقم:* ${cleanSenderPhone}\n` +
+        `📝 *الرسالة:* "${messageText}"\n\n` +
+        `💡 يطلب التواصل معك لأمر هام جداً.`;
+
+      await sock.sendMessage(adminJid, { text: alertMsg });
+    }
+
+    // 8️⃣ جلب اسم الشخص إن وجد
+    let senderName = "";
     const profileRes = await dbPool.query(
       'SELECT full_name FROM volunteer_profiles WHERE whatsapp LIKE $1 OR phone LIKE $2 LIMIT 1',
       [`%${cleanSenderPhone}%`, `%${cleanSenderPhone}%`]
@@ -157,55 +151,49 @@ export async function handlePrivateChatMessage(
       senderName = profileRes.rows[0].full_name;
     }
 
-    // 🔟 جلب السجل السابق
+    // 9️⃣ جلب السجل
     const historyText = await getFormattedHistoryAndManageMemory(dbPool, senderJid);
 
-    // 🎯 صياغة التوجيهات البرمجية المباشرة لـ Gemini
+    // 🎯 البرومبت المحسن باللهجة السودانية العفوية وبدون علامات ترقيم رسمية
     const systemInstruction = `
-أنت "غيث"، المساعد الرقمي الذكي الخاص بـ "لؤي" (لؤي جعفر).
+أنت "غيث" .. المساعد الرقمي الشخصي لـ "لؤي" .. 
 
-[قواعد الهوية والتواصل]:
-1. أنت المساعد الرقمي الخاص بـ "لؤي" فقط. يُمنع منعاً باتاً كلياً ذكر كلمة "نظام قرار" أو أي أنظمة سابقة.
-2. الطرف المتحدث معه اسمه: "${senderName}" (إذا كان الاسم باللغة الإنجليزية، نادهِ باسمه الأول باللغة العربية).
-3. حالة لؤي الحالية: "${currentStatusContext}"
+[أسلوب النبرة والكتابة - قواعد صارمة جدًا]:
+1. اتكلم بلهجة سودانية محبوبة .. لطيفة .. وبسيطة جداً بدون تكلف أو رسميات زائدة .. 
+2. ممنوع نهائياً استخدام أسلوب الذكاء الاصطناعي الرتيب مثل ("كيف يمكنني مساعدتك؟" أو "هل لديك أي استفسارات أخرى؟") .. 
+3. بطل استخدام علامات الترقيم الرسمية والشولة (الفصلات) تماماً .. بدلاً عنها استخدم النقطتين المزدوجة بين الجمل (..) بنفس هذه الطريقة ..
+4. ما تكرر اسم "لؤي" كتير مع كل كلمة ورسالة .. اتكلم في الموضوع مباشرة وبدون إطالة ..
+5. إذا الشخص قال كلامه أو تحيته .. رد عليه بإيجاز وبشكل مفهوم وفاهِم ..
+6. إذا الشخص أرسل وقال عايز لؤي "ضروري" أو "مستعجل" .. رد عليه فوراً بالعبارة دي بنفس النص والأسلوب:
+   "أبشر .. هسي وصلت ليهو الرسالة وحشوفو فاضي متين .. وحأرجع ليك"
 
-[تنبيه صارم لمنع التكرار]:
-- إذا كان هناك كلام سابق في "سجل المحادثة"، أو أرسل المستخدم كلمة بسيطة مثل ("الو"، "معي؟"، "موجود؟"، "أيوة")، لا تكرر ديباجة التعريف بنفسك وبـ لؤي نهائياً!
-- جاوب مباشرة ولطافة باختصار شديد، مثلاً: "تفضل أسمعك"، "أيوة معك تفضل"، "تفضل أخي وسأنقل كلامك للؤي فور تفرغه".
-- كرر جملة "أنا غيث المساعد الرقمي للؤي..." فقط إذا كانت هذه أول محادثة بينكما على الإطلاق ولا يوجد أي سجل سابق.
-
-[جدار حماية الخصوصية والأسرار]:
-- يُمنع كشف أسرار لؤي أو تحركاته أو أرقام وتفاصيل الآخرين. إذا سُئلت عن ذلك اعتذر بكرامة ولباقة: "عذراً، هذه معلومات خاصة ولا يمكنني مشاركتها."
+[معلومات الشات]:
+- اسم الشخص: "${senderName}"
+- حالة لؤي الحالية: "${currentStatusContext}"
 
 [سجل المحادثة السابق]:
 ${historyText}
 `;
 
-    // 🚀 طلب الرد من Gemini عبر محرك askGhaith
     const replyFromGemini = await askGhaith(messageText, {
       systemInstruction: systemInstruction
     });
 
-    // إرسال الرد
     const sentMsg = await sock.sendMessage(senderJid, { text: replyFromGemini });
 
-    // حفظ ID الرسالة لتجنب قراءة البوت لردوده كأنها ردود يدوية من لؤي
     if (sentMsg?.key?.id) {
       ghaithSentMessageIds.add(sentMsg.key.id);
     }
 
-    // حفظ الرسائل في قاعدة البيانات
     await logChatMessage(dbPool, senderJid, 'user', messageText);
     await logChatMessage(dbPool, senderJid, 'assistant', replyFromGemini);
 
   } catch (error) {
     console.error("[غيث Error]:", error);
-    // إيقاف مؤشر الكتابة في حال حدوث خطأ
     if (msg.key.remoteJid) {
       await sock.sendPresenceUpdate('paused', msg.key.remoteJid);
     }
   } finally {
-    // إزالة قفل المعالجة
     if (msg.key.remoteJid) {
       activeProcessingLocks.delete(msg.key.remoteJid);
     }
@@ -213,29 +201,63 @@ ${historyText}
 }
 
 // ==========================================
-// وظائف التحكم الإداري (ADMIN)
+// التفاعل التفاعلي والإداري مع لؤي (الرقم السعودي)
 // ==========================================
-async function handleAdminCommands(sock: WASocket, adminJid: string, text: string, db: Pool) {
+async function handleAdminInteraction(sock: WASocket, adminJid: string, text: string, db: Pool) {
   const command = text.trim();
 
+  // 1️⃣ حالة انتظار تحديد الرقم المراد فكه بعد إرسال "فك"
+  if (pendingAdminUnpause.get(adminJid)) {
+    pendingAdminUnpause.delete(adminJid);
+
+    if (command === "الكل" || command === "كل الاقام" || command === "الجميع") {
+      pausedChats.clear();
+      await sock.sendMessage(adminJid, { text: "أبشر يا باشمهندس .. تم فك وتفعيل التعليق عن كل الأرقام والمحادثات هسي .." });
+      return;
+    } else {
+      // افتراض إدخال رقم معين
+      const cleanTargetPhone = command.replace(/[^0-9]/g, '');
+      let foundJid = "";
+      for (const [jid] of pausedChats.entries()) {
+        if (jid.includes(cleanTargetPhone)) {
+          foundJid = jid;
+          break;
+        }
+      }
+
+      if (foundJid) {
+        pausedChats.delete(foundJid);
+        await sock.sendMessage(adminJid, { text: `أبشر يا باشمهندس .. تم فك التعليق عن الرقم (${cleanTargetPhone}) وجاهز للرد ..` });
+      } else {
+        // فك الشات الأخير افتراضياً أو فك الرقم مباشرة
+        const targetJid = cleanTargetPhone.includes('@s.whatsapp.net') ? cleanTargetPhone : `${cleanTargetPhone}@s.whatsapp.net`;
+        pausedChats.delete(targetJid);
+        await sock.sendMessage(adminJid, { text: `أبشر يا باشمهندس .. تم فك التعليق عن الرقم (${cleanTargetPhone}) ..` });
+      }
+      return;
+    }
+  }
+
+  // 2️⃣ أمر "فك"
+  if (command === "فك" || command === "تفعيل" || command === "فك التعليق") {
+    pendingAdminUnpause.set(adminJid, true);
+    await sock.sendMessage(adminJid, { text: "أبشر يا باشمهندس .. حبابك .. داير تفك التعليق عن ياتو رقم بالظبط؟ ولا داير تفك التعليق عن كل الأرقام؟" });
+    return;
+  }
+
+  // 3️⃣ أوامر الإيقاف والتشغيل العامة
   if (command === "توقف" || command === "وقف") {
     globalIsActive = false;
     await db.query("INSERT INTO ghaith_settings (setting_key, setting_value) VALUES ('is_active', 'false') ON CONFLICT (setting_key) DO UPDATE SET setting_value = 'false'");
-    await sock.sendMessage(adminJid, { text: "🛑 تم إيقاف غيث بالكامل." });
+    await sock.sendMessage(adminJid, { text: "أبشر يا باشمهندس .. تم إيقاف غيث عن العمل تماماً .." });
     return;
   }
 
   if (command === "تشغيل" || command === "اشتغل") {
     globalIsActive = true;
-    pausedChats.clear(); // إزالة جميع التعليقات المؤقتة أيضاً عند التشغيل
-    await db.query("INSERT INTO ghaith_settings (setting_key, setting_value) VALUES ('is_active', 'true') ON CONFLICT (setting_key) DO UPDATE SET setting_value = 'true'");
-    await sock.sendMessage(adminJid, { text: "✅ تم تشغيل غيث بنجاح وإلغاء كافة التعليقات المؤقتة للدردشات." });
-    return;
-  }
-
-  if (command === "فك" || command === "تفعيل الكل" || command === "إلغاء التعليق") {
     pausedChats.clear();
-    await sock.sendMessage(adminJid, { text: "🔓 تم إلغاء كافة التعليقات المؤقتة للدردشات فوراً." });
+    await db.query("INSERT INTO ghaith_settings (setting_key, setting_value) VALUES ('is_active', 'true') ON CONFLICT (setting_key) DO UPDATE SET setting_value = 'true'");
+    await sock.sendMessage(adminJid, { text: "أبشر يا باشمهندس .. تم تشغيل غيث وفك كل المحادثات المعلقة .." });
     return;
   }
 
@@ -243,33 +265,41 @@ async function handleAdminCommands(sock: WASocket, adminJid: string, text: strin
     const newStatus = command.replace("حالة:", "").trim();
     currentStatusContext = newStatus;
     await db.query("INSERT INTO ghaith_settings (setting_key, setting_value) VALUES ('custom_status', $1) ON CONFLICT (setting_key) DO UPDATE SET setting_value = $1", [newStatus]);
-    await sock.sendMessage(adminJid, { text: `📌 تم تحديث حالتك لدى غيث إلى:\n"${newStatus}"` });
+    await sock.sendMessage(adminJid, { text: `أبشر يا باشمهندس .. تم تحديث حالتك إلى:\n"${newStatus}"` });
     return;
   }
 
-  if (command.startsWith("استثناء ")) {
-    const phoneToBlock = command.replace("استثناء ", "").trim();
-    await db.query("INSERT INTO ghaith_blacklist (phone_number) VALUES ($1) ON CONFLICT DO NOTHING", [phoneToBlock]);
-    await sock.sendMessage(adminJid, { text: `🚫 تم حظر الرقم (${phoneToBlock}).` });
+  // 4️⃣ إذا أرسل لؤي توجيهاً بالرد على الشخص (مثلاً: "لؤي قال حيخش يرسل ليك هسي" أو "قول ليهو لؤي جاي")
+  if (lastActiveUserJid && (command.includes("حيخش") || command.includes("يرسل") || command.includes("قول") || command.includes("وصلت"))) {
+    const targetUserJid = lastActiveUserJid;
+    
+    // إرسال الرد المباشر للشخص
+    const formattedReply = `${command} ..`;
+    const sentMsg = await sock.sendMessage(targetUserJid, { text: formattedReply });
+    
+    if (sentMsg?.key?.id) {
+      ghaithSentMessageIds.add(sentMsg.key.id);
+    }
+    
+    // فك التعليق عن هذا الشخص ليعود للتفاعل
+    pausedChats.delete(targetUserJid);
+
+    await logChatMessage(db, targetUserJid, 'assistant', formattedReply);
+    await sock.sendMessage(adminJid, { text: `أبشر يا باشمهندس .. تم نقل رسالتك للشخص فوراً وفك التعليق عن محادثته ..` });
     return;
   }
 
-  if (command.startsWith("تفعيل ")) {
-    const phoneToUnblock = command.replace("تفعيل ", "").trim();
-    await db.query("DELETE FROM ghaith_blacklist WHERE phone_number = $1", [phoneToUnblock]);
-    await sock.sendMessage(adminJid, { text: `✅ تم إلغاء حظر الرقم (${phoneToUnblock}).` });
-    return;
-  }
+  // 5️⃣ الرد النقاشي الافتراضي مع الإدارة
+  const adminPrompt = `
+أنت "غيث" التابع لـ "باشمهندس لؤي" .. 
+أنت تتحدث الآن مع رئيسك الإداري المباشر (باشمهندس لؤي) عبر رقمه الخاص ..
+خاطبه دائماً بـ "يا باشمهندس" .. وناقشه بلهجة سودانية إدارية محترمة ولطيفة .. 
+استخدم النقاط (..) بدلاً عن علامات الترقيم .. ولا تستخدم الفواصل والشولة ..
+رسالة الباشمهندس لؤي: "${command}"
+`;
 
-  const helpMenu = `🤖 *لوحة تحكم غيث:*\n\n` +
-    `• *توقف* : إيقاف البوت كلياً.\n` +
-    `• *تشغيل* : إعادة التفعيل وتصفير التعليقات.\n` +
-    `• *فك* : إلغاء تعليق الدردشات فوراً.\n` +
-    `• *حالة: [النص]* : تحديث حالتك.\n` +
-    `• *استثناء [الرقم]* : حظر رقم.\n` +
-    `• *تفعيل [الرقم]* : إلغاء حظر الرقم.`;
-  
-  await sock.sendMessage(adminJid, { text: helpMenu });
+  const adminReply = await askGhaith(command, { systemInstruction: adminPrompt });
+  await sock.sendMessage(adminJid, { text: adminReply });
 }
 
 // ==========================================
@@ -290,9 +320,9 @@ async function getFormattedHistoryAndManageMemory(db: Pool, phone: string): Prom
 
   if (res.rows.length > 12) {
     const fullLog = res.rows.map(r => `${r.role}: ${r.message_text}`).join('\n');
-    const summarizePrompt = `قم بتلخيص هذه المحادثة في 3 أسطر مركزة تستخرج أهم النقاط والطلبات:\n\n${fullLog}`;
+    const summarizePrompt = `قم بتلخيص هذه المحادثة في 3 أسطر مركزة تستخرج أهم النقاط والطلبات بدون علامات ترقيم وبنقاط متتابعة ..:\n\n${fullLog}`;
     const summary = await askGhaith(summarizePrompt, {
-      systemInstruction: "أنت ملخص احترافي، تلخص النقاط المهمة فقط."
+      systemInstruction: "أنت ملخص احترافي لغيث .."
     });
 
     await db.query('DELETE FROM ghaith_chat_logs WHERE sender_phone = $1', [phone]);
