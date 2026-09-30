@@ -128,13 +128,17 @@ export async function handlePrivateChatMessage(
     activeProcessingLocks.add(senderJid);
 
     const cleanSenderPhone = senderJid.replace('@s.whatsapp.net', '').replace('@lid', '');
+    const senderTail = getPhoneTail(senderJid);
 
-    // 6️⃣ فحص قائمة الاستثناءات (Blacklist)
-    const blacklistRes = await dbPool.query(
-      'SELECT phone_number FROM ghaith_blacklist WHERE phone_number = $1 OR phone_number = $2',
-      [cleanSenderPhone, senderJid]
-    );
-    if (blacklistRes.rowCount && blacklistRes.rowCount > 0) {
+    // 6️⃣ فحص قائمة الاستثناءات والحظر (Blacklist) بدقة آخر 8 أرقام
+    const blacklistRes = await dbPool.query('SELECT phone_number FROM ghaith_blacklist');
+    const isBlacklisted = blacklistRes.rows.some(row => {
+      const bTail = getPhoneTail(row.phone_number);
+      return bTail.length >= 8 && bTail === senderTail;
+    });
+
+    if (isBlacklisted) {
+      console.log(`🚫 [غيث]: تم حظر وممتنع عن الرد على الرقم: ${cleanSenderPhone}`);
       activeProcessingLocks.delete(senderJid);
       return;
     }
@@ -146,36 +150,52 @@ export async function handlePrivateChatMessage(
     let senderName = "";
     const profileRes = await dbPool.query(
       'SELECT full_name FROM volunteer_profiles WHERE whatsapp LIKE $1 OR phone LIKE $2 LIMIT 1',
-      [`%${cleanSenderPhone}%`, `%${cleanSenderPhone}%`]
+      [`%${senderTail}%`, `%${senderTail}%`]
     );
     if (profileRes.rows.length > 0 && profileRes.rows[0].full_name) {
       senderName = profileRes.rows[0].full_name;
     }
 
-    // 8️⃣ جلب السجل
+    // 8️⃣ جلب السجل الممزوج بالتوقيت الزمني الدقيق لكل رسالة
     const historyText = await getFormattedHistoryAndManageMemory(dbPool, senderJid);
 
-    // 9️⃣ تقييم الذكاء الاصطناعي لحالة الإشعار والإجابة
+    const currentTimeStr = new Date().toLocaleString('ar-EG', {
+      timeZone: 'Asia/Riyadh',
+      dateStyle: 'full',
+      timeStyle: 'short'
+    });
+
+    // 9️⃣ توجيهات الذكاء الاصطناعي الذكية والمطورة
     const systemInstruction = `
 أنت "غيث" .. المساعد الرقمي الذكي الخاص بـ "لؤي" (لؤي جعفر) ..
 
-[قواعد اللهجة والأسلوب]:
-- اتكلم بلهجة سودانية محبوبة .. لطيفة .. وبسيطة جداً بدون تكلف ..
-- ممنوع نهائياً أسلوب الذكاء الاصطناعي الرتيب مثل ("كيف يمكنني مساعدتك؟" أو "هل لديك أي استفسار آخر؟") ..
-- ممنوع استخدام الشولة وعلامات الترقيم الرسمية .. استخدم النقطتين المزدوجة بين الجمل (..) ..
-- ممنوع تفبرك أسباب أو تؤلف تفاصيل من عندك عن شغل لؤي (مثل اجتماعات أو مشاريع مع التيم) ..
-- ما تكرر اسم "لؤي" كتير .. اتكلم في الموضوع المباشر ..
+[التاريخ والوقت الحالي الآن]: ${currentTimeStr}
 
-[قواعد تقييم أهمية الرسالة والرد]:
-1. إذا لاحظت أن المتحدث أمه، أبوه، زول مستعجل، عنده موضوع مهم، أو أصر على التواصل العاجل:
-   - يجب أن تتعهد له بلطافة وبدون كذب صريح: "أبشر .. هسي كلمت لؤي ونبهتو لموضوعك .. أول ما يفرغ أو يرد علي حأرجع أوريك طوالي حيتصل بيك متين .."
-   - أضف الكود المرجعي [NOTIFY_ADMIN] في أقصى نهاية الرد حتى أرسل التنبيه للؤي فوراً.
+[قواعد الذكاء الهامة وسياق واتساب لؤي الشخصي]:
+1. **التعامل مع سلام وتحيات المستخدم**:
+   - الأشخاص يتحدثون على هذا الحساب متوقعين التواصل مع لؤي.
+   - **الرسائل والتحيات الخفيفة جداً** (مثل: "سلام", "هلا", "كيفك", "اخبارك"): رد بتحية سودانية لطيفة ومختصرة فقط (مثل: "وعليكم السلام حبابك .. كيف الأمور؟" أو "أهلاً يا غالي .. أخبارك شنو؟").
+   - **لا تذكر نهائياً كلمة "أنا غيث" في التحيات الخفيفة والبدايات العادية!** لا داعي لششبك الشخص بتعريف البوت فوراً في السلام العابر.
+2. **متى تعلن عن هوية غيث؟**:
+   - فقط عندما يتشعب الشخص في موضوع، يسأل سؤالاً محدداً، يريد خدمة من لؤي، أو يطلب موضوعاً كبيراً، هنا وضح له بلطافة: ("أنا غيث المساعد الذكي لـ لؤي .. لؤي هسي مشغول شوية وأول ما يفرغ بيرد عليك طوالي ..").
+3. **ممنوع التخمين أو الافتراض**:
+   - لا تفترض نهائياً جنس المتحدث أو صلة قرابته (تجنب ألقاب مثل "يا غالية" أو ادعاء القرابة) إلا إذا صرح بذلك صراحة.
+   - رد فقط على ما تم إرساله الآن، ولا تفتح مواضيع قديمة من تلقاء نفسك.
+
+[قواعد اللهجة والأسلوب]:
+- اتكلم بلهجة سودانية محبوبة .. لطيفة .. وبسيطة بدون تكلف ..
+- ممنوع أسلوب الذكاء الاصطناعي الجاف ..
+- استخدم النقطتين المزدوجة بين الجمل (..) .. وبدون علامات ترقيم رسمية ..
+
+[تقييم الأهمية والإشعار]:
+إذا طلب المستخدم صراحة أمراً عاجلاً جداً أو أصر على تنبيه لؤي فوراً:
+- تعهد له بلطافة واكتب الكود [NOTIFY_ADMIN] في نهاية ردك.
 
 [معلومات الشات]:
-- اسم الشخص: "${senderName}"
+- اسم الشخص: "${senderName || 'غير مسجل'}"
 - حالة لؤي الحالية: "${currentStatusContext}"
 
-[سجل المحادثة السابق]:
+[سجل المحادثة الموثق بالوقت والتاريخ]:
 ${historyText}
 `;
 
@@ -291,9 +311,10 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
         adminResponse = "أبشر يا باشمهندس .. تم فك التعليق عن كل المحادثات المعلقة هسي ..";
       } else if (target) {
         const cleanTarget = target.replace(/\D/g, '');
+        const targetTail = getPhoneTail(cleanTarget);
         let count = 0;
         for (const [jid] of pausedChats.entries()) {
-          if (jid.includes(cleanTarget)) {
+          if (getPhoneTail(jid) === targetTail) {
             pausedChats.delete(jid);
             count++;
           }
@@ -306,15 +327,26 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
       }
     } 
     else if (action === "BLACKLIST") {
-      let targetJid = target === "LAST" ? lastUrgentUserJid : target;
+      let targetJid = (target && target !== "LAST") ? target : lastUrgentUserJid;
       const cleanTarget = targetJid ? targetJid.replace(/\D/g, '') : '';
+      
       if (cleanTarget) {
         await db.query(
           "INSERT INTO ghaith_blacklist (phone_number) VALUES ($1) ON CONFLICT DO NOTHING",
           [cleanTarget]
         );
-        pausedChats.delete(`${cleanTarget}@s.whatsapp.net`);
-        adminResponse = `أبشر يا باشمهندس .. تم إضافة الرقم (${cleanTarget}) لقائمة الاستثناءات ولن أرد عليه نهائياً بعد اليوم ..`;
+
+        // إزالة الرقم فوراً من قائمة التعليق المؤقت إن وجد
+        const targetTail = getPhoneTail(cleanTarget);
+        for (const [jid] of pausedChats.entries()) {
+          if (getPhoneTail(jid) === targetTail) {
+            pausedChats.delete(jid);
+          }
+        }
+
+        adminResponse = `أبشر يا باشمهندس .. تم إضافة الرقم (${cleanTarget}) لقائمة الحظر والاستثناءات ولن أرد عليه نهائياً بعد اليوم ..`;
+      } else {
+        adminResponse = "أبشر يا باشمهندس .. لكن ما قدرت أحدد الرقم بالضبط .. ممكن تكتب الرقم المراد حظره؟ ..";
       }
     } 
     else if (action === "SET_STATUS") {
@@ -382,13 +414,14 @@ async function getPausedChatsReport(db: Pool): Promise<string> {
 
   for (const [jid, pauseUntil] of pausedChats.entries()) {
     const cleanPhone = jid.replace('@s.whatsapp.net', '').replace('@lid', '');
+    const senderTail = getPhoneTail(cleanPhone);
     const remainingMinutes = Math.max(0, Math.ceil((pauseUntil - Date.now()) / (1000 * 60)));
 
     let name = "غير مسجل في المتطوعين";
     try {
       const profileRes = await db.query(
         'SELECT full_name FROM volunteer_profiles WHERE whatsapp LIKE $1 OR phone LIKE $2 LIMIT 1',
-        [`%${cleanPhone}%`, `%${cleanPhone}%`]
+        [`%${senderTail}%`, `%${senderTail}%`]
       );
       if (profileRes.rows.length > 0 && profileRes.rows[0].full_name) {
         name = profileRes.rows[0].full_name;
@@ -404,7 +437,7 @@ async function getPausedChatsReport(db: Pool): Promise<string> {
 }
 
 // ==========================================
-// وظائف السجل والذاكرة
+// وظائف السجل والذاكرة بالتوقيت الدقيق
 // ==========================================
 async function logChatMessage(db: Pool, phone: string, role: 'user' | 'assistant', text: string) {
   await db.query(
@@ -415,22 +448,30 @@ async function logChatMessage(db: Pool, phone: string, role: 'user' | 'assistant
 
 async function getFormattedHistoryAndManageMemory(db: Pool, phone: string): Promise<string> {
   const res = await db.query(
-    'SELECT role, message_text FROM ghaith_chat_logs WHERE sender_phone = $1 ORDER BY created_at ASC',
+    `SELECT role, message_text, created_at 
+     FROM ghaith_chat_logs 
+     WHERE sender_phone = $1 
+     ORDER BY created_at DESC 
+     LIMIT 8`,
     [phone]
   );
 
-  if (res.rows.length > 12) {
-    const fullLog = res.rows.map(r => `${r.role}: ${r.message_text}`).join('\n');
-    const summarizePrompt = `قم بتلخيص هذه المحادثة في 3 أسطر مركزة تستخرج أهم النقاط والطلبات بدون علامات ترقيم وبنقاط متتابعة ..:\n\n${fullLog}`;
-    const summary = await askGhaith(summarizePrompt, {
-      systemInstruction: "أنت ملخص احترافي لغيث .."
-    });
-
-    await db.query('DELETE FROM ghaith_chat_logs WHERE sender_phone = $1', [phone]);
-    await logChatMessage(db, phone, 'assistant', `[ملخص المحادثة السابقة]: ${summary}`);
-
-    return `[ملخص المحادثة السابقة]: ${summary}`;
+  if (res.rows.length === 0) {
+    return "لا يوجد سجل محادثة سابق لهذا الرقم.";
   }
 
-  return res.rows.map(r => `${r.role === 'user' ? 'المستخدم' : 'غيث'}: ${r.message_text}`).join('\n');
+  const rows = res.rows.reverse();
+
+  return rows.map(r => {
+    const dateObj = new Date(r.created_at || Date.now());
+    const timeFormatted = dateObj.toLocaleString('ar-EG', {
+      timeZone: 'Asia/Riyadh',
+      day: 'numeric',
+      month: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const roleName = r.role === 'user' ? 'المستخدم' : 'غيث';
+    return `[${timeFormatted}] ${roleName}: ${r.message_text}`;
+  }).join('\n');
 }

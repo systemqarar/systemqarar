@@ -4,7 +4,9 @@ import makeWASocket, {
   useMultiFileAuthState, 
   DisconnectReason, 
   delay,
-  fetchLatestBaileysVersion 
+  fetchLatestBaileysVersion,
+  makeInMemoryStore,
+  proto
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import path from 'path';
@@ -17,6 +19,9 @@ const { pool } = db;
 
 const logger = pino({ level: 'silent' });
 const SESSION_DIR = path.join(process.cwd(), 'whatsapp_session');
+
+// 📦 متجر ذاكرة لتخزين واسترجاع حزم الرسائل وتسهيل إعادة فك التشفير
+const store = makeInMemoryStore({ logger });
 
 // 🛡️ ذاكرة مؤقتة لمنع تكرار معالجة نفس الرسالة
 const processedMessageIds = new Set<string>();
@@ -81,6 +86,7 @@ class WhatsappService {
   private sock: any = null;
   private isInitializing = false;
   private startTime: number = Math.floor(Date.now() / 1000);
+  private autoSaveInterval: NodeJS.Timeout | null = null;
 
   public getSocket() {
     return this.sock;
@@ -92,7 +98,7 @@ class WhatsappService {
 
   async initialize() {
     if (process.env.DEVELOPMENT_MODE === 'true') {
-      console.log('⚠️ [تنبيه أمان]: تم إيقاف تفعيل وحدة اتصال الواتساب الحي بنجاح بناءً على طلب الإدارة.');
+      console.log('⚠️ [تنبيه أمان]: تم إيقاف تفعيل وحدة اتصال الواتساب الحي بنجاح بناءً علىطلب الإدارة.');
       return;
     }
 
@@ -117,13 +123,33 @@ class WhatsappService {
         printQRInTerminal: false,
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000,
-        keepAliveIntervalMs: 25000
+        keepAliveIntervalMs: 25000,
+        syncFullHistory: false,
+        // 🟢 الحل الأساسي لمشكلة Tشفير Waiting for this message
+        getMessage: async (key) => {
+          if (store) {
+            const msg = await store.loadMessage(key.remoteJid!, key.id!);
+            return msg?.message || undefined;
+          }
+          return proto.Message.fromObject({});
+        }
       });
+
+      // ربط الـ Store لمتابعة سياق الرسائل والمفاتيح
+      store.bind(this.sock.ev);
 
       this.sock.ev.on('creds.update', async () => {
         await saveCreds();
         await saveSessionToDb();
       });
+
+      // 🟢 حفظ دوري تلقائي لمفاتيح الجلسة الجديدة كل دقيقة في PostgreSQL
+      if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
+      this.autoSaveInterval = setInterval(async () => {
+        if (this.isConnected()) {
+          await saveSessionToDb();
+        }
+      }, 60000);
 
       // 🟢 استقبال وتوجيه الرسائل
       this.sock.ev.on('messages.upsert', async (m: any) => {
@@ -174,7 +200,8 @@ class WhatsappService {
           }
         } catch (err: any) {
           if (err?.message?.includes('Bad MAC') || err?.message?.includes('Session error')) {
-            console.warn('⚠️ [تشفير الواتساب]: جاري تحديث المفتاح تلقائياً...');
+            console.warn('⚠️ [تشفير الواتساب]: جاري تحديث وحفظ المفتاح في قاعدة البيانات تلقائياً...');
+            await saveSessionToDb();
           } else {
             console.error('❌ خطأ أثناء معالجة الرسالة في whatsappService:', err?.message || err);
           }
@@ -190,7 +217,9 @@ class WhatsappService {
 
           console.log(`🔴 انقطع الاتصال. كود: ${statusCode}`);
 
+          if (this.autoSaveInterval) clearInterval(this.autoSaveInterval);
           this.isInitializing = false;
+
           if (shouldReconnect) {
             console.log('🔄 جاري إعادة الاتصال خلال 10 ثوانٍ...');
             await delay(10000);
