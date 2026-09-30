@@ -25,27 +25,22 @@ let lastUrgentUserJid: string | null = null;
 const ADMIN_PHONE = process.env.ADMIN_PHONE || ""; // الرقم السعودي الأدمن
 
 /**
- * 🛠️ دالة مساعدة لتنظيف وتجريد أرقام الهواتف من أي رموز أو صيغ واتساب
+ * 🛠️ دالة اقتطاع آخر 8 أرقام لمطابقة الهواتف مهما اختلفت صياغة الصفر أو مفتاح الدولة
  */
-function cleanPhoneDigits(input: string | null | undefined): string {
+function getPhoneTail(input: string | null | undefined): string {
   if (!input) return '';
-  const base = input.split('@')[0].split(':')[0];
-  return base.replace(/\D/g, '');
+  const digitsOnly = input.split('@')[0].split(':')[0].replace(/\D/g, '');
+  return digitsOnly.length >= 8 ? digitsOnly.slice(-8) : digitsOnly;
 }
 
 /**
- * 🛠️ دالة مطابقة الأرقام للتأكد من هوية الأدمن بمرونة عالية
+ * 🛠️ التحقق المؤكد من هويتك كـ أدمن
  */
-function isSamePhone(phone1: string, phone2: string): boolean {
-  const p1 = cleanPhoneDigits(phone1);
-  const p2 = cleanPhoneDigits(phone2);
-  if (!p1 || !p2) return false;
-  
-  if (p1 === p2) return true;
-  if (p1.length >= 8 && p2.length >= 8) {
-    return p1.endsWith(p2) || p2.endsWith(p1);
-  }
-  return false;
+function isAdminCheck(senderJid: string): boolean {
+  if (!ADMIN_PHONE) return false;
+  const senderTail = getPhoneTail(senderJid);
+  const adminTail = getPhoneTail(ADMIN_PHONE);
+  return senderTail.length > 0 && senderTail === adminTail;
 }
 
 /**
@@ -109,8 +104,8 @@ export async function handlePrivateChatMessage(
       return;
     }
 
-    // 2️⃣ التفاعل الإداري والربط الذكي مع رقمك السعودي (الأدمن)
-    if (ADMIN_PHONE && isSamePhone(senderJid, ADMIN_PHONE)) {
+    // 2️⃣ التفاعل الإداري والربط المباشر مع رقمك السعودي (الأدمن)
+    if (isAdminCheck(senderJid)) {
       await handleAdminInteraction(sock, senderJid, messageText, dbPool);
       return;
     }
@@ -132,7 +127,7 @@ export async function handlePrivateChatMessage(
     if (activeProcessingLocks.has(senderJid)) return;
     activeProcessingLocks.add(senderJid);
 
-    const cleanSenderPhone = cleanPhoneDigits(senderJid);
+    const cleanSenderPhone = senderJid.replace('@s.whatsapp.net', '').replace('@lid', '');
 
     // 6️⃣ فحص قائمة الاستثناءات (Blacklist)
     const blacklistRes = await dbPool.query(
@@ -160,7 +155,7 @@ export async function handlePrivateChatMessage(
     // 8️⃣ جلب السجل
     const historyText = await getFormattedHistoryAndManageMemory(dbPool, senderJid);
 
-    // 9️⃣ تقييم الذكاء الاصطناعي لحالة الإشعار والإجابة (AI Urgency Evaluation)
+    // 9️⃣ تقييم الذكاء الاصطناعي لحالة الإشعار والإجابة
     const systemInstruction = `
 أنت "غيث" .. المساعد الرقمي الذكي الخاص بـ "لؤي" (لؤي جعفر) ..
 
@@ -168,7 +163,7 @@ export async function handlePrivateChatMessage(
 - اتكلم بلهجة سودانية محبوبة .. لطيفة .. وبسيطة جداً بدون تكلف ..
 - ممنوع نهائياً أسلوب الذكاء الاصطناعي الرتيب مثل ("كيف يمكنني مساعدتك؟" أو "هل لديك أي استفسار آخر؟") ..
 - ممنوع استخدام الشولة وعلامات الترقيم الرسمية .. استخدم النقطتين المزدوجة بين الجمل (..) ..
-- ممنوع تفبرك أسباب أو تؤلف تفاصيل من عندك عن شغل لؤي (مثل اجتمعات أو مشاريع مع التيم) ..
+- ممنوع تفبرك أسباب أو تؤلف تفاصيل من عندك عن شغل لؤي (مثل اجتماعات أو مشاريع مع التيم) ..
 - ما تكرر اسم "لؤي" كتير .. اتكلم في الموضوع المباشر ..
 
 [قواعد تقييم أهمية الرسالة والرد]:
@@ -188,13 +183,12 @@ ${historyText}
       systemInstruction: systemInstruction
     });
 
-    // إذا قرر النموذج إخطار الأدمن
     const shouldNotifyAdmin = replyFromGemini.includes('[NOTIFY_ADMIN]');
     replyFromGemini = replyFromGemini.replace('[NOTIFY_ADMIN]', '').trim();
 
-    // إرسال التنبيه الفعلي للأدمن فقط إذا تقرر ذلك بذكاء
+    // إرسال التنبيه الفعلي للأدمن
     if (shouldNotifyAdmin && ADMIN_PHONE) {
-      const cleanNumber = cleanPhoneDigits(ADMIN_PHONE);
+      const cleanNumber = ADMIN_PHONE.trim().replace(/\D/g, '');
       const adminJid = cleanNumber.includes('@s.whatsapp.net') ? cleanNumber : `${cleanNumber}@s.whatsapp.net`;
 
       const alertMsg = `🚨 *تنبيه عاجل يا باشمهندس لؤي*\n\n` +
@@ -228,47 +222,45 @@ ${historyText}
 }
 
 // ==========================================
-// التفاعل الإداري والتحكم الذكي عبر الرقم السعودي
+// التفاعل الإداري واستعلامات الباشمهندس لؤي
 // ==========================================
 async function handleAdminInteraction(sock: WASocket, adminJid: string, text: string, db: Pool) {
   const command = text.trim();
 
-  // 🧠 تحليل القصد والأمر باستخدام الذكاء الاصطناعي
+  // 1️⃣ الاستعلام المباشر عن الأرقام والمحادثات المعلقة
+  if (command.includes("معلقة") || command.includes("معلق") || command.includes("الموقوفة") || command.includes("منو معلق")) {
+    const report = await getPausedChatsReport(db);
+    await sock.sendMessage(adminJid, { text: report });
+    return;
+  }
+
+  // 2️⃣ تحليل القصد باستخدام الذكاء الاصطناعي للأوامر الأخرى
   const analysisInstruction = `
 أنت "غيث" - المساعد الذكي الخاص بـ "لؤي" (لؤي جعفر).
-يتحدث معك الآن رئيسك والمالك الباشمهندس "لؤي" من رقمه الإداري.
+يتحدث معك الآن رئيسك والمالك الباشمهندس "لؤي" من رقمه الإداري السعودي.
 الرسالة الواردة منه هي: "${command}"
 
 [معلومات النظام الحالية]:
 - حالة البوت العامة (globalIsActive): ${globalIsActive ? 'نشط (شغال)' : 'متوقف'}
-- حالة لؤي الحالية (currentStatusContext): "${currentStatusContext}"
-- أحدث محادثة/مستخدم أخير متواصل (lastUrgentUserJid): "${lastUrgentUserJid || 'لا يوجد'}"
-- المحادثات الموقوفة مؤقتاً: ${Array.from(pausedChats.keys()).join(', ') || 'لا يوجد'}
+- حالة لؤي الحالية: "${currentStatusContext}"
+- أحدث محادثة/مستخدم أخير متواصل: "${lastUrgentUserJid || 'لا يوجد'}"
+- عدد المحادثات الموقوفة مؤقتاً: ${pausedChats.size}
 
 [المطلوب]:
-أن تفهم قصد لؤي بدقة وتحدد الإجراء (action) المناسب وتستخرج البيانات المطلوبة، مع صياغة رد مباشر ولطيف له بلهجة سودانية محترمة واستخدام النقاط المزدوجة (..) بدلاً من علامات الترقيم.
+أن تفهم قصد لؤي بدقة وتحدد الإجراء المناسب، مع صياغة رد مباشر ولطيف له بلهجة سودانية محترمة واستخدام النقاط المزدوجة (..) بدلاً من علامات الترقيم.
 
-يجب أن ترجع النتيجة بصيغة JSON حصرية مستخدماً الشفرة التالية فقط:
+أرجع النتيجة بصيغة JSON حصرية كالآتي:
 {
-  "action": "TOGGLE_BOT" | "UNPAUSE" | "BLACKLIST" | "SET_STATUS" | "FORWARD_REPLY" | "CHAT_OR_QUERY",
+  "action": "TOGGLE_BOT" | "UNPAUSE" | "LIST_PAUSED" | "BLACKLIST" | "SET_STATUS" | "FORWARD_REPLY" | "CHAT_OR_QUERY",
   "target": "قيمة الهدف إن وجدت (مثلاً: ON/OFF/ALL/رقم هاتف/نص الحالة)",
-  "replyContent": "فحوى الكلام المراد صياغته وإرساله للشخص المعني في حال كان الإجراء FORWARD_REPLY",
-  "adminResponse": "ردك المباشر يا غيث للباشمهندس لؤي بلهجة سودانية لطيفة يوضح له ما قمت به أو يجيب عن استفساره"
+  "replyContent": "فحوى الكلام المراد توصيله للشخص إن وجد",
+  "adminResponse": "ردك المباشر يا غيث للباشمهندس لؤي بلهجة سودانية لطيفة"
 }
-
-[شرح الإجراءات]:
-- TOGGLE_BOT: تشغيل أو إيقاف غيث بالكامل (target تكون "ON" أو "OFF").
-- UNPAUSE: فك التعليق والمحادثات الموقوفة (target تكون "ALL" أو رقم هاتف محدد).
-- BLACKLIST: حظر/استثناء رقم هاتف لمنع غيث من الرد عليه نهائياً (target تكون رقم الهاتف أو "LAST" للشخص الأخير).
-- SET_STATUS: تغيير نص حالة لؤي الحالية (target تكون نص الحالة الجديد).
-- FORWARD_REPLY: عندما يطلب منك لؤي الرد على شخص معين أو الزول الأخير وتوصيل رسالة له (target تكون "LAST" أو رقم هاتف، و replyContent تحتوي الرسالة المطلوب إبلاغها).
-- CHAT_OR_QUERY: محادثة عامة، استفسار، تحية، أو كلام لا يتضمن أمراً تنفيذياً.
 `;
 
   try {
     const rawAnalysis = await askGhaith(command, { systemInstruction: analysisInstruction });
 
-    // استخراج كود JSON من النص
     let jsonStr = rawAnalysis.trim();
     if (jsonStr.includes('{') && jsonStr.includes('}')) {
       jsonStr = jsonStr.substring(jsonStr.indexOf('{'), jsonStr.lastIndexOf('}') + 1);
@@ -280,9 +272,10 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
     const replyContent = parsed.replyContent || "";
     let adminResponse = parsed.adminResponse || "أبشر يا باشمهندس .. أمرك مجاب ..";
 
-    // 1️⃣ تنفيذ الإجراء المطلوب بناءً على تحليل القصد:
-
-    if (action === "TOGGLE_BOT") {
+    if (action === "LIST_PAUSED") {
+      adminResponse = await getPausedChatsReport(db);
+    } 
+    else if (action === "TOGGLE_BOT") {
       if (target === "OFF" || command.includes("وقف") || command.includes("توقف") || command.includes("طفي")) {
         globalIsActive = false;
         await db.query("INSERT INTO ghaith_settings (setting_key, setting_value) VALUES ('is_active', 'false') ON CONFLICT (setting_key) DO UPDATE SET setting_value = 'false'");
@@ -295,29 +288,33 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
     else if (action === "UNPAUSE") {
       if (target === "ALL" || command.includes("الكل") || command.includes("الجميع")) {
         pausedChats.clear();
+        adminResponse = "أبشر يا باشمهندس .. تم فك التعليق عن كل المحادثات المعلقة هسي ..";
       } else if (target) {
-        const cleanTarget = cleanPhoneDigits(target);
+        const cleanTarget = target.replace(/\D/g, '');
+        let count = 0;
         for (const [jid] of pausedChats.entries()) {
-          if (cleanPhoneDigits(jid).includes(cleanTarget)) {
+          if (jid.includes(cleanTarget)) {
             pausedChats.delete(jid);
+            count++;
           }
         }
+        adminResponse = count > 0 
+          ? `أبشر يا باشمهندس .. تم فك التعليق عن الرقم (${cleanTarget}) ..`
+          : `يا باشمهندس الرقم ده (${cleanTarget}) ما موجود في قائمة التعليق حالياً ..`;
       } else {
         pausedChats.clear();
       }
     } 
     else if (action === "BLACKLIST") {
-      let targetJid = target;
-      if (target === "LAST" || !target) {
-        targetJid = lastUrgentUserJid || "";
-      }
-      const cleanTarget = cleanPhoneDigits(targetJid);
+      let targetJid = target === "LAST" ? lastUrgentUserJid : target;
+      const cleanTarget = targetJid ? targetJid.replace(/\D/g, '') : '';
       if (cleanTarget) {
         await db.query(
           "INSERT INTO ghaith_blacklist (phone_number) VALUES ($1) ON CONFLICT DO NOTHING",
           [cleanTarget]
         );
         pausedChats.delete(`${cleanTarget}@s.whatsapp.net`);
+        adminResponse = `أبشر يا باشمهندس .. تم إضافة الرقم (${cleanTarget}) لقائمة الاستثناءات ولن أرد عليه نهائياً بعد اليوم ..`;
       }
     } 
     else if (action === "SET_STATUS") {
@@ -332,7 +329,7 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
     else if (action === "FORWARD_REPLY") {
       let targetJid = (target && target !== "LAST") ? target : lastUrgentUserJid;
       if (targetJid && !targetJid.includes('@s.whatsapp.net')) {
-        const cleanNumber = cleanPhoneDigits(targetJid);
+        const cleanNumber = targetJid.replace(/\D/g, '');
         targetJid = `${cleanNumber}@s.whatsapp.net`;
       }
 
@@ -358,12 +355,10 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
       }
     }
 
-    // إرسال تأكيد الاستجابة والرد للباشمهندس لؤي
     await sock.sendMessage(adminJid, { text: adminResponse });
 
   } catch (err) {
     console.error("[غيث Admin Error]:", err);
-    // fallback في حال حدث أي خطأ في تحليل JSON
     const adminPrompt = `
 أنت "غيث" .. تتحدث مع رئيسك والمالك الباشمهندس "لؤي" من رقمه الإداري ..
 خاطبه بـ "يا باشمهندس" .. بلهجة سودانية محترمة ولطيفة واستخدم النقاط (..) بدلاً من علامات الترقيم ..
@@ -372,6 +367,40 @@ async function handleAdminInteraction(sock: WASocket, adminJid: string, text: st
     const fallbackReply = await askGhaith(command, { systemInstruction: adminPrompt });
     await sock.sendMessage(adminJid, { text: fallbackReply });
   }
+}
+
+/**
+ * 🛠️ دالة توليد تقرير بالأرقام المعلقة
+ */
+async function getPausedChatsReport(db: Pool): Promise<string> {
+  if (pausedChats.size === 0) {
+    return "أبشر يا باشمهندس .. لا توجد أي أرقام أو محادثات معلقة حالياً ..";
+  }
+
+  let report = "📋 *قائمة المحادثات والأرقام المعلقة حالياً:*\n\n";
+  let count = 1;
+
+  for (const [jid, pauseUntil] of pausedChats.entries()) {
+    const cleanPhone = jid.replace('@s.whatsapp.net', '').replace('@lid', '');
+    const remainingMinutes = Math.max(0, Math.ceil((pauseUntil - Date.now()) / (1000 * 60)));
+
+    let name = "غير مسجل في المتطوعين";
+    try {
+      const profileRes = await db.query(
+        'SELECT full_name FROM volunteer_profiles WHERE whatsapp LIKE $1 OR phone LIKE $2 LIMIT 1',
+        [`%${cleanPhone}%`, `%${cleanPhone}%`]
+      );
+      if (profileRes.rows.length > 0 && profileRes.rows[0].full_name) {
+        name = profileRes.rows[0].full_name;
+      }
+    } catch (e) {}
+
+    report += `${count}. 👤 *${name}*\n   📱 الرقم: \`${cleanPhone}\`\n   ⏳ متبقي على التعليق: ${remainingMinutes} دقيقة\n\n`;
+    count++;
+  }
+
+  report += "💡 *كيف تفتك التعليق؟*\n- أكتب: \"فك التعليق عن الرقم [الرقم]\"\n- أو أكتب: \"فك الكل\" لفك الجميع فوراً ..";
+  return report;
 }
 
 // ==========================================
