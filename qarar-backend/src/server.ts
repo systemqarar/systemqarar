@@ -38,8 +38,8 @@ app.use(cors({
 }));
 app.use(express.json()); // للسماح للسيرفر بقراءة كائنات الـ JSON القادمة من الواجهات
 
-// 🟢 2. نقطة الاستجابة للرابط الرئيسي وفحص السلامة (Root & Health Check Endpoints)
-// مسار الرابط الرئيسي (يمنع خمول السيرفر ويرد على cron-job بـ 200 OK)
+// 🟢 2. نقاط فحص الصحة والتنشيط (Root & Health Check Endpoints)
+// مسار الرابط الرئيسي
 app.get('/', (req, res) => {
   res.status(200).send('⚡ نظام قرار شغال وجاهز 100%');
 });
@@ -51,6 +51,11 @@ app.get('/health', (req, res) => {
     system: 'Qarar Backend', 
     timestamp: new Date() 
   });
+});
+
+// ⚡ مسار الـ Ping المخصص لـ cron-job.org والتنشيط الذاتي
+app.get('/ping', (req, res) => {
+  res.status(200).send('PONG');
 });
 
 // 3. ربط وتفعيل موديول الحسابات والأمان (Auth Routes)
@@ -74,7 +79,7 @@ app.use('/api/tasks-activities', tasksActivitiesRouter);
 // 🔌 9. تهيئة وتشغيل خدمة الـ Socket.io وإقرانها بسيرفر الـ HTTP
 socketService.initialize(server);
 
-// 10. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً (تعديل الاستماع ليكون عبر server)
+// 10. تشغيل المحرك والاستماع للمنفذ المعين وتفعيل الواتساب حياً
 server.listen(PORT, async () => {
   console.log(`===================================================`);
   console.log(`⚡ [SERVER RUNNING]: السيرفر ينبض بالحياة الآن على منفذ: ${PORT}`);
@@ -88,4 +93,16 @@ server.listen(PORT, async () => {
   } catch (whatsappError) {
     console.error('❌ [خطأ حرج]: فشل تشغيل محرك الواتساب أثناء إقلاع السيرفر:', whatsappError);
   }
+
+  // ⏰ 11. كود التنشيط الذاتي التلقائي (Keep-Alive Internal Loop)
+  // يضمن أن السيرفر ينادي نفسه كل 8 دقائق ولا ينوم حتى لو توقف Cron-Job الخارجي
+  const selfUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  setInterval(async () => {
+    try {
+      await fetch(`${selfUrl}/ping`);
+      console.log('⏰ [Keep-Alive]: تم إرسال نبضة تنشيط ذاتية للسيرفر بنجاح.');
+    } catch (err) {
+      console.log('⚠️ [Keep-Alive Notice]: تعذر التنشيط الذاتي في هذه الدورة.');
+    }
+  }, 8 * 60 * 1000); // كل 8 دقائق
 });
