@@ -5,9 +5,13 @@ import makeWASocket, {
   DisconnectReason, 
   delay,
   fetchLatestBaileysVersion,
-  makeInMemoryStore,
   proto
 } from '@whiskeysockets/baileys';
+
+// 🟢 استيراد makeInMemoryStore من المسار الفرعي المباشر لتفادي خطأ TypeScript TS2614
+// @ts-ignore
+import makeInMemoryStore from '@whiskeysockets/baileys/lib/Store/make-in-memory-store';
+
 import pino from 'pino';
 import path from 'path';
 import fs from 'fs';
@@ -23,7 +27,7 @@ const SESSION_DIR = path.join(process.cwd(), 'whatsapp_session');
 // 📦 متجر ذاكرة لتخزين واسترجاع حزم الرسائل وتسهيل إعادة فك التشفير
 const store = makeInMemoryStore({ logger });
 
-// 🛡️ ذاكرة مؤقتة لمنع تكرار معالجة نفس الرسالة
+// 🛡️️ ذاكرة مؤقتة لمنع تكرار معالجة نفس الرسالة
 const processedMessageIds = new Set<string>();
 
 /**
@@ -98,7 +102,7 @@ class WhatsappService {
 
   async initialize() {
     if (process.env.DEVELOPMENT_MODE === 'true') {
-      console.log('⚠️ [تنبيه أمان]: تم إيقاف تفعيل وحدة اتصال الواتساب الحي بنجاح بناءً علىطلب الإدارة.');
+      console.log('⚠️ [تنبيه أمان]: تم إيقاف تفعيل وحدة اتصال الواتساب الحي بنجاح بناءً على طلب الإدارة.');
       return;
     }
 
@@ -125,7 +129,7 @@ class WhatsappService {
         defaultQueryTimeoutMs: 60000,
         keepAliveIntervalMs: 25000,
         syncFullHistory: false,
-        // 🟢 الحل الأساسي لمشكلة Tشفير Waiting for this message
+        // 🟢 الحل الأساسي لمشكلة التشفير Waiting for this message
         getMessage: async (key) => {
           if (store) {
             const msg = await store.loadMessage(key.remoteJid!, key.id!);
